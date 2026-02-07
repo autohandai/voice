@@ -159,6 +159,10 @@ class DictateMenuBarApp(rumps.App):
             item.state = i == self._prefs.quality_preset
             item._preset_index = i  # type: ignore[attr-defined]
             quality_menu.add(item)
+            if preset.description:
+                desc = rumps.MenuItem(f"     {preset.description}")
+                desc.set_callback(None)
+                quality_menu.add(desc)
         return quality_menu
 
     def _build_input_lang_menu(self) -> rumps.MenuItem:
@@ -190,11 +194,14 @@ class DictateMenuBarApp(rumps.App):
 
     def _build_writing_style_menu(self) -> rumps.MenuItem:
         style_menu = rumps.MenuItem("Writing Style")
-        for key, label in WRITING_STYLES:
+        for key, label, description in WRITING_STYLES:
             item = rumps.MenuItem(label, callback=self._on_writing_style_select)
             item.state = key == self._prefs.writing_style
             item._style_key = key  # type: ignore[attr-defined]
             style_menu.add(item)
+            desc = rumps.MenuItem(f"     {description}")
+            desc.set_callback(None)
+            style_menu.add(desc)
         return style_menu
 
     def _build_login_toggle(self) -> rumps.MenuItem:

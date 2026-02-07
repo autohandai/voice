@@ -99,10 +99,10 @@ SOUND_PRESETS: list[SoundPreset] = [
 ]
 
 
-WRITING_STYLES: list[tuple[str, str]] = [
-    ("clean", "Clean Up"),
-    ("formal", "Formal"),
-    ("bullets", "Bullet Points"),
+WRITING_STYLES: list[tuple[str, str, str]] = [
+    ("clean", "Clean Up", "Fixes punctuation — keeps your words"),
+    ("formal", "Formal", "Professional tone and grammar"),
+    ("bullets", "Bullet Points", "Distills into key points"),
 ]
 
 
