@@ -25,6 +25,7 @@ from dictate.presets import (
     PTT_KEYS,
     QUALITY_PRESETS,
     SOUND_PRESETS,
+    STT_PRESETS,
     WRITING_STYLES,
     Preferences,
 )
@@ -129,6 +130,7 @@ class DictateMenuBarApp(rumps.App):
             None,
             self._build_mic_menu(),
             self._build_ptt_key_menu(),
+            self._build_stt_engine_menu(),
             self._build_quality_menu(),
             self._build_sound_menu(),
             None,
@@ -168,6 +170,18 @@ class DictateMenuBarApp(rumps.App):
             item._key_id = key_id  # type: ignore[attr-defined]
             ptt_menu.add(item)
         return ptt_menu
+
+    def _build_stt_engine_menu(self) -> rumps.MenuItem:
+        stt_menu = rumps.MenuItem("Speech Engine")
+        for i, preset in enumerate(STT_PRESETS):
+            title = f"{preset.label}"
+            if preset.description:
+                title += f" - {preset.description}"
+            item = rumps.MenuItem(title, callback=self._on_stt_select)
+            item.state = i == self._prefs.stt_preset
+            item._stt_index = i  # type: ignore[attr-defined]
+            stt_menu.add(item)
+        return stt_menu
 
     def _build_quality_menu(self) -> rumps.MenuItem:
         quality_menu = rumps.MenuItem("Quality")
@@ -284,6 +298,16 @@ class DictateMenuBarApp(rumps.App):
         self._apply_prefs()
         self._build_menu()
 
+    def _on_stt_select(self, sender: rumps.MenuItem) -> None:
+        idx = sender._stt_index  # type: ignore[attr-defined]
+        if idx == self._prefs.stt_preset:
+            return
+        self._prefs.stt_preset = idx
+        self._prefs.save()
+        self._apply_prefs()
+        self._build_menu()
+        self._reload_pipeline()
+
     def _on_quality_select(self, sender: rumps.MenuItem) -> None:
         idx = sender._preset_index  # type: ignore[attr-defined]
         if idx == self._prefs.quality_preset:
@@ -397,6 +421,8 @@ class DictateMenuBarApp(rumps.App):
 
     def _apply_prefs(self) -> None:
         self._config.audio.device_id = self._prefs.device_id
+        self._config.whisper.engine = self._prefs.stt_engine
+        self._config.whisper.model = self._prefs.stt_model
         self._config.whisper.language = self._prefs.whisper_language
         self._config.llm.output_language = self._prefs.llm_output_language
         self._config.llm.model_choice = self._prefs.llm_model

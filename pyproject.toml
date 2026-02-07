@@ -40,6 +40,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+parakeet = [
+    "parakeet-mlx>=0.1.0",
+]
 dev = [
     "pytest>=7.0",
     "mypy>=1.0",

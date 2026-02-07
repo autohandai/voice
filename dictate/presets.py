@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
 
-from dictate.config import LLMBackend, LLMModel
+from dictate.config import LLMBackend, LLMModel, STTEngine
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +66,16 @@ QUALITY_PRESETS: list[QualityPreset] = [
         description="Uses local LLM server, instant startup",
     ),
     QualityPreset(
+        label="Instant - 0.5B (~80ms, 0.5GB)",
+        llm_model=LLMModel.QWEN_0_5B,
+        description="Minimal cleanup, best for M1/M2",
+    ),
+    QualityPreset(
+        label="Speedy - 1.5B (~120ms, 1GB)",
+        llm_model=LLMModel.QWEN_1_5B,
+        description="Fast cleanup, great for M1/M2/M3",
+    ),
+    QualityPreset(
         label="Fast - 3B (~250ms, 2GB)",
         llm_model=LLMModel.QWEN,
         description="Quick cleanup, Qwen 3B",
@@ -119,6 +129,30 @@ COMMAND_KEYS: list[tuple[str, str]] = [
 ]
 
 
+@dataclass
+class STTPreset:
+    label: str
+    engine: STTEngine
+    model: str
+    description: str = ""
+
+
+STT_PRESETS: list[STTPreset] = [
+    STTPreset(
+        label="Whisper Large V3 Turbo (default)",
+        engine=STTEngine.WHISPER,
+        model="mlx-community/whisper-large-v3-turbo",
+        description="Best multilingual, 99+ languages",
+    ),
+    STTPreset(
+        label="Parakeet TDT 0.6B v3 (fastest)",
+        engine=STTEngine.PARAKEET,
+        model="mlx-community/parakeet-tdt-0.6b-v3",
+        description="4-8x faster, 25 languages, needs: pip install parakeet-mlx",
+    ),
+]
+
+
 WRITING_STYLES: list[tuple[str, str, str]] = [
     ("clean", "Clean Up", "Fixes punctuation, keeps your words"),
     ("formal", "Formal", "Professional tone and grammar"),
@@ -129,7 +163,8 @@ WRITING_STYLES: list[tuple[str, str, str]] = [
 @dataclass
 class Preferences:
     device_id: int | None = None
-    quality_preset: int = 1  # index into QUALITY_PRESETS (default: Speed 3B)
+    quality_preset: int = 2  # index into QUALITY_PRESETS (default: Speedy 1.5B)
+    stt_preset: int = 0  # index into STT_PRESETS (default: Whisper)
     input_language: str = "auto"
     output_language: str = "auto"
     llm_cleanup: bool = True
@@ -143,6 +178,7 @@ class Preferences:
         PREFS_DIR.mkdir(parents=True, exist_ok=True)
         os.chmod(PREFS_DIR, 0o700)
         data = asdict(self)
+        data["_prefs_version"] = 2
         try:
             PREFS_FILE.write_text(json.dumps(data, indent=2))
             os.chmod(PREFS_FILE, 0o600)
@@ -155,9 +191,16 @@ class Preferences:
             return cls()
         try:
             data = json.loads(PREFS_FILE.read_text())
+            # Migrate: v1 had 4 presets (0=API,1=3B,2=7B,3=14B)
+            # v2 has 6 presets (0=API,1=0.5B,2=1.5B,3=3B,4=7B,5=14B)
+            raw_preset = data.get("quality_preset", 2)
+            version = data.get("_prefs_version", 1)
+            if version < 2 and raw_preset >= 1:
+                raw_preset += 2  # shift old 1→3, 2→4, 3→5
             return cls(
                 device_id=data.get("device_id"),
-                quality_preset=data.get("quality_preset", 1),
+                quality_preset=raw_preset,
+                stt_preset=data.get("stt_preset", 0),
                 input_language=data.get("input_language", "auto"),
                 output_language=data.get("output_language", "auto"),
                 llm_cleanup=data.get("llm_cleanup", True),
@@ -180,6 +223,16 @@ class Preferences:
     def backend(self) -> LLMBackend:
         idx = max(0, min(self.quality_preset, len(QUALITY_PRESETS) - 1))
         return QUALITY_PRESETS[idx].backend
+
+    @property
+    def stt_engine(self) -> STTEngine:
+        idx = max(0, min(self.stt_preset, len(STT_PRESETS) - 1))
+        return STT_PRESETS[idx].engine
+
+    @property
+    def stt_model(self) -> str:
+        idx = max(0, min(self.stt_preset, len(STT_PRESETS) - 1))
+        return STT_PRESETS[idx].model
 
     @property
     def whisper_language(self) -> str | None:

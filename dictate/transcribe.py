@@ -93,6 +93,54 @@ class WhisperTranscriber:
             logger.warning("Failed to remove temp file %s: %s", path, e)
 
 
+class ParakeetTranscriber:
+    """Speech-to-text using NVIDIA Parakeet TDT via MLX — much faster than Whisper."""
+
+    def __init__(self, config: "WhisperConfig") -> None:
+        self._config = config
+        self._model = None
+
+    def load_model(self) -> None:
+        if self._model is not None:
+            return
+
+        try:
+            from parakeet_mlx import from_pretrained
+        except ImportError:
+            raise ImportError(
+                "parakeet-mlx is required for the Parakeet engine. "
+                "Install it with: pip install parakeet-mlx"
+            )
+
+        model_name = self._config.model
+        print(f"   Parakeet: {model_name}...", end=" ", flush=True)
+        self._model = from_pretrained(model_name)
+        print("✓")
+
+    def transcribe(
+        self,
+        audio: "NDArray[np.int16]",
+        sample_rate: int,
+        language: str | None = None,
+    ) -> str:
+        if self._model is None:
+            self.load_model()
+
+        fd, path = tempfile.mkstemp(suffix=".wav", prefix="dictate_")
+        os.close(fd)
+        wav_write(path, sample_rate, audio)
+
+        try:
+            result = self._model.transcribe(path)
+            text = getattr(result, "text", "")
+            return str(text) if isinstance(text, str) else ""
+        finally:
+            try:
+                os.remove(path)
+            except OSError as e:
+                logger.warning("Failed to remove temp file %s: %s", path, e)
+
+
 # ── Shared postprocessing ────────────────────────────────────────
 
 
@@ -276,6 +324,41 @@ class APITextCleaner:
             return text
 
 
+# ── Smart skip heuristic ──────────────────────────────────────────
+
+_FILLER_STARTS = (
+    "um ", "uh ", "er ", "ah ", "like ", "you know",
+    "basically ", "i mean ", "so ", "well ",
+)
+
+
+def _looks_clean(text: str) -> bool:
+    """Check if a short transcription is clean enough to skip LLM cleanup.
+
+    Only triggers for short utterances (<=8 words) that already have
+    proper capitalization and punctuation. Longer text always goes
+    through the LLM because compound sentences need punctuation fixes.
+    """
+    words = text.split()
+    if not words or len(words) > 8:
+        return False
+
+    first_char = text[0]
+    if not (first_char.isupper() or first_char.isdigit() or first_char in '"('):
+        return False
+
+    lower = text.lower()
+    for filler in _FILLER_STARTS:
+        if lower.startswith(filler):
+            return False
+
+    # 4+ words need ending punctuation to look "clean"
+    if len(words) >= 4 and text[-1] not in '.!?,;:':
+        return False
+
+    return True
+
+
 # ── Pipeline ─────────────────────────────────────────────────────
 
 
@@ -285,13 +368,17 @@ class TranscriptionPipeline:
         whisper_config: "WhisperConfig",
         llm_config: "LLMConfig",
     ) -> None:
-        from dictate.config import LLMBackend
+        from dictate.config import LLMBackend, STTEngine
 
-        self._whisper = WhisperTranscriber(whisper_config)
+        if whisper_config.engine == STTEngine.PARAKEET:
+            self._whisper: WhisperTranscriber | ParakeetTranscriber = ParakeetTranscriber(whisper_config)
+        else:
+            self._whisper = WhisperTranscriber(whisper_config)
         if llm_config.backend == LLMBackend.API:
             self._cleaner: TextCleaner | APITextCleaner = APITextCleaner(llm_config)
         else:
             self._cleaner = TextCleaner(llm_config)
+        self._llm_config = llm_config
         self._sample_rate = 16_000
 
     def set_sample_rate(self, sample_rate: int) -> None:
@@ -324,6 +411,22 @@ class TranscriptionPipeline:
 
         logger.info("Transcribed in %.1fs (%d words)", t1 - t0, len(raw_text.split()))
         logger.debug("Transcription text: %s", raw_text)
+
+        # Smart skip: if LLM is enabled but text already looks clean,
+        # skip the expensive LLM round-trip. Translation mode always
+        # runs through LLM since it needs to translate.
+        needs_translation = (
+            output_language is not None
+            or (self._llm_config.output_language is not None)
+        )
+        if (
+            self._llm_config.enabled
+            and not needs_translation
+            and self._llm_config.writing_style == "clean"
+            and _looks_clean(raw_text)
+        ):
+            logger.info("Skipped LLM (clean transcription, %d words)", len(raw_text.split()))
+            return raw_text
 
         t2 = time.time()
         cleaned_text = self._cleaner.cleanup(raw_text, output_language=output_language).strip()
