@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 # Suppress huggingface/tqdm progress bars (must be set before imports)
 os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
-import mlx_whisper
 from scipy.io.wavfile import write as wav_write
 
 if TYPE_CHECKING:
@@ -37,6 +36,7 @@ class WhisperTranscriber:
 
         print(f"   Whisper: {self._config.model}...", end=" ", flush=True)
 
+        import mlx_whisper
         import numpy as np
         silent_audio = np.zeros(16000, dtype=np.int16)
         wav_path = self._save_temp_wav(silent_audio, 16000)
@@ -60,6 +60,8 @@ class WhisperTranscriber:
     ) -> str:
         wav_path = self._save_temp_wav(audio, sample_rate)
         try:
+            import mlx_whisper
+
             if not self._model_loaded:
                 logger.info("Loading Whisper model: %s", self._config.model)
                 self._model_loaded = True
