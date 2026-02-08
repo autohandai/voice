@@ -28,6 +28,7 @@ from dictate.presets import (
     STT_PRESETS,
     WRITING_STYLES,
     Preferences,
+    detect_chip,
 )
 from dictate.transcribe import TranscriptionPipeline
 
@@ -79,6 +80,7 @@ class DictateMenuBarApp(rumps.App):
         self._rms_history: deque[float] = deque([0.0] * 5, maxlen=5)
 
         self._recent: list[str] = []
+        self._chip = detect_chip()
         self._status_item = rumps.MenuItem("Status: Loading...")
         self._build_menu()
 
@@ -124,7 +126,14 @@ class DictateMenuBarApp(rumps.App):
     def _build_menu(self) -> None:
         self.menu.clear()
         pause_label = "Resume Dictation" if self._paused else "Pause Dictation"
+        stt_idx = max(0, min(self._prefs.stt_preset, len(STT_PRESETS) - 1))
+        q_idx = max(0, min(self._prefs.quality_preset, len(QUALITY_PRESETS) - 1))
+        chip_info = rumps.MenuItem(
+            f"{self._chip}  ·  {STT_PRESETS[stt_idx].engine.value.title()}  ·  {QUALITY_PRESETS[q_idx].llm_model.value}"
+        )
+        chip_info.set_callback(None)
         self.menu = [
+            chip_info,
             self._status_item,
             rumps.MenuItem(pause_label, callback=self._on_pause_toggle),
             None,

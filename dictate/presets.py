@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
@@ -12,6 +13,33 @@ from urllib.parse import urlparse
 from dictate.config import LLMBackend, LLMModel, STTEngine
 
 logger = logging.getLogger(__name__)
+
+
+# ── Hardware detection ─────────────────────────────────────────
+
+def detect_chip() -> str:
+    """Detect Apple Silicon chip family (e.g. 'M1', 'M2', 'M3', 'M4', 'M5', 'Ultra')."""
+    try:
+        raw = subprocess.check_output(
+            ["sysctl", "-n", "machdep.cpu.brand_string"],
+            text=True, timeout=2,
+        ).strip()
+        # e.g. "Apple M2", "Apple M3 Pro", "Apple M4 Ultra"
+        return raw.replace("Apple ", "")
+    except Exception:
+        return "Unknown"
+
+
+def recommended_quality_preset() -> int:
+    """Return the best quality preset index for this hardware."""
+    chip = detect_chip().lower()
+    if "ultra" in chip or "max" in chip:
+        return 3  # Fast - 3B (plenty fast on Ultra/Max)
+    if any(x in chip for x in ("m3", "m4", "m5")):
+        return 2  # Speedy - 1.5B (good balance for M3+)
+    if any(x in chip for x in ("m1", "m2")):
+        return 1  # Instant - 0.5B (fastest for M1/M2)
+    return 2  # default to Speedy
 
 PREFS_DIR = Path.home() / "Library" / "Application Support" / "Dictate"
 PREFS_FILE = PREFS_DIR / "preferences.json"
@@ -188,7 +216,13 @@ class Preferences:
     @classmethod
     def load(cls) -> Preferences:
         if not PREFS_FILE.exists():
-            return cls()
+            # First launch: auto-detect best settings for this hardware
+            chip = detect_chip()
+            preset = recommended_quality_preset()
+            logger.info("First launch on %s — auto-selected quality preset %d", chip, preset)
+            prefs = cls(quality_preset=preset)
+            prefs.save()
+            return prefs
         try:
             data = json.loads(PREFS_FILE.read_text())
             # Migrate: v1 had 4 presets (0=API,1=3B,2=7B,3=14B)
