@@ -85,11 +85,13 @@ All settings are accessible from the menu bar icon:
 - **Pause/Resume Dictation** — stop listening without quitting
 - **Microphone** — select input device
 - **Push-to-Talk Key** — choose which modifier key triggers recording
+- **STT Engine** — switch between Whisper and Parakeet (Parakeet only shown when installed)
 - **Quality** — choose model size (only shows downloaded models)
 - **Sounds** — pick recording start/stop tones (with preview)
 - **Writing Style** — Clean Up, Formal, or Bullet Points
 - **Input/Output Language** — transcription and translation settings
 - **LLM Cleanup** — toggle AI text cleanup on/off
+- **Personal Dictionary** — add names, brands, and technical terms that should always be spelled correctly. Words added here are injected into the LLM cleanup prompt.
 - **Recent** — click any recent transcription to re-paste it
 - **Launch at Login** — auto-start on boot
 
