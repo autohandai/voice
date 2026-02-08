@@ -1,5 +1,6 @@
 """Entry point for the menu bar app: python -m dictate.menubar_main"""
 
+import fcntl
 import logging
 import os
 import sys
@@ -30,9 +31,35 @@ def setup_logging() -> None:
         logging.getLogger(name).setLevel(logging.ERROR)
 
 
+LOCK_FILE = Path.home() / "Library" / "Application Support" / "Dictate" / ".lock"
+
+
+def _acquire_singleton() -> "int | None":
+    """Acquire a file lock to ensure only one instance runs.
+
+    Returns the lock file descriptor on success, or None if another
+    instance is already running.
+    """
+    LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(LOCK_FILE), os.O_CREAT | os.O_WRONLY, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return fd
+    except OSError:
+        os.close(fd)
+        return None
+
+
 def main() -> int:
     setup_logging()
     logger = logging.getLogger(__name__)
+
+    lock_fd = _acquire_singleton()
+    if lock_fd is None:
+        logger.error("Another instance of Dictate is already running. Exiting.")
+        print("Dictate is already running.", file=sys.stderr)
+        return 1
+
     logger.info("Starting Dictate menu bar app")
 
     try:
@@ -47,6 +74,8 @@ def main() -> int:
     except Exception:
         logger.exception("Fatal error")
         return 1
+    finally:
+        os.close(lock_fd)
 
 
 if __name__ == "__main__":

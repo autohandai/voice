@@ -694,7 +694,6 @@ class DictateMenuBarApp(rumps.App):
         self._aggregator.append(text)
         try:
             self._output.output(text)
-            logger.debug("Output: %s", text)
             self._post_ui("notify", text)
             self._post_ui("recent", text)
         except Exception:

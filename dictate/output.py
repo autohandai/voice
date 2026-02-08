@@ -46,18 +46,6 @@ class TyperOutput(OutputHandler):
             raise
 
 
-class CompositeOutput(OutputHandler):
-    def __init__(self, *handlers: OutputHandler) -> None:
-        self._handlers = handlers
-
-    def output(self, text: str) -> None:
-        for handler in self._handlers:
-            try:
-                handler.output(text)
-            except Exception as e:
-                logger.error("Output handler %s failed: %s", type(handler).__name__, e)
-
-
 MAX_AGGREGATED_CHARS = 50_000
 
 
@@ -86,9 +74,8 @@ class TextAggregator:
 def create_output_handler(mode: "OutputMode") -> OutputHandler:
     from dictate.config import OutputMode
 
-    clipboard = ClipboardOutput()
-
     if mode == OutputMode.CLIPBOARD:
-        return clipboard
+        return ClipboardOutput()
 
-    return CompositeOutput(TyperOutput(), clipboard)
+    # TyperOutput copies to clipboard AND pastes
+    return TyperOutput()

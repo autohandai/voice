@@ -93,6 +93,39 @@ class WhisperTranscriber:
             logger.warning("Failed to remove temp file %s: %s", path, e)
 
 
+def _dedup_transcription(text: str) -> str:
+    """Remove repeated phrases from transcription output.
+
+    TDT models (like Parakeet) can sometimes produce the same phrase twice.
+    Detects if the second half of the text repeats the first half.
+    """
+    words = text.split()
+    n = len(words)
+    if n < 4:
+        return text
+
+    # Check if the text is a repeated phrase (exact duplicate)
+    half = n // 2
+    first_half = " ".join(words[:half])
+    second_half = " ".join(words[half:half * 2])
+    if first_half.lower() == second_half.lower():
+        logger.info("Deduped repeated transcription: %d words → %d", n, half)
+        return " ".join(words[:half])
+
+    # Check for off-by-one repetitions (odd word count)
+    if n >= 5:
+        for split_at in (half, half + 1):
+            if split_at >= n:
+                continue
+            a = " ".join(words[:split_at]).lower()
+            b = " ".join(words[split_at:]).lower()
+            if a == b:
+                logger.info("Deduped repeated transcription: %d words → %d", n, split_at)
+                return " ".join(words[:split_at])
+
+    return text
+
+
 class ParakeetTranscriber:
     """Speech-to-text using NVIDIA Parakeet TDT via MLX — much faster than Whisper."""
 
@@ -133,7 +166,8 @@ class ParakeetTranscriber:
         try:
             result = self._model.transcribe(path)
             text = getattr(result, "text", "")
-            return str(text) if isinstance(text, str) else ""
+            text = str(text).strip() if isinstance(text, str) else ""
+            return _dedup_transcription(text)
         finally:
             try:
                 os.remove(path)
@@ -362,6 +396,9 @@ def _looks_clean(text: str) -> bool:
 # ── Pipeline ─────────────────────────────────────────────────────
 
 
+DEDUP_WINDOW_SECONDS = 15.0
+
+
 class TranscriptionPipeline:
     def __init__(
         self,
@@ -380,9 +417,26 @@ class TranscriptionPipeline:
             self._cleaner = TextCleaner(llm_config)
         self._llm_config = llm_config
         self._sample_rate = 16_000
+        self._last_output: str = ""
+        self._last_output_time: float = 0.0
 
     def set_sample_rate(self, sample_rate: int) -> None:
         self._sample_rate = sample_rate
+
+    def _is_duplicate(self, text: str) -> bool:
+        """Check if text matches the last output within the dedup window."""
+        import time as _time
+        now = _time.time()
+        if (
+            self._last_output
+            and (now - self._last_output_time) < DEDUP_WINDOW_SECONDS
+            and text.lower().strip() == self._last_output.lower().strip()
+        ):
+            logger.info("Skipped duplicate output (%.1fs ago)", now - self._last_output_time)
+            return True
+        self._last_output = text
+        self._last_output_time = now
+        return False
 
     def preload_models(self) -> None:
         self._whisper.load_model()
@@ -426,6 +480,8 @@ class TranscriptionPipeline:
             and _looks_clean(raw_text)
         ):
             logger.info("Skipped LLM (clean transcription, %d words)", len(raw_text.split()))
+            if self._is_duplicate(raw_text):
+                return None
             return raw_text
 
         t2 = time.time()
@@ -441,5 +497,8 @@ class TranscriptionPipeline:
             logger.debug("Cleaned text: %s", cleaned_text)
         else:
             logger.info("No changes needed (%.0fms)", (t3 - t2) * 1000)
+
+        if self._is_duplicate(cleaned_text):
+            return None
 
         return cleaned_text
