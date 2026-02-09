@@ -469,28 +469,64 @@ class TranscriptionPipeline:
         return False
 
     def preload_models(self, on_progress=None) -> None:
+        """Preload all models with detailed progress reporting."""
         from dictate.config import is_model_cached
+        from dictate.model_download import download_model
+        
+        # Download Whisper if needed with progress
         whisper_cached = is_model_cached(self._whisper._config.model)
+        if not whisper_cached:
+            if on_progress:
+                on_progress("Downloading Whisper model...")
+            
+            def whisper_progress(percent: float) -> None:
+                if on_progress:
+                    on_progress(f"Downloading Whisper ({int(percent)}%)...")
+            
+            try:
+                download_model(self._whisper._config.model, progress_callback=whisper_progress)
+            except Exception:
+                logger.exception("Failed to download Whisper model")
+                raise
+        
         if on_progress:
-            if whisper_cached:
-                on_progress("Loading Whisper...")
-            else:
-                on_progress("Downloading Whisper (~2GB)...")
+            on_progress("Loading Whisper...")
         self._whisper.load_model()
+        
+        # Load fast cleaner if configured
         if self._fast_cleaner:
             if on_progress:
                 on_progress("Loading fast local model...")
             self._fast_cleaner.load_model()
+        
+        # Get LLM model info
         llm_model = getattr(self._cleaner, "_config", None)
         llm_repo = llm_model.model if llm_model else ""
-        llm_cached = is_model_cached(llm_repo) if llm_repo else True
-        if on_progress:
-            if isinstance(self._cleaner, APITextCleaner):
+        
+        # Download LLM if needed with progress
+        if llm_repo and not isinstance(self._cleaner, APITextCleaner):
+            llm_cached = is_model_cached(llm_repo)
+            if not llm_cached:
+                if on_progress:
+                    on_progress("Downloading LLM model...")
+                
+                def llm_progress(percent: float) -> None:
+                    if on_progress:
+                        on_progress(f"Downloading LLM ({int(percent)}%)...")
+                
+                try:
+                    download_model(llm_repo, progress_callback=llm_progress)
+                except Exception:
+                    logger.exception("Failed to download LLM model")
+                    raise
+        
+        # Load the main cleaner
+        if isinstance(self._cleaner, APITextCleaner):
+            if on_progress:
                 on_progress("Connecting to API server...")
-            elif llm_cached:
+        else:
+            if on_progress:
                 on_progress("Loading LLM...")
-            else:
-                on_progress("Downloading LLM model (~2GB)...")
         self._cleaner.load_model()
 
     def _pick_cleaner(self, word_count: int) -> "TextCleaner | APITextCleaner":

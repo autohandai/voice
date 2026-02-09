@@ -12,7 +12,8 @@ import numpy as np
 import rumps
 
 from dictate.audio import AudioCapture, list_input_devices, play_tone
-from dictate.config import Config, OutputMode, is_model_cached, WHISPER_MODEL
+from dictate.config import Config, OutputMode, is_model_cached, WHISPER_MODEL, get_model_size_str
+from dictate.model_download import download_model, is_download_in_progress
 from collections import deque
 from pathlib import Path
 
@@ -76,6 +77,9 @@ class DictateMenuBarApp(rumps.App):
         self._rms_history: deque[float] = deque([0.0] * 5, maxlen=5)
 
         self._recent: list[str] = []
+        self._active_downloads: dict[str, threading.Thread] = {}
+        self._download_progress: dict[str, float] = {}
+        
         whisper_cached = is_model_cached(WHISPER_MODEL)
         llm_cached = is_model_cached(self._prefs.llm_model.hf_repo)
         if whisper_cached and llm_cached:
@@ -189,10 +193,23 @@ class DictateMenuBarApp(rumps.App):
             if is_api:
                 display_label = self._get_api_preset_label()
             else:
-                # Only show models that are already downloaded
-                if not is_model_cached(preset.llm_model.hf_repo):
-                    continue
-                display_label = preset.label
+                # Check download status for local models
+                hf_repo = preset.llm_model.hf_repo
+                cached = is_model_cached(hf_repo)
+                downloading = is_download_in_progress(hf_repo)
+                progress = self._download_progress.get(hf_repo, 0)
+                
+                if cached:
+                    # Model is downloaded - show checkmark
+                    display_label = f"{preset.label} ✓"
+                elif downloading:
+                    # Model is downloading - show progress
+                    display_label = f"{preset.label} ⏳ {int(progress)}%"
+                else:
+                    # Model not downloaded - show size and download indicator
+                    size = get_model_size_str(hf_repo)
+                    display_label = f"{preset.label} ↓ {size}"
+                    
             item = rumps.MenuItem(display_label, callback=self._on_quality_select)
             item.state = i == self._prefs.quality_preset
             item._preset_index = i  # type: ignore[attr-defined]
@@ -378,14 +395,94 @@ class DictateMenuBarApp(rumps.App):
         self._build_menu()
 
     def _on_quality_select(self, sender: rumps.MenuItem) -> None:
+        from dictate.config import LLMBackend
+        
         idx = sender._preset_index  # type: ignore[attr-defined]
         if idx == self._prefs.quality_preset:
             return
-        self._prefs.quality_preset = idx
-        self._prefs.save()
-        self._apply_prefs()
-        self._build_menu()
-        self._reload_pipeline()
+            
+        preset = QUALITY_PRESETS[idx]
+        
+        # For API backend, just switch immediately
+        if preset.backend == LLMBackend.API:
+            self._prefs.quality_preset = idx
+            self._prefs.save()
+            self._apply_prefs()
+            self._build_menu()
+            self._reload_pipeline()
+            return
+            
+        # For local models, check if cached
+        hf_repo = preset.llm_model.hf_repo
+        if is_model_cached(hf_repo):
+            # Model is cached, switch immediately
+            self._prefs.quality_preset = idx
+            self._prefs.save()
+            self._apply_prefs()
+            self._build_menu()
+            self._reload_pipeline()
+        elif is_download_in_progress(hf_repo):
+            # Download already in progress, just show message
+            self._post_ui("notify", f"Download already in progress for {preset.label}")
+        else:
+            # Start download
+            self._start_model_download(idx, hf_repo)
+            
+    def _start_model_download(self, preset_index: int, hf_repo: str) -> None:
+        """Start downloading a model in a background thread."""
+        preset = QUALITY_PRESETS[preset_index]
+        
+        # Initialize progress tracking
+        self._download_progress[hf_repo] = 0.0
+        self._post_ui("status", f"Downloading {preset.label}...")
+        self._post_ui("rebuild_menu")  # Update menu to show downloading state
+        
+        def progress_callback(percent: float) -> None:
+            """Called periodically with download progress (0-100)."""
+            self._download_progress[hf_repo] = percent
+            self._post_ui("status", f"Downloading {preset.label} ({int(percent)}%)...")
+            # Rebuild menu periodically to show progress (throttle to avoid UI spam)
+            if int(percent) % 10 == 0 or percent >= 99:
+                self._post_ui("rebuild_menu")
+        
+        def download_complete(success: bool, error: Exception | None = None) -> None:
+            """Called when download completes or fails."""
+            if hf_repo in self._active_downloads:
+                del self._active_downloads[hf_repo]
+            
+            if success:
+                self._download_progress[hf_repo] = 100.0
+                self._post_ui("notify", f"Downloaded {preset.label}")
+                # Auto-switch to this preset
+                self._prefs.quality_preset = preset_index
+                self._prefs.save()
+                self._apply_prefs()
+                self._post_ui("status", f"Loading {preset.label}...")
+                self._post_ui("rebuild_menu")
+                # Reload pipeline with new model
+                self._reload_pipeline()
+            else:
+                # Download failed
+                error_msg = str(error) if error else "Unknown error"
+                self._post_ui("notify", f"Download failed: {error_msg}")
+                if hf_repo in self._download_progress:
+                    del self._download_progress[hf_repo]
+                self._post_ui("status", "Download failed")
+                self._post_ui("rebuild_menu")
+        
+        def do_download() -> None:
+            """Background thread function to download the model."""
+            try:
+                download_model(hf_repo, progress_callback=progress_callback)
+                download_complete(True)
+            except Exception as e:
+                logger.exception("Download failed for %s", hf_repo)
+                download_complete(False, e)
+        
+        # Start download in background thread
+        thread = threading.Thread(target=do_download, daemon=True)
+        self._active_downloads[hf_repo] = thread
+        thread.start()
 
     def _on_endpoint_preset_select(self, sender: rumps.MenuItem) -> None:
         """Handle selection of a preset endpoint."""

@@ -57,6 +57,19 @@ def is_model_cached(hf_repo: str) -> bool:
     return model_dir.is_dir() and any(model_dir.iterdir())
 
 
+def get_model_size_str(hf_repo: str) -> str:
+    """Return approximate size string for known models.
+    
+    Args:
+        hf_repo: HuggingFace repository name
+        
+    Returns:
+        Size string like '1.8GB' or 'Unknown'
+    """
+    from dictate.model_download import get_model_size
+    return get_model_size(hf_repo)
+
+
 @dataclass
 class AudioConfig:
     sample_rate: int = 16_000

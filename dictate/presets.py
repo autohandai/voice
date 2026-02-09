@@ -95,22 +95,22 @@ QUALITY_PRESETS: list[QualityPreset] = [
         description="Use external API server (LM Studio, Ollama, etc.)",
     ),
     QualityPreset(
-        label="Speedy - 1.5B (~120ms, 1GB)",
+        label="Speedy - 1.5B (~120ms, 1.0GB)",
         llm_model=LLMModel.QWEN_1_5B,
         description="Fast cleanup, great for any M chip",
     ),
     QualityPreset(
-        label="Fast - 3B (~250ms, 2GB)",
+        label="Fast - 3B (~250ms, 1.8GB)",
         llm_model=LLMModel.QWEN,
         description="Quick cleanup, Qwen 3B",
     ),
     QualityPreset(
-        label="Balanced - 7B (~350ms, 5GB)",
+        label="Balanced - 7B (~350ms, 4.2GB)",
         llm_model=LLMModel.QWEN_7B,
         description="Better for long-form, Qwen 7B",
     ),
     QualityPreset(
-        label="Quality - 14B (~500ms, 9GB)",
+        label="Quality - 14B (~500ms, 8.8GB)",
         llm_model=LLMModel.QWEN_14B,
         description="Best for rewriting, Qwen 14B",
     ),
