@@ -68,6 +68,7 @@ class ProgressTracker:
         self.total_bytes = 0
         self.downloaded_bytes = 0
         self._last_reported_percent = -1.0
+        self._completed = False
         
     def update_total(self, total: int) -> None:
         """Update total bytes to download."""
@@ -75,6 +76,8 @@ class ProgressTracker:
         
     def update_progress(self, n: int) -> None:
         """Update downloaded bytes and report progress."""
+        if self._completed:
+            return
         self.downloaded_bytes += n
         if self.total_bytes > 0 and self.callback:
             percent = (self.downloaded_bytes / self.total_bytes) * 100
@@ -88,6 +91,7 @@ class ProgressTracker:
         if self.callback and self._last_reported_percent < 100.0:
             self.callback(100.0)
             self._last_reported_percent = 100.0
+        self._completed = True
 
 
 class TqdmProgressWrapper:
