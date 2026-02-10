@@ -250,9 +250,8 @@ class DictateMenuBarApp(rumps.App):
         """Get the label for the API preset showing discovered model."""
         display = self._prefs.discovered_model_display
         if display and "No local model" not in display:
-            # Show discovered model name
-            return f"API: {display}"
-        return "API Server (configure endpoint)"
+            return f"Local: {display}"
+        return "Local Server (configure endpoint)"
 
     def _build_endpoint_menu(self) -> rumps.MenuItem:
         """Build menu for LLM endpoint configuration."""
@@ -687,6 +686,9 @@ class DictateMenuBarApp(rumps.App):
     def _on_quit(self, _sender: rumps.MenuItem) -> None:
         self.shutdown()
         rumps.quit_application()
+        # Force exit — rumps sometimes leaves the process alive
+        import os
+        os._exit(0)
 
     # ── Preferences → Config ───────────────────────────────────────
 

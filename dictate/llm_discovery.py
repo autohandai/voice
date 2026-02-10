@@ -132,11 +132,28 @@ def discover_llm(endpoint: str | None = None) -> DiscoveredModel:
     )
 
 
+def _clean_model_name(raw: str) -> str:
+    """Shorten a raw model ID to a clean display name.
+
+    "qwen3-coder-next:latest" -> "Qwen3 Coder Next"
+    "mlx-community/Qwen2.5-7B-Instruct-4bit" -> "Qwen2.5 7B Instruct"
+    """
+    name = raw.split("/")[-1]          # strip org prefix
+    name = name.split(":")[0]          # strip :latest / :30b tags
+    # Remove common suffixes that add noise
+    for suffix in ("-4bit", "-8bit", "-mxfp4", "-MLX", "-GGUF", "-Instruct"):
+        if name.endswith(suffix):
+            name = name[: -len(suffix)]
+    # Dashes/underscores to spaces, title case
+    name = name.replace("-", " ").replace("_", " ")
+    return name.strip()
+
+
 def get_display_name(endpoint: str | None = None) -> str:
     """Get a human-readable display name for the LLM at the endpoint.
 
     Returns:
-        String like "qwen3-coder:30b via localhost:11434" or
+        String like "Qwen3 Coder Next" or
         "No local model found" if nothing is running.
     """
     result = discover_llm(endpoint)
@@ -144,4 +161,4 @@ def get_display_name(endpoint: str | None = None) -> str:
     if not result.is_available:
         return "No local model found"
 
-    return f"{result.name} via {result.endpoint}"
+    return _clean_model_name(result.name)

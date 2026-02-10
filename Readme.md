@@ -21,7 +21,7 @@ macOS will prompt for **Accessibility** and **Microphone** permissions on first 
 
 ## Requirements
 
-- macOS with Apple Silicon (M1/M2/M3/M4)
+- macOS with Apple Silicon (any M-series chip)
 - Python 3.11+
 - ~4GB RAM minimum, ~6GB recommended
 
@@ -81,7 +81,7 @@ Whisper handles 99+ languages out of the box. If you need non-English STT, use W
 | Balanced (7B) | ~350ms | 5GB | Longer dictation, formal rewriting |
 | Quality (14B) | ~500ms | 9GB | Best accuracy for bullet points and rewrites |
 
-Times measured on M3 Ultra. The app auto-detects your chip and picks the best default — Ultra/Max get 3B, everything else gets 1.5B.
+Times measured on M3 Ultra. The app picks the best default for your chip — Ultra/Max get 3B, everything else gets 1.5B.
 
 The Quality menu only shows models you've downloaded. To add a larger model:
 
@@ -148,14 +148,13 @@ Your assistant can help install Dictate by following the Quick Start above. Once
 Run in the foreground to see logs:
 
 ```bash
-source .venv/bin/activate
-python -m dictate
+dictate --foreground
 ```
 
 Or check the background log:
 
 ```bash
-tail -f /tmp/dictate.log
+tail -f ~/Library/Logs/Dictate/dictate.log
 ```
 
 ## Security

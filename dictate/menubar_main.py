@@ -3,6 +3,7 @@
 import fcntl
 import logging
 import os
+import signal
 import sys
 from pathlib import Path
 
@@ -21,6 +22,7 @@ except ImportError:
     pass
 
 LOCK_FILE = Path.home() / "Library" / "Application Support" / "Dictate" / "dictate.lock"
+LOG_FILE = Path.home() / "Library" / "Logs" / "Dictate" / "dictate.log"
 
 
 def _acquire_singleton_lock() -> int | None:
@@ -41,6 +43,25 @@ def _acquire_singleton_lock() -> int | None:
         return None
 
 
+def _daemonize() -> None:
+    """Fork into the background so the launching terminal can be closed."""
+    if os.fork() > 0:
+        # Parent exits — terminal gets its prompt back
+        os._exit(0)
+    os.setsid()
+    # Ignore SIGHUP so closing the original terminal doesn't kill us
+    signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    # Redirect stdio to log file so nothing ties us to the terminal
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    log_fd = os.open(str(LOG_FILE), os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0o644)
+    devnull = os.open(os.devnull, os.O_RDONLY)
+    os.dup2(devnull, 0)   # stdin
+    os.dup2(log_fd, 1)    # stdout
+    os.dup2(log_fd, 2)    # stderr
+    os.close(devnull)
+    os.close(log_fd)
+
+
 def setup_logging() -> None:
     logging.basicConfig(
         level=logging.INFO,
@@ -52,6 +73,11 @@ def setup_logging() -> None:
 
 
 def main() -> int:
+    # Daemonize before anything else — detach from terminal
+    foreground = "--foreground" in sys.argv or "-f" in sys.argv
+    if not foreground and sys.stdin is not None and hasattr(sys.stdin, "isatty") and sys.stdin.isatty():
+        _daemonize()
+
     setup_logging()
     logger = logging.getLogger(__name__)
 
@@ -61,7 +87,7 @@ def main() -> int:
         print("Dictate is already running.", file=sys.stderr)
         return 1
 
-    logger.info("Starting Dictate menu bar app")
+    logger.info("Starting Dictate menu bar app (pid=%d)", os.getpid())
 
     try:
         from dictate.menubar import DictateMenuBarApp
