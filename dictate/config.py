@@ -109,7 +109,7 @@ class ToneConfig:
 class WhisperConfig:
     model: str = "mlx-community/whisper-large-v3-turbo"
     language: str | None = None
-    engine: STTEngine = STTEngine.WHISPER
+    engine: STTEngine = STTEngine.PARAKEET
 
 
 # Language name mapping for LLM prompts

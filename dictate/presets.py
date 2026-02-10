@@ -163,16 +163,16 @@ class STTPreset:
 
 STT_PRESETS: list[STTPreset] = [
     STTPreset(
-        label="Whisper (default)",
+        label="Parakeet (default)",
+        engine=STTEngine.PARAKEET,
+        model="mlx-community/parakeet-tdt-0.6b-v3",
+        description="English, fastest",
+    ),
+    STTPreset(
+        label="Whisper",
         engine=STTEngine.WHISPER,
         model="mlx-community/whisper-large-v3-turbo",
         description="99+ languages",
-    ),
-    STTPreset(
-        label="Parakeet (faster)",
-        engine=STTEngine.PARAKEET,
-        model="mlx-community/parakeet-tdt-0.6b-v3",
-        description="pip install parakeet-mlx",
     ),
 ]
 
@@ -188,7 +188,7 @@ WRITING_STYLES: list[tuple[str, str, str]] = [
 class Preferences:
     device_id: int | None = None
     quality_preset: int = 1  # index into QUALITY_PRESETS (default: Speedy 1.5B)
-    stt_preset: int = 0  # index into STT_PRESETS (default: Whisper)
+    stt_preset: int = 0  # index into STT_PRESETS (default: Parakeet)
     input_language: str = "auto"
     output_language: str = "auto"
     llm_cleanup: bool = True

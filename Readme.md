@@ -58,10 +58,10 @@ Both engines are included. Switch anytime from the menu bar.
 
 | Engine | Speed | Languages | Notes |
 |--------|-------|-----------|-------|
-| **Whisper Large V3 Turbo** | ~300ms | 99+ | Default. Best for multilingual or non-English |
-| **Parakeet TDT 0.6B** | ~50ms | English | 4-8x faster. Best for English-only workflows |
+| **Parakeet TDT 0.6B** | ~50ms | English | Default. 4-8x faster than Whisper |
+| **Whisper Large V3 Turbo** | ~300ms | 99+ | Best for multilingual or non-English |
 
-Whisper handles 99+ languages out of the box. If you need non-English STT, use Whisper. Parakeet is the speed option for English speakers.
+Parakeet is the default for speed. Switch to Whisper from the menu bar if you need non-English STT.
 
 ## Writing Styles
 
