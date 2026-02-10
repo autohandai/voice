@@ -161,34 +161,37 @@ class TestDownloadModel:
             assert isinstance(cb, float)
             assert 0.0 <= cb <= 100.0
 
+    @patch("dictate.config.is_model_cached", return_value=False)
     @patch("dictate.model_download.snapshot_download")
-    def test_download_with_custom_cache_dir(self, mock_snapshot):
+    def test_download_with_custom_cache_dir(self, mock_snapshot, _mock_cached):
         """Test downloading with custom cache directory."""
         mock_snapshot.return_value = "/custom/path"
-        
+
         download_model(
             "mlx-community/Qwen2.5-3B-Instruct-4bit",
             cache_dir="/custom/cache"
         )
-        
+
         mock_snapshot.assert_called_once()
         call_kwargs = mock_snapshot.call_args.kwargs
         assert call_kwargs.get("cache_dir") == "/custom/cache"
 
+    @patch("dictate.config.is_model_cached", return_value=False)
     @patch("dictate.model_download.snapshot_download")
-    def test_download_without_callback(self, mock_snapshot):
+    def test_download_without_callback(self, mock_snapshot, _mock_cached):
         """Test downloading without progress callback."""
         mock_snapshot.return_value = "/fake/path"
-        
+
         download_model("mlx-community/Qwen2.5-3B-Instruct-4bit")
-        
+
         mock_snapshot.assert_called_once()
 
+    @patch("dictate.config.is_model_cached", return_value=False)
     @patch("dictate.model_download.snapshot_download")
-    def test_download_raises_on_failure(self, mock_snapshot):
+    def test_download_raises_on_failure(self, mock_snapshot, _mock_cached):
         """Test that download raises exception on failure."""
         mock_snapshot.side_effect = Exception("Download failed")
-        
+
         with pytest.raises(Exception, match="Download failed"):
             download_model("mlx-community/Qwen2.5-3B-Instruct-4bit")
 
