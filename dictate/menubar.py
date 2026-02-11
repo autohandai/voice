@@ -96,7 +96,7 @@ class DictateMenuBarApp(rumps.App):
             init_status = "◐ Loading models..."
         else:
             init_status = "◐ Downloading models (first launch)..."
-        self._status_item = rumps.MenuItem(init_status)
+        self._status_item = rumps.MenuItem(init_status, callback=lambda _: None)
         self._build_menu()
 
     # ── UI queue (thread-safe main-thread updates) ─────────────────
