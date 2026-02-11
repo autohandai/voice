@@ -92,11 +92,13 @@ Parakeet is the default for speed. Switch to Whisper from the menu bar if you ne
 
 | Preset | Speed | RAM | Best for |
 |--------|-------|-----|----------|
-| Smart | ~250ms | 0 | Auto-routes: fast local for short, API server for long |
-| Speedy (1.5B) | ~120ms | 1GB | Quick fixes, great for any chip |
-| Fast (3B) | ~250ms | 2GB | Quick cleanup, everyday use |
-| Balanced (7B) | ~350ms | 5GB | Longer dictation, formal rewriting |
-| Quality (14B) | ~500ms | 9GB | Best accuracy for bullet points and rewrites |
+| API Server | varies | 0 | Use an external LLM server (LM Studio, Ollama, etc.) |
+| Speedy (1.5B) | ~120ms | 1.0GB | Quick fixes, great for any chip |
+| Fast (3B) | ~250ms | 1.8GB | Quick cleanup, everyday use |
+| Balanced (7B) | ~350ms | 4.2GB | Longer dictation, formal rewriting |
+| Quality (14B) | ~500ms | 8.8GB | Best accuracy for bullet points and rewrites |
+
+Smart routing auto-routes based on message length: short phrases go to the fast local model, longer dictation goes to your API server.
 
 Times measured on M3 Ultra. The app picks the best default for your chip — Ultra/Max get 3B, everything else gets 1.5B.
 

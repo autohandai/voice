@@ -15,6 +15,8 @@ All dependencies used by Dictate and their respective licenses.
 | pyperclip | >=1.8.2 | BSD-3-Clause | https://github.com/asweigart/pyperclip |
 | pynput | >=1.7.6 | LGPLv3 | https://github.com/moses-palmer/pynput |
 | rumps | >=0.4.0 | BSD-3-Clause | https://github.com/jaredks/rumps |
+| parakeet-mlx | >=0.1.0 | Apache-2.0 | https://github.com/senstella/parakeet-mlx |
+| python-dotenv | >=0.19.0 | BSD-3-Clause | https://github.com/theskumar/python-dotenv |
 
 ### Development
 
@@ -28,7 +30,9 @@ All dependencies used by Dictate and their respective licenses.
 
 | Model | License | URL |
 |-------|---------|-----|
+| parakeet-tdt-0.6b-v3 | Apache-2.0 | https://huggingface.co/mlx-community/parakeet-tdt-0.6b-v3 |
 | whisper-large-v3-turbo | MIT | https://huggingface.co/mlx-community/whisper-large-v3-turbo |
+| Qwen2.5-1.5B-Instruct-4bit | Qwen Research | https://huggingface.co/mlx-community/Qwen2.5-1.5B-Instruct-4bit |
 | Qwen2.5-3B-Instruct-4bit | Qwen Research | https://huggingface.co/mlx-community/Qwen2.5-3B-Instruct-4bit |
 | Qwen2.5-7B-Instruct-4bit | Qwen Research | https://huggingface.co/mlx-community/Qwen2.5-7B-Instruct-4bit |
 | Qwen2.5-14B-Instruct-4bit | Qwen Research | https://huggingface.co/mlx-community/Qwen2.5-14B-Instruct-4bit |

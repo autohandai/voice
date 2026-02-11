@@ -65,3 +65,6 @@ dictate_*.wav
 
 # Claude Code config
 .claude/
+
+# Playwright MCP
+.playwright-mcp/
