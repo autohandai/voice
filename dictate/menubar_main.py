@@ -1,10 +1,16 @@
 """Entry point for the menu bar app: python -m dictate.menubar_main"""
 
+import platform
+import sys
+
+if platform.system() != "Darwin":
+    print("Dictate requires macOS with Apple Silicon. See https://github.com/0xbrando/dictate", file=sys.stderr)
+    sys.exit(1)
+
 import fcntl
 import logging
 import os
 import signal
-import sys
 from pathlib import Path
 
 # Disable HuggingFace telemetry — all inference is local
