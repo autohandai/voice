@@ -173,8 +173,8 @@ def main() -> int:
   under Advanced → STT Engine.{R}
   {D}Writing styles (Clean, Formal, Bullets) change how your text
   is polished — find them in the menu bar.{R}
-  {D}Add jargon, names, or slang to your personal dictionary so
-  they're never misheard — Advanced → Dictionary.{R}
+  {D}Add names, slang, or technical terms to your personal dictionary
+  so they're always spelled right — Advanced → Dictionary.{R}
 
   {W}COMMANDS{R}
   {O}dictate{R}          {D}launch dictate{R}
