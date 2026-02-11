@@ -106,8 +106,7 @@ python -c "from mlx_lm import load; load('mlx-community/Qwen2.5-7B-Instruct-4bit
 
 ## Menu Bar
 
-<img src="assets/menubar.png" alt="Dictate menu bar" width="180" align="right">
-<img src="assets/advanced.png" alt="Advanced settings" width="280" align="right">
+<img src="assets/advanced.png" alt="Menu bar and advanced settings" width="300" align="right">
 
 All settings accessible from the waveform icon in your menu bar:
 
