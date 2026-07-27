@@ -1,44 +1,13 @@
-# Dependency Licenses
+# Dependency and model licenses
 
-All dependencies used by Autohand Voice and their respective licenses.
+| Component | Version | License | Source |
+|---|---:|---|---|
+| FluidAudio | 0.14.4 | Apache-2.0 | https://github.com/FluidInference/FluidAudio |
+| NVIDIA Parakeet TDT 0.6B v3 | Apache-2.0 | https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3 |
 
-## Python Packages
+Apple frameworks including AppKit, AVFoundation, ApplicationServices, CoreML,
+and Foundation are supplied by macOS and are not redistributed by this
+repository.
 
-| Package | Version | License | URL |
-|---------|---------|---------|-----|
-| mlx | >=0.5.0 | MIT | https://github.com/ml-explore/mlx |
-| mlx-whisper | >=0.1.0 | MIT | https://github.com/ml-explore/mlx-examples |
-| mlx-lm | >=0.5.0 | MIT | https://github.com/ml-explore/mlx-examples |
-| sounddevice | >=0.4.6 | MIT | https://github.com/spatialaudio/python-sounddevice |
-| scipy | >=1.10.0 | BSD-3-Clause | https://github.com/scipy/scipy |
-| numpy | >=1.24.0 | BSD-3-Clause | https://github.com/numpy/numpy |
-| pyperclip | >=1.8.2 | BSD-3-Clause | https://github.com/asweigart/pyperclip |
-| pynput | >=1.7.6 | LGPLv3 | https://github.com/moses-palmer/pynput |
-| rumps | >=0.4.0 | BSD-3-Clause | https://github.com/jaredks/rumps |
-| parakeet-mlx | >=0.1.0 | Apache-2.0 | https://github.com/senstella/parakeet-mlx |
-| python-dotenv | >=0.19.0 | BSD-3-Clause | https://github.com/theskumar/python-dotenv |
-
-### Development
-
-| Package | Version | License | URL |
-|---------|---------|---------|-----|
-| pytest | >=7.0 | MIT | https://github.com/pytest-dev/pytest |
-| mypy | >=1.0 | MIT | https://github.com/python/mypy |
-| ruff | >=0.1.0 | MIT | https://github.com/astral-sh/ruff |
-
-## ML Models
-
-| Model | License | URL |
-|-------|---------|-----|
-| parakeet-tdt-0.6b-v3 | Apache-2.0 | https://huggingface.co/mlx-community/parakeet-tdt-0.6b-v3 |
-| whisper-large-v3-turbo | MIT | https://huggingface.co/mlx-community/whisper-large-v3-turbo |
-| Qwen2.5-1.5B-Instruct-4bit | Qwen Research | https://huggingface.co/mlx-community/Qwen2.5-1.5B-Instruct-4bit |
-| Qwen2.5-3B-Instruct-4bit | Qwen Research | https://huggingface.co/mlx-community/Qwen2.5-3B-Instruct-4bit |
-| Qwen2.5-7B-Instruct-4bit | Qwen Research | https://huggingface.co/mlx-community/Qwen2.5-7B-Instruct-4bit |
-| Qwen2.5-14B-Instruct-4bit | Qwen Research | https://huggingface.co/mlx-community/Qwen2.5-14B-Instruct-4bit |
-
-## License Compatibility
-
-All dependencies are compatible with the MIT license of this project.
-
-**Note:** pynput is licensed under LGPLv3, which is compatible with MIT when used as a library (dynamically linked). No modifications to pynput source code are distributed with this project.
+The project itself remains MIT licensed. See [LICENSE](LICENSE) and
+[NOTICE.md](NOTICE.md).

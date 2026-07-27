@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
-# Launch the Autohand Voice menu bar app.
-# Add this script to System Settings → General → Login Items to start on boot.
-
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+APP_PATH="$REPO_ROOT/dist/Autohand Voice.app"
 
-# Activate venv if present
-if [ -f ".venv/bin/activate" ]; then
-    source .venv/bin/activate
-elif [ -f "venv/bin/activate" ]; then
-    source venv/bin/activate
+if [[ ! -d "$APP_PATH" ]]; then
+    "$REPO_ROOT/scripts/build-app.sh"
 fi
 
-exec python -m dictate.menubar_main
+open "$APP_PATH"

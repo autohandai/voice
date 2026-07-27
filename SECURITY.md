@@ -1,46 +1,26 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
 | Version | Supported |
-|---------|-----------|
-| 0.1.x   | ✅        |
+|---|---|
+| 1.x | Yes |
 
 ## Architecture
 
-Autohand Voice is designed with security as a first principle:
+- Audio capture uses AVFoundation and is held in a bounded in-memory buffer.
+- Speech recognition uses the pinned FluidAudio package and local CoreML models.
+- No remote speech, cleanup, telemetry, analytics, or silent fallback exists.
+- Direct text insertion requires macOS Accessibility permission and does not
+  replace clipboard contents.
+- Clipboard access occurs only when the user explicitly selects clipboard mode.
+- Preferences and their directory are owner-only.
 
-- **100% local processing** — no audio or text leaves your machine
-- **No network calls** except to localhost LLM endpoints and optional update checks
-- **Model repository allowlist** — only `mlx-community/` prefixed models accepted
-- **No telemetry, no analytics, no tracking**
-- **Clipboard access** is the only system integration (required for auto-paste)
+## Reporting a vulnerability
 
-## Reporting a Vulnerability
+Do not open a public issue. Open a
+[private security advisory](https://github.com/autohandai/voice/security/advisories/new)
+with the impact, reproduction steps, and any suggested fix.
 
-If you discover a security vulnerability, please report it responsibly:
-
-1. **Do NOT open a public issue**
-2. Open a [private security advisory](https://github.com/autohandai/voice/security/advisories/new) on GitHub
-3. Include:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
-   - Suggested fix (if any)
-
-We will acknowledge receipt within 48 hours and aim to release a fix within 7 days for critical issues.
-
-Upstream security history is retained in the Git history and original project.
-
-## Scope
-
-The following are **in scope**:
-- Code execution via crafted input
-- Model loading from unauthorized sources
-- Clipboard data leaks
-- Privilege escalation
-
-The following are **out of scope**:
-- Physical access attacks
-- Accessibility permission abuse (macOS system-level)
-- Attacks requiring modifying the installed package
+In scope: crafted-audio code execution, unsafe model loading, transcript or
+clipboard disclosure, permission misuse, and privilege escalation.

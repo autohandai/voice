@@ -1,30 +1,32 @@
 ---
 name: Bug Report
-about: Something isn't working right
+about: Something is not working
 title: "[Bug] "
 labels: bug
 assignees: ''
 ---
 
 **What happened?**
-<!-- Clear description of the bug -->
 
 **Expected behavior**
-<!-- What should have happened -->
 
 **Steps to reproduce**
-1. 
-2. 
-3. 
+
+1.
+2.
+3.
 
 **Environment**
-- macOS version: 
-- Chip: (M1/M2/M3/M4, Pro/Max/Ultra)
-- Python version: 
-- Autohand Voice version: (`pip show autohand-voice-mlx`)
-- STT engine: (Whisper / Parakeet)
 
-**Logs**
-<!-- Run `autohand-voice --foreground` and paste relevant output -->
-```
+- macOS version:
+- Apple chip:
+- Autohand Voice version (`autohand-voice --version`):
+- Microphone permission:
+- Accessibility permission:
+- Input Monitoring permission:
+
+**Diagnostics**
+
+```text
+Paste `autohand-voice check` output here. Do not attach recordings or private transcripts.
 ```

@@ -1,65 +1,34 @@
-# Bash completion for autohand-voice
-# Install: source this file or copy to /etc/bash_completion.d/autohand-voice
-# Or add to ~/.bashrc: eval "$(autohand-voice --completions bash)" (future)
-
+# Bash completion for the native autohand-voice CLI.
 _autohand_voice_completions() {
-    local cur prev words cword
-    _init_completion || return
+    local current previous
+    current="${COMP_WORDS[COMP_CWORD]}"
+    previous="${COMP_WORDS[COMP_CWORD-1]}"
 
-    local commands="config stats status doctor devices update"
-    local config_subcmds="show set reset path"
-    local config_keys="writing_style quality stt input_language output_language ptt_key command_key llm_cleanup sound llm_endpoint advanced_mode device_id"
-    local writing_styles="clean professional bullets email slack technical tweet raw"
-    local quality_values="0 1 2 3 api fast balanced quality"
-    local stt_values="0 1 2 3 ane qwen3-asr parakeet whisper"
-    local languages="auto en pl de fr es it pt nl ja zh ko ru"
-    local ptt_keys="ctrl_l ctrl_r cmd_r alt_l alt_r"
-    local command_keys="none alt_r alt_l cmd_r ctrl_r"
-    local bool_values="on off true false 1 0"
-    local sound_values="0 1 2 3 4 5 6 soft_pop chime warm click marimba simple"
-    local device_values="auto default system none"
+    if [[ "$COMP_CWORD" -eq 1 ]]; then
+        COMPREPLY=($(compgen -W "run transcribe check doctor config help version --help --version" -- "$current"))
+        return
+    fi
 
-    case "${cword}" in
-        1)
-            COMPREPLY=( $(compgen -W "${commands} --help --version --foreground -h -V -f" -- "${cur}") )
-            return
-            ;;
-    esac
-
-    case "${words[1]}" in
-        config)
-            case "${cword}" in
-                2)
-                    COMPREPLY=( $(compgen -W "${config_subcmds}" -- "${cur}") )
-                    return
-                    ;;
-                3)
-                    if [[ "${words[2]}" == "set" ]]; then
-                        COMPREPLY=( $(compgen -W "${config_keys}" -- "${cur}") )
-                        return
-                    fi
-                    ;;
-                4)
-                    if [[ "${words[2]}" == "set" ]]; then
-                        case "${words[3]}" in
-                            writing_style) COMPREPLY=( $(compgen -W "${writing_styles}" -- "${cur}") ) ;;
-                            quality) COMPREPLY=( $(compgen -W "${quality_values}" -- "${cur}") ) ;;
-                            stt) COMPREPLY=( $(compgen -W "${stt_values}" -- "${cur}") ) ;;
-                            input_language) COMPREPLY=( $(compgen -W "${languages}" -- "${cur}") ) ;;
-                            output_language) COMPREPLY=( $(compgen -W "${languages}" -- "${cur}") ) ;;
-                            ptt_key) COMPREPLY=( $(compgen -W "${ptt_keys}" -- "${cur}") ) ;;
-                            command_key) COMPREPLY=( $(compgen -W "${command_keys}" -- "${cur}") ) ;;
-                            llm_cleanup) COMPREPLY=( $(compgen -W "${bool_values}" -- "${cur}") ) ;;
-                            sound) COMPREPLY=( $(compgen -W "${sound_values}" -- "${cur}") ) ;;
-                            advanced_mode) COMPREPLY=( $(compgen -W "${bool_values}" -- "${cur}") ) ;;
-                            device_id) COMPREPLY=( $(compgen -W "${device_values}" -- "${cur}") ) ;;
-                        esac
-                        return
-                    fi
-                    ;;
-            esac
-            ;;
-    esac
+    if [[ "${COMP_WORDS[1]}" == "config" ]]; then
+        case "$COMP_CWORD" in
+            2)
+                COMPREPLY=($(compgen -W "show set reset path" -- "$current"))
+                ;;
+            3)
+                [[ "${COMP_WORDS[2]}" == "set" ]] &&
+                    COMPREPLY=($(compgen -W "output ptt_key sounds" -- "$current"))
+                ;;
+            4)
+                case "${COMP_WORDS[3]}" in
+                    output) COMPREPLY=($(compgen -W "type clipboard" -- "$current")) ;;
+                    ptt_key) COMPREPLY=($(compgen -W "right_option right_control" -- "$current")) ;;
+                    sounds) COMPREPLY=($(compgen -W "on off" -- "$current")) ;;
+                esac
+                ;;
+        esac
+    elif [[ "$previous" == "transcribe" ]]; then
+        COMPREPLY=($(compgen -f -- "$current"))
+    fi
 }
 
 complete -F _autohand_voice_completions autohand-voice
