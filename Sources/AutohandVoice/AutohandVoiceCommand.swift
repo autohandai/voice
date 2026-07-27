@@ -20,6 +20,7 @@ private func printUsage() {
       autohand-voice run
       autohand-voice transcribe <audio-file>
       autohand-voice check [--json]
+      autohand-voice model-check [--json]
       autohand-voice config [show|path|reset|set <key> <value>]
       autohand-voice --version
 
@@ -79,6 +80,11 @@ private func runConfig(_ arguments: ArraySlice<String>) throws {
                 )
             }
             value.recordingMode = mode
+        case "model":
+            guard let variant = SpeechModelVariant(rawValue: raw) else {
+                throw CommandError.invalidArguments("model must be v2 or v3")
+            }
+            value.modelVersion = variant.rawValue
         case "sounds":
             guard ["on", "off"].contains(raw) else {
                 throw CommandError.invalidArguments(
@@ -159,6 +165,30 @@ struct AutohandVoiceCommand {
                     print("Remote fallback: disabled")
                 }
                 if !check.supported { exit(EXIT_FAILURE) }
+            case "model-check":
+                let preferences = PreferencesStore().load()
+                let variant = SpeechModelVariant(
+                    rawValue: preferences.modelVersion
+                ) ?? .default
+                let recognizer = LocalSpeechRecognizer(
+                    modelVersion: variant.rawValue
+                )
+                let isValid = try await recognizer.validate()
+                let storageBytes = try await recognizer.storageBytes()
+                if arguments.contains("--json") {
+                    try printJSON([
+                        "languageCoverage": variant.languageCoverage,
+                        "model": variant.rawValue,
+                        "storageBytes": String(storageBytes),
+                        "valid": String(isValid),
+                    ])
+                } else {
+                    print("Model: \(variant.displayName)")
+                    print("Languages: \(variant.languageCoverage)")
+                    print("Storage: \(storageBytes) bytes")
+                    print("Valid: \(isValid)")
+                }
+                if !isValid { exit(EXIT_FAILURE) }
             case "config":
                 try runConfig(arguments.dropFirst())
             case "--version", "version":

@@ -32,3 +32,5 @@
   Copy, and Discard recovery for insertion failures.
 - Added bounded in-memory audio recovery with local retry, explicit discard,
   and automatic 15-minute expiry after transcription failures.
+- Added local model progress, v2/v3 selection, storage and validation status,
+  cancellation, targeted repair, and actionable failure classification.

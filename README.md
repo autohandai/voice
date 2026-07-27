@@ -34,6 +34,7 @@ For command-line development:
 
 ```bash
 swift run autohand-voice check
+swift run autohand-voice model-check --json
 swift run autohand-voice
 swift run autohand-voice transcribe recording.wav
 swift run autohand-voice-stt check
@@ -70,6 +71,11 @@ launch at login. Privacy & Diagnostics shows the local runtime state and can cop
 redacted report that never includes audio, transcript text, file paths, or
 environment values.
 
+The model manager shows download and CoreML compilation progress, storage,
+language coverage, and the last successful validation. It supports Parakeet v2
+for English and v3 for multilingual dictation. Repair replaces only the
+selected model cache.
+
 ## Configuration
 
 Preferences are stored at:
@@ -88,6 +94,7 @@ autohand-voice config set ptt_key control_option_space
 autohand-voice config set recording_mode press_and_hold
 autohand-voice config set recording_mode toggle
 autohand-voice config set recording_mode hands_free
+autohand-voice config set model v3
 autohand-voice config set sounds off
 autohand-voice config reset
 ```

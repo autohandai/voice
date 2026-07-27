@@ -108,6 +108,27 @@ final class AppSettingsModel {
         actionMessage = error.localizedDescription
     }
 
+    var selectedModelVariant: SpeechModelVariant {
+        SpeechModelVariant(
+            rawValue: session.preferences.modelVersion
+        ) ?? .default
+    }
+
+    var modelStorageLabel: String {
+        guard session.modelStorageBytes > 0 else { return "Not measured" }
+        return ByteCountFormatter.string(
+            fromByteCount: session.modelStorageBytes,
+            countStyle: .file
+        )
+    }
+
+    var modelLastValidatedLabel: String {
+        session.modelLastValidated?.formatted(
+            date: .abbreviated,
+            time: .shortened
+        ) ?? "Not validated"
+    }
+
     func requestMicrophonePermission() async {
         let granted = await session.requestMicrophonePermissionResult()
         actionMessage = granted

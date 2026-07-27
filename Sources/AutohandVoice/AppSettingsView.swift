@@ -532,6 +532,7 @@ private struct PermissionRow: View {
 
 private struct PrivacyDiagnosticsView: View {
     @Bindable var model: AppSettingsModel
+    @State private var confirmsModelRepair = false
 
     var body: some View {
         SettingsPage(
@@ -544,6 +545,50 @@ private struct PrivacyDiagnosticsView: View {
                     LabeledContent("Remote Fallback", value: "Disabled")
                     LabeledContent("Audio Storage", value: "In memory only")
                     LabeledContent("Provisional Text", value: "Never inserted")
+                }
+
+                Section("Local Speech Model") {
+                    Picker(
+                        "Model",
+                        selection: Binding(
+                            get: { model.selectedModelVariant },
+                            set: { model.session.setModelVariant($0) }
+                        )
+                    ) {
+                        ForEach(SpeechModelVariant.allCases, id: \.self) {
+                            variant in
+                            Text(variant.displayName).tag(variant)
+                        }
+                    }
+                    .disabled(
+                        model.session.isRecordingOrStarting
+                            || model.session.state == .processing
+                    )
+
+                    LabeledContent(
+                        "Language Coverage",
+                        value: model.selectedModelVariant.languageCoverage
+                    )
+                    LabeledContent(
+                        "Readiness",
+                        value: model.session.modelStatusLabel
+                    )
+                    LabeledContent(
+                        "Storage",
+                        value: model.modelStorageLabel
+                    )
+                    LabeledContent(
+                        "Last Validation",
+                        value: model.modelLastValidatedLabel
+                    )
+
+                    if model.session.modelState == .preparing {
+                        ProgressView(value: model.session.modelProgress)
+                            .accessibilityLabel("Model preparation progress")
+                            .accessibilityValue(
+                                "\(Int(model.session.modelProgress * 100)) percent"
+                            )
+                    }
                 }
 
                 Section("System") {
@@ -559,14 +604,6 @@ private struct PrivacyDiagnosticsView: View {
                         "macOS",
                         value: model.systemCheck.macOSVersion
                     )
-                    LabeledContent(
-                        "Local Model",
-                        value: model.session.modelState.label
-                    )
-                    LabeledContent(
-                        "Model Version",
-                        value: model.session.preferences.modelVersion
-                    )
                 }
             }
             .formStyle(.grouped)
@@ -578,6 +615,17 @@ private struct PrivacyDiagnosticsView: View {
                 Button("Prepare Local Model") {
                     model.session.prepareLocalModel()
                 }
+                Button("Validate") {
+                    model.session.validateLocalModel()
+                }
+                Button("Repair…", role: .destructive) {
+                    confirmsModelRepair = true
+                }
+                if model.session.modelState == .preparing {
+                    Button("Cancel") {
+                        model.session.cancelModelPreparation()
+                    }
+                }
                 Spacer()
                 Button("Copy Diagnostic Report") {
                     model.copyDiagnosticReport()
@@ -585,6 +633,19 @@ private struct PrivacyDiagnosticsView: View {
             }
 
             ActionMessage(message: model.actionMessage)
+        }
+        .confirmationDialog(
+            "Repair \(model.selectedModelVariant.displayName)?",
+            isPresented: $confirmsModelRepair
+        ) {
+            Button("Redownload Selected Model", role: .destructive) {
+                model.session.repairLocalModel()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "Only this model’s cache is replaced. Other models and user data are preserved."
+            )
         }
     }
 }

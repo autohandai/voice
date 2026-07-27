@@ -3,22 +3,73 @@ import Foundation
 
 public actor LocalSpeechRecognizer {
     private var manager: AsrManager?
-    private let modelVersion: AsrModelVersion
+    private let variant: SpeechModelVariant
 
     public init(modelVersion: String = "v3") {
-        self.modelVersion = modelVersion == "v2" ? .v2 : .v3
+        variant = SpeechModelVariant(rawValue: modelVersion) ?? .default
     }
 
-    public func prepare() async throws {
+    public func prepare(
+        onProgress: (@Sendable (ModelPreparationProgress) -> Void)? = nil
+    ) async throws {
         guard manager == nil else { return }
+        onProgress?(.init(fractionCompleted: 0, phase: .checking))
         do {
-            let models = try await AsrModels.downloadAndLoad(version: modelVersion)
+            let models = try await AsrModels.downloadAndLoad(
+                version: variant.asrVersion,
+                progressHandler: { progress in
+                    onProgress?(Self.map(progress))
+                }
+            )
+            try Task.checkCancellation()
+            onProgress?(.init(fractionCompleted: 0.98, phase: .loading))
             let value = AsrManager(config: .default)
             try await value.loadModels(models)
+            try Task.checkCancellation()
             manager = value
+            onProgress?(.init(fractionCompleted: 1, phase: .validating))
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw VoiceError.modelUnavailable(error.localizedDescription)
         }
+    }
+
+    public func validate() async throws -> Bool {
+        do {
+            return try await AsrModels.isModelValid(
+                version: variant.asrVersion
+            )
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw VoiceError.modelUnavailable(error.localizedDescription)
+        }
+    }
+
+    public func repair(
+        onProgress: (@Sendable (ModelPreparationProgress) -> Void)? = nil
+    ) async throws {
+        manager = nil
+        do {
+            _ = try await AsrModels.download(
+                force: true,
+                version: variant.asrVersion,
+                progressHandler: { progress in
+                    onProgress?(Self.map(progress))
+                }
+            )
+            try Task.checkCancellation()
+            try await prepare(onProgress: onProgress)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw VoiceError.modelUnavailable(error.localizedDescription)
+        }
+    }
+
+    public func storageBytes() throws -> Int64 {
+        try ModelCacheInspector.storageBytes(at: variant.cacheDirectory)
     }
 
     public func transcribe(samples: [Float]) async throws -> Transcript {
@@ -61,5 +112,26 @@ public actor LocalSpeechRecognizer {
         } catch {
             throw VoiceError.modelUnavailable(error.localizedDescription)
         }
+    }
+
+    private static func map(
+        _ progress: DownloadUtils.DownloadProgress
+    ) -> ModelPreparationProgress {
+        let phase: ModelPreparationPhase
+        switch progress.phase {
+        case .listing:
+            phase = .listing
+        case let .downloading(completedFiles, totalFiles):
+            phase = .downloading(
+                completedFiles: completedFiles,
+                totalFiles: totalFiles
+            )
+        case let .compiling(modelName):
+            phase = .compiling(modelName)
+        }
+        return ModelPreparationProgress(
+            fractionCompleted: progress.fractionCompleted,
+            phase: phase
+        )
     }
 }

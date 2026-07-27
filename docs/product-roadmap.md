@@ -215,6 +215,10 @@ Acceptance:
 
 Priority: P0
 
+Status: implemented with FluidAudio phase progress, explicit v2 English and v3
+multilingual selection, targeted repair confirmation, storage measurement,
+cancellation, failure classification, and CoreML load validation timestamps.
+
 Move first-use model preparation out of the first real dictation. Show model
 name, language coverage, download/compile progress, size, local readiness,
 last validation, and a repair action. Allow explicit v2 English and v3

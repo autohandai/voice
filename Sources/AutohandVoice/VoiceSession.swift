@@ -67,6 +67,13 @@ final class VoiceSession {
     private(set) var modelState: ModelState = .notChecked {
         didSet { onChange?() }
     }
+    private(set) var modelProgress: Double = 0
+    private(set) var modelPhase: ModelPreparationPhase? {
+        didSet { onChange?() }
+    }
+    private(set) var modelStorageBytes: Int64 = 0
+    private(set) var modelLastValidated: Date?
+    private(set) var modelFailureKind: ModelFailureKind?
     private(set) var lastTranscript: String? { didSet { onChange?() } }
     private(set) var pendingTranscript: String? { didSet { onChange?() } }
     private(set) var hasRecoverableAudio = false { didSet { onChange?() } }
@@ -76,9 +83,16 @@ final class VoiceSession {
 
     var statusLabel: String {
         if state == .ready {
-            return modelState.label
+            return modelStatusLabel
         }
         return state.label
+    }
+
+    var modelStatusLabel: String {
+        if modelState == .preparing, let modelPhase {
+            return modelPhase.label
+        }
+        return modelState.label
     }
 
     var statusSymbol: String {
@@ -109,6 +123,8 @@ final class VoiceSession {
     @ObservationIgnored private var insertionTarget: TextInsertionTarget?
     @ObservationIgnored private var audioRecovery = InMemoryAudioRecovery()
     @ObservationIgnored private var audioRecoveryID: UUID?
+    @ObservationIgnored private var modelTask: Task<Void, Never>?
+    @ObservationIgnored private var modelOperationID: UUID?
 
     init(store: PreferencesStore = PreferencesStore()) {
         self.store = store
@@ -229,17 +245,61 @@ final class VoiceSession {
     }
 
     func prepareLocalModel() {
+        startModelPreparation(repair: false)
+    }
+
+    func repairLocalModel() {
+        startModelPreparation(repair: true)
+    }
+
+    func cancelModelPreparation() {
+        modelTask?.cancel()
+        modelTask = nil
+        modelOperationID = nil
+        modelProgress = 0
+        modelPhase = nil
+        modelState = .notChecked
+    }
+
+    func validateLocalModel() {
+        guard modelState != .preparing else { return }
+        modelPhase = .validating
+        modelState = .preparing
         Task {
             do {
-                try await prepareModelForUse()
+                let isValid = try await recognizer.validate()
+                try Task.checkCancellation()
+                guard isValid else {
+                    throw VoiceError.modelUnavailable(
+                        "CoreML validation did not pass"
+                    )
+                }
+                modelStorageBytes = try await recognizer.storageBytes()
+                modelLastValidated = Date()
+                modelProgress = 1
+                modelPhase = nil
+                modelFailureKind = nil
+                modelState = .ready
             } catch {
-                Self.logger.error(
-                    "Local model preparation failed: \(error.localizedDescription)"
-                )
-                modelState = .failed(error.localizedDescription)
-                state = .failed(error.localizedDescription)
+                setModelFailure(error)
             }
         }
+    }
+
+    func setModelVariant(_ variant: SpeechModelVariant) {
+        guard
+            !isRecordingOrStarting,
+            state != .processing,
+            preferences.modelVersion != variant.rawValue
+        else { return }
+        cancelModelPreparation()
+        preferences.modelVersion = variant.rawValue
+        recognizer = LocalSpeechRecognizer(modelVersion: variant.rawValue)
+        modelStorageBytes = 0
+        modelLastValidated = nil
+        modelFailureKind = nil
+        persist()
+        prepareLocalModel()
     }
 
     private func finishStartedRecording() {
@@ -504,16 +564,122 @@ final class VoiceSession {
 
     private func prepareModelForUse() async throws {
         guard modelState != .ready else { return }
+        if modelState == .preparing, let modelTask {
+            await modelTask.value
+            guard modelState == .ready else {
+                throw VoiceError.modelUnavailable(modelState.label)
+            }
+            return
+        }
+        let operationID = UUID()
+        modelOperationID = operationID
         modelState = .preparing
+        modelProgress = 0
+        modelPhase = .checking
         Self.logger.notice("Preparing pinned local CoreML speech model")
         do {
-            try await recognizer.prepare()
+            try await runModelOperation(
+                repair: false,
+                operationID: operationID
+            )
+            try Task.checkCancellation()
+            guard modelOperationID == operationID else {
+                throw CancellationError()
+            }
+            modelOperationID = nil
             modelState = .ready
             Self.logger.notice("Local CoreML speech model is ready")
         } catch {
-            modelState = .failed(error.localizedDescription)
+            if modelOperationID == operationID {
+                modelOperationID = nil
+            }
+            if error is CancellationError {
+                modelState = .notChecked
+            } else {
+                setModelFailure(error)
+            }
             throw error
         }
+    }
+
+    private func startModelPreparation(repair: Bool) {
+        modelTask?.cancel()
+        let operationID = UUID()
+        modelOperationID = operationID
+        modelProgress = 0
+        modelPhase = .checking
+        modelFailureKind = nil
+        modelState = .preparing
+        modelTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.runModelOperation(
+                    repair: repair,
+                    operationID: operationID
+                )
+                try Task.checkCancellation()
+                guard self.modelOperationID == operationID else { return }
+                self.modelOperationID = nil
+                self.modelTask = nil
+                self.modelState = .ready
+                if case .failed = self.state {
+                    self.state = .ready
+                }
+            } catch is CancellationError {
+                guard self.modelOperationID == operationID else { return }
+                self.modelOperationID = nil
+                self.modelTask = nil
+                self.modelProgress = 0
+                self.modelPhase = nil
+                self.modelState = .notChecked
+            } catch {
+                guard self.modelOperationID == operationID else { return }
+                self.modelOperationID = nil
+                self.modelTask = nil
+                self.setModelFailure(error)
+                self.state = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    private func runModelOperation(
+        repair: Bool,
+        operationID: UUID
+    ) async throws {
+        let progressHandler: @Sendable (ModelPreparationProgress) -> Void = {
+            [weak self] progress in
+            Task { @MainActor [weak self] in
+                guard self?.modelOperationID == operationID else { return }
+                self?.modelProgress = progress.fractionCompleted
+                self?.modelPhase = progress.phase
+            }
+        }
+        if repair {
+            try await recognizer.repair(onProgress: progressHandler)
+        } else {
+            try await recognizer.prepare(onProgress: progressHandler)
+        }
+        try Task.checkCancellation()
+        modelPhase = .validating
+        let isValid = try await recognizer.validate()
+        guard isValid else {
+            throw VoiceError.modelUnavailable("CoreML validation did not pass")
+        }
+        modelStorageBytes = try await recognizer.storageBytes()
+        modelLastValidated = Date()
+        modelProgress = 1
+        modelPhase = nil
+        modelFailureKind = nil
+    }
+
+    private func setModelFailure(_ error: Error) {
+        let message = error.localizedDescription
+        modelFailureKind = .classify(message)
+        modelProgress = 0
+        modelPhase = nil
+        modelState = .failed(
+            "\(modelFailureKind?.label ?? "Model preparation failed"): \(message)"
+        )
     }
 
     private func transcribeAndCommit(
