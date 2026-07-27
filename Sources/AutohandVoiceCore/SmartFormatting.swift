@@ -43,7 +43,8 @@ public enum SmartTextFormatter {
         _ text: String,
         context: TextInsertionContext,
         enabled: Bool,
-        addsTerminalPunctuation: Bool
+        addsTerminalPunctuation: Bool,
+        locale: Locale = .current
     ) -> String {
         guard enabled, contextIsKnown(context), !text.isEmpty else {
             return text
@@ -54,7 +55,8 @@ public enum SmartTextFormatter {
             capitalizesFirst: context.isAtDocumentStart
                 || context.precedingCharacter.map {
                     terminalPunctuation.contains($0) || $0 == "\n"
-                } == true
+                } == true,
+            locale: locale
         )
 
         if addsTerminalPunctuation,
@@ -84,14 +86,15 @@ public enum SmartTextFormatter {
 
     private static func capitalizeSentences(
         _ text: String,
-        capitalizesFirst: Bool
+        capitalizesFirst: Bool,
+        locale: Locale
     ) -> String {
         var output = ""
         var shouldCapitalize = capitalizesFirst
         for character in text {
             if shouldCapitalize, character.isLetter {
                 output.append(
-                    String(character).uppercased(with: .current)
+                    String(character).uppercased(with: locale)
                 )
                 shouldCapitalize = false
             } else {

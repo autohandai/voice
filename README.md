@@ -75,7 +75,9 @@ environment values.
 The model manager shows download and CoreML compilation progress, storage,
 language coverage, and the last successful validation. It supports Parakeet v2
 for English and v3 for multilingual dictation. Repair replaces only the
-selected model cache.
+selected model cache. Language & Models exposes the pinned list of 25 European
+languages with a local test phrase, clearly labels transcription as distinct
+from translation, and can remove only a selected known model cache.
 
 The Vocabulary pane supports local whole-word replacements for names, brands,
 technical terms, and acronyms. It previews the deterministic result before
@@ -96,7 +98,7 @@ capitalization, and optional terminal punctuation. The Formatting pane previews
 the exact result, and the menu keeps the most recent pre-formatting text
 available to copy in memory.
 
-App Profiles can override output, recording mode, local model choice,
+App Profiles can override output, recording mode, language, local model choice,
 dictation commands, smart formatting, HUD visibility, and sound feedback for
 an exact application bundle identifier. Unset values use the global settings.
 Profiles never inspect window titles, document names, or application content.
@@ -120,6 +122,7 @@ autohand-voice config set recording_mode press_and_hold
 autohand-voice config set recording_mode toggle
 autohand-voice config set recording_mode hands_free
 autohand-voice config set model v3
+autohand-voice config set language en
 autohand-voice config set sounds off
 autohand-voice config reset
 ```

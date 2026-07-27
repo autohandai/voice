@@ -56,6 +56,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var dictationCommandsEnabled: Bool
     public var smartFormattingEnabled: Bool
     public var automaticTerminalPunctuation: Bool
+    public var dictationLanguageCode: String
 
     public init(
         engine: SpeechEngine = .coreML,
@@ -74,7 +75,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         historyMaximumItems: Int = 500,
         dictationCommandsEnabled: Bool = false,
         smartFormattingEnabled: Bool = false,
-        automaticTerminalPunctuation: Bool = true
+        automaticTerminalPunctuation: Bool = true,
+        dictationLanguageCode: String = "en"
     ) {
         self.engine = engine
         self.outputMode = outputMode
@@ -93,6 +95,14 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         self.dictationCommandsEnabled = dictationCommandsEnabled
         self.smartFormattingEnabled = smartFormattingEnabled
         self.automaticTerminalPunctuation = automaticTerminalPunctuation
+        self.dictationLanguageCode =
+            SupportedDictationLanguage(rawValue: dictationLanguageCode) != nil
+            ? dictationLanguageCode
+            : "en"
+        if SpeechModelVariant(rawValue: self.modelVersion)?
+            .supports(languageCode: self.dictationLanguageCode) == false {
+            self.modelVersion = SpeechModelVariant.v3.rawValue
+        }
     }
 
     public var allowsRemoteServices: Bool { false }
@@ -115,6 +125,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         case dictationCommandsEnabled
         case smartFormattingEnabled
         case automaticTerminalPunctuation
+        case dictationLanguageCode
     }
 
     public init(from decoder: Decoder) throws {
@@ -178,6 +189,18 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
             Bool.self,
             forKey: .automaticTerminalPunctuation
         ) ?? true
+        let decodedLanguage = try container.decodeIfPresent(
+            String.self,
+            forKey: .dictationLanguageCode
+        ) ?? "en"
+        dictationLanguageCode =
+            SupportedDictationLanguage(rawValue: decodedLanguage) != nil
+            ? decodedLanguage
+            : "en"
+        if SpeechModelVariant(rawValue: modelVersion)?
+            .supports(languageCode: dictationLanguageCode) == false {
+            modelVersion = SpeechModelVariant.v3.rawValue
+        }
     }
 }
 

@@ -85,6 +85,27 @@ private func runConfig(_ arguments: ArraySlice<String>) throws {
                 throw CommandError.invalidArguments("model must be v2 or v3")
             }
             value.modelVersion = variant.rawValue
+            if !variant.supports(
+                languageCode: value.dictationLanguageCode
+            ) {
+                value.dictationLanguageCode = "en"
+            }
+        case "language":
+            guard let language = SupportedDictationLanguage(rawValue: raw) else {
+                throw CommandError.invalidArguments(
+                    "language must be one of: "
+                        + SupportedDictationLanguage.allCases
+                            .map(\.code)
+                            .joined(separator: ", ")
+                )
+            }
+            value.dictationLanguageCode = language.code
+            let variant = SpeechModelVariant(
+                rawValue: value.modelVersion
+            ) ?? .default
+            if !variant.supports(languageCode: language.code) {
+                value.modelVersion = SpeechModelVariant.v3.rawValue
+            }
         case "sounds":
             guard ["on", "off"].contains(raw) else {
                 throw CommandError.invalidArguments(
@@ -142,7 +163,10 @@ struct AutohandVoiceCommand {
                     printUsage()
                     exit(EXIT_FAILURE)
                 }
-                let recognizer = LocalSpeechRecognizer()
+                let preferences = PreferencesStore().load()
+                let recognizer = LocalSpeechRecognizer(
+                    modelVersion: preferences.modelVersion
+                )
                 let transcript = try await recognizer.transcribe(
                     file: URL(fileURLWithPath: path)
                 )
@@ -178,6 +202,7 @@ struct AutohandVoiceCommand {
                 if arguments.contains("--json") {
                     try printJSON([
                         "languageCoverage": variant.languageCoverage,
+                        "selectedLanguage": preferences.dictationLanguageCode,
                         "model": variant.rawValue,
                         "storageBytes": String(storageBytes),
                         "valid": String(isValid),

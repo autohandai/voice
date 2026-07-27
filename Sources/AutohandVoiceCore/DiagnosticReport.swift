@@ -11,6 +11,7 @@ public struct DiagnosticReport: Codable, Equatable, Sendable {
     public let shortcut: String
     public let speechEngine: String
     public let modelVersion: String
+    public let dictationLanguageCode: String
     public let remoteFallbackEnabled: Bool
 
     public init(
@@ -27,6 +28,7 @@ public struct DiagnosticReport: Codable, Equatable, Sendable {
         shortcut = preferences.shortcut.accessibilityName
         speechEngine = preferences.engine.rawValue
         modelVersion = preferences.modelVersion
+        dictationLanguageCode = preferences.dictationLanguageCode
         remoteFallbackEnabled = check.remoteFallbackEnabled
     }
 

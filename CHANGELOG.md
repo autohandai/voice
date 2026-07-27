@@ -46,3 +46,6 @@
   in-memory copy of the latest unformatted transcript.
 - Added bounded owner-only per-app profiles with exact bundle-identifier
   matching, global fallback, native management UI, and visible active profile.
+- Added explicit language profiles for the pinned English v2 and 25-language
+  v3 models, localized test phrases, safe model/language compatibility,
+  translation clarification, and confirmed known-cache removal.

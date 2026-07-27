@@ -1,6 +1,82 @@
 import FluidAudio
 import Foundation
 
+/// The finite Parakeet v3 language set documented by pinned FluidAudio 0.14.4.
+public enum SupportedDictationLanguage: String, CaseIterable, Codable, Sendable {
+    case bulgarian = "bg"
+    case croatian = "hr"
+    case czech = "cs"
+    case danish = "da"
+    case dutch = "nl"
+    case english = "en"
+    case estonian = "et"
+    case finnish = "fi"
+    case french = "fr"
+    case german = "de"
+    case greek = "el"
+    case hungarian = "hu"
+    case italian = "it"
+    case latvian = "lv"
+    case lithuanian = "lt"
+    case maltese = "mt"
+    case polish = "pl"
+    case portuguese = "pt"
+    case romanian = "ro"
+    case russian = "ru"
+    case slovak = "sk"
+    case slovenian = "sl"
+    case spanish = "es"
+    case swedish = "sv"
+    case ukrainian = "uk"
+
+    public var code: String { rawValue }
+
+    public static var displayOrder: [Self] {
+        [.english] + allCases
+            .filter { $0 != .english }
+            .sorted {
+                $0.displayName.localizedStandardCompare($1.displayName)
+                    == .orderedAscending
+            }
+    }
+
+    public var displayName: String {
+        Locale(identifier: "en").localizedString(
+            forLanguageCode: rawValue
+        ) ?? rawValue
+    }
+
+    public var testPhrase: String {
+        switch self {
+        case .bulgarian: "Здравейте, това е тест."
+        case .croatian: "Pozdrav, ovo je test."
+        case .czech: "Dobrý den, toto je test."
+        case .danish: "Hej, dette er en test."
+        case .dutch: "Hallo, dit is een test."
+        case .english: "Hello, this is a test."
+        case .estonian: "Tere, see on test."
+        case .finnish: "Hei, tämä on testi."
+        case .french: "Bonjour, ceci est un test."
+        case .german: "Hallo, dies ist ein Test."
+        case .greek: "Γεια σας, αυτή είναι μια δοκιμή."
+        case .hungarian: "Helló, ez egy teszt."
+        case .italian: "Ciao, questo è un test."
+        case .latvian: "Sveiki, šis ir tests."
+        case .lithuanian: "Sveiki, tai yra testas."
+        case .maltese: "Bonġu, dan huwa test."
+        case .polish: "Dzień dobry, to jest test."
+        case .portuguese: "Olá, isto é um teste."
+        case .romanian: "Bună, acesta este un test."
+        case .russian: "Здравствуйте, это тест."
+        case .slovak: "Dobrý deň, toto je test."
+        case .slovenian: "Pozdravljeni, to je preizkus."
+        case .spanish: "Hola, esto es una prueba."
+        case .swedish: "Hej, det här är ett test."
+        case .ukrainian: "Вітаю, це тест."
+        }
+    }
+}
+
 public enum SpeechModelVariant: String, Codable, CaseIterable, Sendable {
     case v2
     case v3
@@ -19,6 +95,17 @@ public enum SpeechModelVariant: String, Codable, CaseIterable, Sendable {
         case .v2: "English"
         case .v3: "Multilingual (25 European languages)"
         }
+    }
+
+    public var supportedLanguages: [SupportedDictationLanguage] {
+        switch self {
+        case .v2: [.english]
+        case .v3: SupportedDictationLanguage.displayOrder
+        }
+    }
+
+    public func supports(languageCode: String) -> Bool {
+        supportedLanguages.contains { $0.code == languageCode }
     }
 
     var asrVersion: AsrModelVersion {
@@ -139,5 +226,39 @@ public enum ModelCacheInspector {
             total += Int64(values.fileSize ?? 0)
         }
         return total
+    }
+}
+
+public enum ModelCacheError: LocalizedError, Equatable {
+    case unsafeTarget
+
+    public var errorDescription: String? {
+        "Only a known Autohand Voice model cache can be removed."
+    }
+}
+
+public enum ModelCacheManager {
+    public static func remove(_ variant: SpeechModelVariant) throws {
+        try removeCache(
+            at: variant.cacheDirectory,
+            allowedDirectories: SpeechModelVariant.allCases.map(
+                \.cacheDirectory
+            )
+        )
+    }
+
+    static func removeCache(
+        at directory: URL,
+        allowedDirectories: [URL]
+    ) throws {
+        let target = directory.standardizedFileURL
+        let allowed = Set(allowedDirectories.map(\.standardizedFileURL))
+        guard allowed.contains(target) else {
+            throw ModelCacheError.unsafeTarget
+        }
+        guard FileManager.default.fileExists(atPath: target.path) else {
+            return
+        }
+        try FileManager.default.removeItem(at: target)
     }
 }

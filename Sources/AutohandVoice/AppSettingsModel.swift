@@ -118,6 +118,16 @@ final class AppSettingsModel {
         ) ?? .default
     }
 
+    var selectedDictationLanguage: SupportedDictationLanguage {
+        SupportedDictationLanguage(
+            rawValue: session.preferences.dictationLanguageCode
+        ) ?? .english
+    }
+
+    var supportedLanguages: [SupportedDictationLanguage] {
+        selectedModelVariant.supportedLanguages
+    }
+
     var modelStorageLabel: String {
         guard session.modelStorageBytes > 0 else { return "Not measured" }
         return ByteCountFormatter.string(

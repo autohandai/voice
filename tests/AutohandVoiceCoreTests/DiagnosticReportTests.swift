@@ -21,6 +21,7 @@ final class DiagnosticReportTests: XCTestCase {
             [
                 "accessibilityPermission",
                 "architecture",
+                "dictationLanguageCode",
                 "macOSVersion",
                 "microphonePermission",
                 "modelVersion",

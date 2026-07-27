@@ -356,6 +356,12 @@ final class VoiceSession {
             preferences.modelVersion != variant.rawValue
         else { return }
         cancelModelPreparation()
+        if !variant.supports(
+            languageCode: preferences.dictationLanguageCode
+        ) {
+            preferences.dictationLanguageCode =
+                SupportedDictationLanguage.english.code
+        }
         preferences.modelVersion = variant.rawValue
         recognizer = LocalSpeechRecognizer(modelVersion: variant.rawValue)
         recognizerModelVersion = variant.rawValue
@@ -364,6 +370,52 @@ final class VoiceSession {
         modelFailureKind = nil
         persist()
         prepareLocalModel()
+    }
+
+    func setDictationLanguage(_ language: SupportedDictationLanguage) {
+        guard !isRecordingOrStarting, state != .processing else { return }
+        let current = SpeechModelVariant(
+            rawValue: preferences.modelVersion
+        ) ?? .default
+        preferences.dictationLanguageCode = language.code
+        if !current.supports(languageCode: language.code) {
+            cancelModelPreparation()
+            preferences.modelVersion = SpeechModelVariant.v3.rawValue
+            recognizerModelVersion = SpeechModelVariant.v3.rawValue
+            recognizer = LocalSpeechRecognizer(
+                modelVersion: SpeechModelVariant.v3.rawValue
+            )
+            modelStorageBytes = 0
+            modelLastValidated = nil
+            modelFailureKind = nil
+            persist()
+            prepareLocalModel()
+        } else {
+            persist()
+        }
+    }
+
+    func removeLocalModel(_ variant: SpeechModelVariant) {
+        guard !isRecordingOrStarting, state != .processing else { return }
+        do {
+            if recognizerModelVersion == variant.rawValue {
+                cancelModelPreparation()
+                recognizer = LocalSpeechRecognizer(
+                    modelVersion: variant.rawValue
+                )
+                modelStorageBytes = 0
+                modelLastValidated = nil
+                modelFailureKind = nil
+            }
+            try ModelCacheManager.remove(variant)
+            if recognizerModelVersion == variant.rawValue {
+                modelState = .notChecked
+            }
+        } catch {
+            state = .failed(
+                "Could not remove \(variant.displayName): \(error.localizedDescription)"
+            )
+        }
     }
 
     private func finishStartedRecording() {
@@ -816,7 +868,10 @@ final class VoiceSession {
         let configuration = activeConfiguration
         let commandResult = DictationCommandProcessor.process(
             recognizedText,
-            enabled: configuration.dictationCommandsEnabled
+            enabled: configuration.dictationCommandsEnabled,
+            locale: Locale(
+                identifier: configuration.dictationLanguageCode
+            )
         )
         if commandResult.shouldCancel {
             discardAudioRecovery()
@@ -835,7 +890,10 @@ final class VoiceSession {
         do {
             replacementText = VocabularyProcessor.apply(
                 to: commandResult.text,
-                rules: try vocabularyStore.load()
+                rules: try vocabularyStore.load(),
+                locale: Locale(
+                    identifier: configuration.dictationLanguageCode
+                )
             )
             vocabularyError = nil
         } catch {
@@ -850,7 +908,10 @@ final class VoiceSession {
             context: target?.context ?? .unknown,
             enabled: configuration.smartFormattingEnabled,
             addsTerminalPunctuation:
-                configuration.automaticTerminalPunctuation
+                configuration.automaticTerminalPunctuation,
+            locale: Locale(
+                identifier: configuration.dictationLanguageCode
+            )
         )
         lastUnformattedTranscript = finalText == replacementText
             ? nil

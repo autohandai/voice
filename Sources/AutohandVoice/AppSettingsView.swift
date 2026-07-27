@@ -11,6 +11,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
     case formatting
     case vocabulary
     case appProfiles
+    case languageModels
     case permissions
     case privacy
 
@@ -23,6 +24,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         case .formatting: "Formatting"
         case .vocabulary: "Vocabulary"
         case .appProfiles: "App Profiles"
+        case .languageModels: "Language & Models"
         case .permissions: "Permissions"
         case .privacy: "Privacy & Diagnostics"
         }
@@ -35,6 +37,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         case .formatting: "textformat"
         case .vocabulary: "text.book.closed"
         case .appProfiles: "square.stack.3d.up"
+        case .languageModels: "character.bubble"
         case .permissions: "hand.raised"
         case .privacy: "lock.shield"
         }
@@ -90,6 +93,8 @@ struct AppSettingsView: View {
             VocabularySettingsView(model: model.vocabulary)
         case .appProfiles:
             AppProfilesSettingsView(model: model.appProfiles)
+        case .languageModels:
+            LanguageModelSettingsView(model: model)
         case .permissions:
             PermissionCenterView(model: model)
         case .privacy:
@@ -258,6 +263,23 @@ private struct AppProfilesSettingsView: View {
             }
         }
 
+        Picker(
+            "Dictation Language",
+            selection: Binding<String?>(
+                get: { profile.dictationLanguageCode },
+                set: { value in
+                    model.updateSelected {
+                        $0.dictationLanguageCode = value
+                    }
+                }
+            )
+        ) {
+            Text("Use Global").tag(String?.none)
+            ForEach(SupportedDictationLanguage.displayOrder, id: \.self) {
+                Text($0.displayName).tag(Optional($0.code))
+            }
+        }
+
         booleanOverride(
             "Dictation Commands",
             value: profile.dictationCommandsEnabled
@@ -402,7 +424,11 @@ private struct FormattingSettingsView: View {
             context: previewPosition.context,
             enabled: model.session.preferences.smartFormattingEnabled,
             addsTerminalPunctuation:
-                model.session.preferences.automaticTerminalPunctuation
+                model.session.preferences.automaticTerminalPunctuation,
+            locale: Locale(
+                identifier:
+                    model.session.preferences.dictationLanguageCode
+            )
         )
     }
 }
@@ -996,27 +1022,43 @@ private struct PermissionRow: View {
     }
 }
 
-private struct PrivacyDiagnosticsView: View {
+private struct LanguageModelSettingsView: View {
     @Bindable var model: AppSettingsModel
     @State private var confirmsModelRepair = false
+    @State private var confirmsModelRemoval = false
 
     var body: some View {
         SettingsPage(
-            "Privacy & Diagnostics",
-            subtitle: "Verify the local runtime without exposing dictated text."
+            "Language & Models",
+            subtitle: "Choose a documented local transcription profile."
         ) {
             Form {
-                Section("Privacy") {
-                    LabeledContent("Speech Recognition", value: "Local CoreML")
-                    LabeledContent("Remote Fallback", value: "Disabled")
-                    LabeledContent("Audio Storage", value: "In memory only")
-                    LabeledContent("Provisional Text", value: "Never inserted")
-                    LabeledContent(
-                        "Text History",
-                        value: model.session.preferences.historyEnabled
-                            ? "Enabled locally"
-                            : "Off"
+                Section("Dictation Language") {
+                    Picker(
+                        "Language",
+                        selection: Binding(
+                            get: { model.selectedDictationLanguage },
+                            set: { model.session.setDictationLanguage($0) }
+                        )
+                    ) {
+                        ForEach(
+                            SupportedDictationLanguage.displayOrder,
+                            id: \.self
+                        ) {
+                            Text($0.displayName).tag($0)
+                        }
+                    }
+
+                    LabeledContent("Try Saying") {
+                        Text(model.selectedDictationLanguage.testPhrase)
+                            .textSelection(.enabled)
+                    }
+
+                    Text(
+                        "Language guides this local profile. Autohand Voice transcribes speech; it does not translate it."
                     )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
 
                 Section("Local Speech Model") {
@@ -1041,6 +1083,9 @@ private struct PrivacyDiagnosticsView: View {
                         "Language Coverage",
                         value: model.selectedModelVariant.languageCoverage
                     )
+                    Text(modelRecommendation)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     LabeledContent(
                         "Readiness",
                         value: model.session.modelStatusLabel
@@ -1081,9 +1126,6 @@ private struct PrivacyDiagnosticsView: View {
             .formStyle(.grouped)
 
             HStack {
-                Button("Refresh") {
-                    model.refresh()
-                }
                 Button("Prepare Local Model") {
                     model.session.prepareLocalModel()
                 }
@@ -1093,18 +1135,20 @@ private struct PrivacyDiagnosticsView: View {
                 Button("Repair…", role: .destructive) {
                     confirmsModelRepair = true
                 }
+                Button("Remove…", role: .destructive) {
+                    confirmsModelRemoval = true
+                }
                 if model.session.modelState == .preparing {
                     Button("Cancel") {
                         model.session.cancelModelPreparation()
                     }
                 }
                 Spacer()
-                Button("Copy Diagnostic Report") {
-                    model.copyDiagnosticReport()
-                }
             }
-
-            ActionMessage(message: model.actionMessage)
+            .disabled(
+                model.session.isRecordingOrStarting
+                    || model.session.state == .processing
+            )
         }
         .confirmationDialog(
             "Repair \(model.selectedModelVariant.displayName)?",
@@ -1118,6 +1162,88 @@ private struct PrivacyDiagnosticsView: View {
             Text(
                 "Only this model’s cache is replaced. Other models and user data are preserved."
             )
+        }
+        .confirmationDialog(
+            "Remove \(model.selectedModelVariant.displayName)?",
+            isPresented: $confirmsModelRemoval
+        ) {
+            Button("Remove Local Model", role: .destructive) {
+                model.session.removeLocalModel(
+                    model.selectedModelVariant
+                )
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "Only the selected known model cache is removed. It must be prepared again before use."
+            )
+        }
+    }
+
+    private var modelRecommendation: String {
+        switch model.selectedModelVariant {
+        case .v2:
+            "English-focused profile for stronger recall on rare English words."
+        case .v3:
+            "Multilingual profile for the 25 documented European languages."
+        }
+    }
+}
+
+private struct PrivacyDiagnosticsView: View {
+    @Bindable var model: AppSettingsModel
+
+    var body: some View {
+        SettingsPage(
+            "Privacy & Diagnostics",
+            subtitle: "Verify the local runtime without exposing dictated text."
+        ) {
+            Form {
+                Section("Privacy") {
+                    LabeledContent("Speech Recognition", value: "Local CoreML")
+                    LabeledContent("Remote Fallback", value: "Disabled")
+                    LabeledContent("Audio Storage", value: "In memory only")
+                    LabeledContent("Provisional Text", value: "Never inserted")
+                    LabeledContent(
+                        "Text History",
+                        value: model.session.preferences.historyEnabled
+                            ? "Enabled locally"
+                            : "Off"
+                    )
+                    LabeledContent(
+                        "Selected Language",
+                        value: model.selectedDictationLanguage.displayName
+                    )
+                }
+
+                Section("System") {
+                    LabeledContent(
+                        "Platform",
+                        value: model.systemCheck.supported ? "Supported" : "Unsupported"
+                    )
+                    LabeledContent(
+                        "Architecture",
+                        value: model.systemCheck.architecture
+                    )
+                    LabeledContent(
+                        "macOS",
+                        value: model.systemCheck.macOSVersion
+                    )
+                }
+            }
+            .formStyle(.grouped)
+
+            HStack {
+                Button("Refresh") {
+                    model.refresh()
+                }
+                Spacer()
+                Button("Copy Diagnostic Report") {
+                    model.copyDiagnosticReport()
+                }
+            }
+
+            ActionMessage(message: model.actionMessage)
         }
     }
 }

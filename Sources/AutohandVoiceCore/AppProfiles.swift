@@ -7,6 +7,7 @@ public struct AppProfile: Codable, Equatable, Identifiable, Sendable {
     public var outputMode: OutputMode?
     public var recordingMode: RecordingMode?
     public var modelVersion: String?
+    public var dictationLanguageCode: String?
     public var dictationCommandsEnabled: Bool?
     public var smartFormattingEnabled: Bool?
     public var automaticTerminalPunctuation: Bool?
@@ -20,6 +21,7 @@ public struct AppProfile: Codable, Equatable, Identifiable, Sendable {
         outputMode: OutputMode? = nil,
         recordingMode: RecordingMode? = nil,
         modelVersion: String? = nil,
+        dictationLanguageCode: String? = nil,
         dictationCommandsEnabled: Bool? = nil,
         smartFormattingEnabled: Bool? = nil,
         automaticTerminalPunctuation: Bool? = nil,
@@ -33,6 +35,7 @@ public struct AppProfile: Codable, Equatable, Identifiable, Sendable {
         self.outputMode = outputMode
         self.recordingMode = recordingMode
         self.modelVersion = modelVersion
+        self.dictationLanguageCode = dictationLanguageCode
         self.dictationCommandsEnabled = dictationCommandsEnabled
         self.smartFormattingEnabled = smartFormattingEnabled
         self.automaticTerminalPunctuation = automaticTerminalPunctuation
@@ -49,6 +52,19 @@ public struct AppProfile: Codable, Equatable, Identifiable, Sendable {
             && modelVersion.map {
                 SpeechModelVariant(rawValue: $0) != nil
             } != false
+            && dictationLanguageCode.map {
+                SupportedDictationLanguage(rawValue: $0) != nil
+            } != false
+            && modelSupportsSelectedLanguage
+    }
+
+    private var modelSupportsSelectedLanguage: Bool {
+        guard
+            let modelVersion,
+            let languageCode = dictationLanguageCode,
+            let model = SpeechModelVariant(rawValue: modelVersion)
+        else { return true }
+        return model.supports(languageCode: languageCode)
     }
 }
 
@@ -58,6 +74,7 @@ public struct ResolvedAppProfile: Equatable, Sendable {
     public let outputMode: OutputMode
     public let recordingMode: RecordingMode
     public let modelVersion: String
+    public let dictationLanguageCode: String
     public let dictationCommandsEnabled: Bool
     public let smartFormattingEnabled: Bool
     public let automaticTerminalPunctuation: Bool
@@ -74,12 +91,21 @@ public enum AppProfileResolver {
         let profile = bundleIdentifier.flatMap { identifier in
             profiles.first { $0.bundleIdentifier == identifier }
         }
+        let languageCode = profile?.dictationLanguageCode
+            ?? preferences.dictationLanguageCode
+        let requestedModel = SpeechModelVariant(
+            rawValue: profile?.modelVersion ?? preferences.modelVersion
+        ) ?? .default
+        let resolvedModel = requestedModel.supports(
+            languageCode: languageCode
+        ) ? requestedModel : .v3
         return ResolvedAppProfile(
             profileID: profile?.id,
             profileName: profile?.name,
             outputMode: profile?.outputMode ?? preferences.outputMode,
             recordingMode: profile?.recordingMode ?? preferences.recordingMode,
-            modelVersion: profile?.modelVersion ?? preferences.modelVersion,
+            modelVersion: resolvedModel.rawValue,
+            dictationLanguageCode: languageCode,
             dictationCommandsEnabled: profile?.dictationCommandsEnabled
                 ?? preferences.dictationCommandsEnabled,
             smartFormattingEnabled: profile?.smartFormattingEnabled

@@ -391,6 +391,11 @@ Acceptance:
 
 Priority: P1
 
+Status: implemented with the pinned runtime’s finite English v2 and
+25-European-language v3 lists, per-language test phrases, compatible automatic
+model selection, blocked active-session changes, and confirmed removal limited
+to known model caches.
+
 Expose the pinned Parakeet v3 multilingual coverage and the v2 English-focused
 model as explicit local profiles. Provide language guidance and a test phrase
 instead of promising unsupported automatic detection or 100+ languages.

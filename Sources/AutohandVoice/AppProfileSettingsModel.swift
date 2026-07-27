@@ -124,12 +124,34 @@ final class AppProfileSettingsModel {
 
     private func save(_ updated: [AppProfile], success: String) {
         do {
-            try store.save(updated)
-            profiles = updated
+            let normalized = updated.map(normalize)
+            try store.save(normalized)
+            profiles = normalized
             message = success
-            session?.replaceAppProfiles(updated)
+            session?.replaceAppProfiles(normalized)
         } catch {
             message = "Profiles could not be saved: \(error.localizedDescription)"
         }
+    }
+
+    private func normalize(_ profile: AppProfile) -> AppProfile {
+        guard let session else { return profile }
+        var result = profile
+        let globalLanguage = session.preferences.dictationLanguageCode
+        let effectiveLanguage = result.dictationLanguageCode
+            ?? globalLanguage
+        if result.modelVersion == SpeechModelVariant.v2.rawValue,
+           effectiveLanguage != SupportedDictationLanguage.english.code {
+            result.dictationLanguageCode =
+                SupportedDictationLanguage.english.code
+        } else if effectiveLanguage
+            != SupportedDictationLanguage.english.code {
+            let effectiveModel = result.modelVersion
+                ?? session.preferences.modelVersion
+            if effectiveModel == SpeechModelVariant.v2.rawValue {
+                result.modelVersion = SpeechModelVariant.v3.rawValue
+            }
+        }
+        return result
     }
 }
