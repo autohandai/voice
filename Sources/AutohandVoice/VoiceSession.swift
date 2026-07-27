@@ -68,6 +68,7 @@ final class VoiceSession {
         didSet { onChange?() }
     }
     private(set) var lastTranscript: String? { didSet { onChange?() } }
+    private(set) var pendingTranscript: String? { didSet { onChange?() } }
     private(set) var isEnabled = true { didSet { onChange?() } }
     private(set) var preferences: VoicePreferences
 
@@ -103,6 +104,7 @@ final class VoiceSession {
     @ObservationIgnored private var shortcutFailureActive = false
     @ObservationIgnored private var audioHealthMonitor = AudioHealthMonitor()
     @ObservationIgnored private var microphoneTestID: UUID?
+    @ObservationIgnored private var insertionTarget: TextInsertionTarget?
 
     init(store: PreferencesStore = PreferencesStore()) {
         self.store = store
@@ -125,6 +127,22 @@ final class VoiceSession {
 
     func beginRecording() {
         guard canStartRecording else { return }
+        insertionTarget = nil
+        if preferences.outputMode == .type {
+            guard inserter.hasAccessibilityPermission(prompt: true) else {
+                state = .failed(
+                    VoiceError.accessibilityPermissionDenied.localizedDescription
+                )
+                return
+            }
+            guard let target = inserter.captureTarget() else {
+                state = .failed(VoiceError.noFocusedTextField.localizedDescription)
+                return
+            }
+            insertionTarget = target
+        } else {
+            insertionTarget = nil
+        }
         Self.logger.notice("Push-to-talk pressed; starting audio capture")
         state = .starting
         stopWhenStarted = false
@@ -145,6 +163,7 @@ final class VoiceSession {
                     audioLevel = 0
                     audioHealthMonitor.reset()
                     audioInputHealth = .idle
+                    insertionTarget = nil
                     state = .ready
                 } else if stopWhenStarted {
                     stopWhenStarted = false
@@ -155,6 +174,7 @@ final class VoiceSession {
                 }
             } catch {
                 audioLevel = 0
+                insertionTarget = nil
                 if error as? AudioInputDeviceError
                     == .selectedDeviceUnavailable {
                     audioHealthMonitor.disconnect()
@@ -185,6 +205,7 @@ final class VoiceSession {
         }
         guard state == .recording else { return }
         capture.cancel()
+        insertionTarget = nil
         audioLevel = 0
         audioHealthMonitor.reset()
         audioInputHealth = .idle
@@ -229,15 +250,23 @@ final class VoiceSession {
                 try await prepareModelForUse()
                 let transcript = try await recognizer.transcribe(samples: samples)
                 let finalText = try transcript.finalText()
+                pendingTranscript = finalText
                 Self.logger.notice(
                     "Final local transcript produced with \(finalText.count) characters"
                 )
-                try inserter.commit(transcript, mode: preferences.outputMode)
+                try inserter.commit(
+                    transcript,
+                    mode: preferences.outputMode,
+                    target: insertionTarget
+                )
                 Self.logger.notice("Final transcript committed at the cursor")
                 lastTranscript = finalText
+                pendingTranscript = nil
+                insertionTarget = nil
                 state = .ready
                 if preferences.playSounds { NSSound.beep() }
             } catch {
+                insertionTarget = nil
                 Self.logger.error(
                     "Dictation failed: \(error.localizedDescription)"
                 )
@@ -260,6 +289,48 @@ final class VoiceSession {
         guard let lastTranscript else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(lastTranscript, forType: .string)
+    }
+
+    func retryPendingTranscriptHere() {
+        guard let pendingTranscript else { return }
+        do {
+            guard inserter.hasAccessibilityPermission(prompt: true) else {
+                throw VoiceError.accessibilityPermissionDenied
+            }
+            guard let target = inserter.captureTarget() else {
+                throw VoiceError.noFocusedTextField
+            }
+            let transcript = Transcript(text: pendingTranscript, phase: .final)
+            try inserter.commit(transcript, mode: .type, target: target)
+            lastTranscript = pendingTranscript
+            self.pendingTranscript = nil
+            state = .ready
+        } catch {
+            state = .failed(error.localizedDescription)
+        }
+    }
+
+    func copyPendingTranscript() {
+        guard let pendingTranscript else { return }
+        do {
+            try inserter.commit(
+                Transcript(text: pendingTranscript, phase: .final),
+                mode: .clipboard
+            )
+            lastTranscript = pendingTranscript
+            self.pendingTranscript = nil
+            state = .ready
+        } catch {
+            state = .failed(error.localizedDescription)
+        }
+    }
+
+    func discardPendingTranscript() {
+        pendingTranscript = nil
+        insertionTarget = nil
+        if case .failed = state {
+            state = .ready
+        }
     }
 
     func setOutputMode(_ mode: OutputMode) {

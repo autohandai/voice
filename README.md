@@ -104,6 +104,9 @@ does not read legacy upstream environment variables.
 - There is no silent engine fallback.
 - Permission, microphone, model, and focused-control failures remain visible in
   the menu instead of discarding or inventing text.
+- The focused app and selection are captured before recording. If focus moves,
+  the final transcript stays in memory with Retry Here, Copy, and Discard
+  actions.
 - Direct insertion uses the focused accessibility element and does not replace
   the user's clipboard.
 

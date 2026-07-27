@@ -28,3 +28,5 @@
   bounded signal health diagnostics, and an eight-second local microphone test.
 - Added conflict-checked custom registered shortcuts plus press-and-hold,
   toggle, and Escape-cancellable hands-free recording modes.
+- Added focus-safe target and selection validation with explicit Retry Here,
+  Copy, and Discard recovery for insertion failures.

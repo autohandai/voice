@@ -231,6 +231,10 @@ Acceptance:
 
 Priority: P0
 
+Status: implemented with pre-recording target and selection capture,
+focus validation, clipboard-preserving fallback, and Retry Here, Copy, and
+Discard recovery actions.
+
 Build an insertion compatibility layer that records the target application and
 selection state before recording, validates the focused element before commit,
 and reports when focus moved. Offer explicit Copy, Retry Here, and Discard

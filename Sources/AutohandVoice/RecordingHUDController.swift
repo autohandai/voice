@@ -121,7 +121,10 @@ private struct RecordingHUDView: View {
         case .starting: "Connecting to the microphone"
         case .recording: "Listening locally"
         case .processing: "Finalizing on this Mac"
-        case .failed: "Open the menu or Settings for recovery"
+        case .failed:
+            session.pendingTranscript == nil
+                ? "Open the menu or Settings for recovery"
+                : "Final transcript is recoverable from the menu"
         }
     }
 

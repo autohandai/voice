@@ -6,6 +6,8 @@ public enum VoiceError: LocalizedError, Equatable {
     case microphoneUnavailable(String)
     case accessibilityPermissionDenied
     case noFocusedTextField
+    case insertionTargetChanged
+    case textInsertionFailed
     case transcriptIsNotFinal
     case emptyTranscript
     case recordingTooShort
@@ -23,6 +25,10 @@ public enum VoiceError: LocalizedError, Equatable {
             return "Accessibility access is required to insert text. Enable Autohand Voice in System Settings → Privacy & Security → Accessibility."
         case .noFocusedTextField:
             return "No editable text field is focused. Your transcript was not inserted."
+        case .insertionTargetChanged:
+            return "Focus moved after recording started. Your transcript was not inserted and can be retried."
+        case .textInsertionFailed:
+            return "The focused control rejected text insertion. Your transcript can be copied or retried."
         case .transcriptIsNotFinal:
             return "A provisional transcript cannot be inserted."
         case .emptyTranscript:

@@ -102,6 +102,28 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             )
         }
 
+        if session.pendingTranscript != nil {
+            menu.addItem(.separator())
+            menu.addItem(
+                item(
+                    "Retry at Current Cursor",
+                    action: #selector(retryPendingTranscript)
+                )
+            )
+            menu.addItem(
+                item(
+                    "Copy Failed Dictation",
+                    action: #selector(copyPendingTranscript)
+                )
+            )
+            menu.addItem(
+                item(
+                    "Discard Failed Dictation",
+                    action: #selector(discardPendingTranscript)
+                )
+            )
+        }
+
         menu.addItem(.separator())
         addPermissionItems(to: menu)
         menu.addItem(outputMenu())
@@ -229,6 +251,15 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     @objc private func stopRecording() { session.finishRecording() }
     @objc private func cancelRecording() { session.cancelRecording() }
     @objc private func copyLastTranscript() { session.copyLastTranscript() }
+    @objc private func retryPendingTranscript() {
+        session.retryPendingTranscriptHere()
+    }
+    @objc private func copyPendingTranscript() {
+        session.copyPendingTranscript()
+    }
+    @objc private func discardPendingTranscript() {
+        session.discardPendingTranscript()
+    }
     @objc private func toggleEnabled() { session.setEnabled(!session.isEnabled) }
     @objc private func toggleSounds() {
         session.setPlaySounds(!session.preferences.playSounds)
