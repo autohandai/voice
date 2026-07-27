@@ -26,6 +26,9 @@ final class AppLayerPreferencesTests: XCTestCase {
         XCTAssertFalse(preferences.hasCompletedOnboarding)
         XCTAssertTrue(preferences.showRecordingHUD)
         XCTAssertNil(preferences.audioInputDeviceUID)
+        XCTAssertFalse(preferences.historyEnabled)
+        XCTAssertEqual(preferences.historyRetentionDays, 30)
+        XCTAssertEqual(preferences.historyMaximumItems, 500)
     }
 
     func testCompletedOnboardingRoundTrips() throws {

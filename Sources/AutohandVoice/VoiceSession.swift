@@ -59,6 +59,7 @@ final class VoiceSession {
     @ObservationIgnored var onChange: (() -> Void)?
     @ObservationIgnored var onShortcutRegistration:
         ((RegisteredShortcut) -> OSStatus)?
+    @ObservationIgnored var onHistoryChange: (() -> Void)?
     private(set) var state: State = .ready { didSet { onChange?() } }
     private(set) var audioLevel: Float = 0
     private(set) var audioInputHealth: AudioInputHealth = .idle
@@ -78,6 +79,7 @@ final class VoiceSession {
     private(set) var pendingTranscript: String? { didSet { onChange?() } }
     private(set) var hasRecoverableAudio = false { didSet { onChange?() } }
     private(set) var recoverableAudioDuration: TimeInterval = 0
+    private(set) var historyError: String?
     private(set) var isEnabled = true { didSet { onChange?() } }
     private(set) var preferences: VoicePreferences
 
@@ -125,6 +127,8 @@ final class VoiceSession {
     @ObservationIgnored private var audioRecoveryID: UUID?
     @ObservationIgnored private var modelTask: Task<Void, Never>?
     @ObservationIgnored private var modelOperationID: UUID?
+    @ObservationIgnored private let historyStore = HistoryStore()
+    @ObservationIgnored private var historyEntryID: UUID?
 
     init(store: PreferencesStore = PreferencesStore()) {
         self.store = store
@@ -354,6 +358,7 @@ final class VoiceSession {
             let transcript = Transcript(text: pendingTranscript, phase: .final)
             try inserter.commit(transcript, mode: .type, target: target)
             lastTranscript = pendingTranscript
+            updateHistoryOutcome(.inserted)
             self.pendingTranscript = nil
             state = .ready
         } catch {
@@ -369,6 +374,7 @@ final class VoiceSession {
                 mode: .clipboard
             )
             lastTranscript = pendingTranscript
+            historyEntryID = nil
             self.pendingTranscript = nil
             state = .ready
         } catch {
@@ -377,6 +383,7 @@ final class VoiceSession {
     }
 
     func discardPendingTranscript() {
+        historyEntryID = nil
         pendingTranscript = nil
         insertionTarget = nil
         if case .failed = state {
@@ -557,6 +564,35 @@ final class VoiceSession {
         persist()
     }
 
+    func setHistoryEnabled(_ value: Bool) {
+        preferences.historyEnabled = value
+        persist()
+        onHistoryChange?()
+    }
+
+    func setHistoryRetentionDays(_ value: Int) {
+        preferences.historyRetentionDays = max(1, value)
+        persist()
+        pruneHistory()
+    }
+
+    func setHistoryMaximumItems(_ value: Int) {
+        preferences.historyMaximumItems = max(1, value)
+        persist()
+        pruneHistory()
+    }
+
+    func deleteAllHistory() {
+        do {
+            try historyStore.deleteAll()
+            historyError = nil
+            onHistoryChange?()
+        } catch {
+            historyError = "Could not erase history: \(error.localizedDescription)"
+            onChange?()
+        }
+    }
+
     func completeOnboarding() {
         preferences.hasCompletedOnboarding = true
         persist()
@@ -691,6 +727,7 @@ final class VoiceSession {
         let finalText = try transcript.finalText()
         pendingTranscript = finalText
         discardAudioRecovery()
+        recordHistory(text: finalText, outcome: .insertionFailed)
         Self.logger.notice(
             "Final local transcript produced with \(finalText.count) characters"
         )
@@ -701,6 +738,7 @@ final class VoiceSession {
         )
         Self.logger.notice("Final transcript committed at the cursor")
         lastTranscript = finalText
+        updateHistoryOutcome(.inserted)
         pendingTranscript = nil
         insertionTarget = nil
         state = .ready
@@ -738,6 +776,62 @@ final class VoiceSession {
     private func clearAudioRecoveryState() {
         recoverableAudioDuration = 0
         hasRecoverableAudio = false
+    }
+
+    private func recordHistory(
+        text: String,
+        outcome: HistoryOutcome
+    ) {
+        guard preferences.historyEnabled else {
+            historyEntryID = nil
+            return
+        }
+        do {
+            let entry = try historyStore.append(
+                text: text,
+                outcome: outcome,
+                retentionDays: preferences.historyRetentionDays,
+                maximumItems: preferences.historyMaximumItems
+            )
+            historyEntryID = entry.id
+            historyError = nil
+            onHistoryChange?()
+        } catch {
+            historyEntryID = nil
+            historyError = "Could not save local history: \(error.localizedDescription)"
+            onChange?()
+        }
+    }
+
+    private func updateHistoryOutcome(_ outcome: HistoryOutcome) {
+        guard let historyEntryID else { return }
+        do {
+            try historyStore.updateOutcome(
+                id: historyEntryID,
+                outcome: outcome
+            )
+            self.historyEntryID = nil
+            historyError = nil
+            onHistoryChange?()
+        } catch {
+            historyError = "Could not update local history: \(error.localizedDescription)"
+            onChange?()
+        }
+    }
+
+    private func pruneHistory() {
+        guard preferences.historyEnabled else { return }
+        do {
+            _ = try historyStore.load(
+                retentionDays: preferences.historyRetentionDays,
+                maximumItems: preferences.historyMaximumItems
+            )
+            historyError = nil
+            onHistoryChange?()
+        } catch {
+            historyError = "Could not prune local history: \(error.localizedDescription)"
+            onChange?()
+        }
     }
 
     private func persist() {

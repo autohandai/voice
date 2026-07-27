@@ -50,6 +50,9 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var audioInputDeviceUID: String?
     public var shortcut: RegisteredShortcut
     public var recordingMode: RecordingMode
+    public var historyEnabled: Bool
+    public var historyRetentionDays: Int
+    public var historyMaximumItems: Int
 
     public init(
         engine: SpeechEngine = .coreML,
@@ -62,7 +65,10 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         showRecordingHUD: Bool = true,
         audioInputDeviceUID: String? = nil,
         shortcut: RegisteredShortcut = .controlOptionSpace,
-        recordingMode: RecordingMode = .pressAndHold
+        recordingMode: RecordingMode = .pressAndHold,
+        historyEnabled: Bool = false,
+        historyRetentionDays: Int = 30,
+        historyMaximumItems: Int = 500
     ) {
         self.engine = engine
         self.outputMode = outputMode
@@ -75,6 +81,9 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         self.audioInputDeviceUID = audioInputDeviceUID
         self.shortcut = shortcut
         self.recordingMode = recordingMode
+        self.historyEnabled = historyEnabled
+        self.historyRetentionDays = historyRetentionDays
+        self.historyMaximumItems = historyMaximumItems
     }
 
     public var allowsRemoteServices: Bool { false }
@@ -91,6 +100,9 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         case audioInputDeviceUID
         case shortcut
         case recordingMode
+        case historyEnabled
+        case historyRetentionDays
+        case historyMaximumItems
     }
 
     public init(from decoder: Decoder) throws {
@@ -124,6 +136,24 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
             RecordingMode.self,
             forKey: .recordingMode
         ) ?? .pressAndHold
+        historyEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .historyEnabled
+        ) ?? false
+        historyRetentionDays = max(
+            1,
+            try container.decodeIfPresent(
+                Int.self,
+                forKey: .historyRetentionDays
+            ) ?? 30
+        )
+        historyMaximumItems = max(
+            1,
+            try container.decodeIfPresent(
+                Int.self,
+                forKey: .historyMaximumItems
+            ) ?? 500
+        )
     }
 }
 

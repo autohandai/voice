@@ -34,3 +34,5 @@
   and automatic 15-minute expiry after transcription failures.
 - Added local model progress, v2/v3 selection, storage and validation status,
   cancellation, targeted repair, and actionable failure classification.
+- Added opt-in owner-only text history with search, copy, retention controls,
+  outcome status, JSON export, and confirmed deletion.

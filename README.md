@@ -62,6 +62,7 @@ The menu supports:
 - disabling sound feedback;
 - showing or hiding the recording HUD;
 - copying the most recent final transcript;
+- opening optional local dictation history with search, export, and deletion;
 - opening native Settings with Command + comma.
 
 On first launch, Settings guides you through Microphone and Accessibility
@@ -118,6 +119,8 @@ does not read legacy upstream environment variables.
   actions.
 - Direct insertion uses the focused accessibility element and does not replace
   the user's clipboard.
+- Text history is off by default. When enabled, it stores only final transcript
+  text, timestamps, and insertion outcomes in an owner-only bounded JSON file.
 
 ## Development
 

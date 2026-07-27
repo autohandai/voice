@@ -18,4 +18,8 @@ public enum Brand {
     public static var preferencesURL: URL {
         applicationSupportDirectory.appendingPathComponent("preferences.json")
     }
+
+    public static var historyURL: URL {
+        applicationSupportDirectory.appendingPathComponent("history.json")
+    }
 }

@@ -281,6 +281,10 @@ Acceptance:
 
 Priority: P1
 
+Status: implemented as an opt-in resizable SwiftUI history window with local
+search, copy, per-item deletion, confirmed delete-all, JSON export, retention
+limits, and inserted versus insertion-failed outcomes.
+
 Add an opt-in, text-only transcription history with search, copy, delete,
 delete-all, and configurable retention. Default to off for existing users.
 Store no audio and no surrounding cursor context.

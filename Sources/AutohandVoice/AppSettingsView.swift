@@ -545,6 +545,12 @@ private struct PrivacyDiagnosticsView: View {
                     LabeledContent("Remote Fallback", value: "Disabled")
                     LabeledContent("Audio Storage", value: "In memory only")
                     LabeledContent("Provisional Text", value: "Never inserted")
+                    LabeledContent(
+                        "Text History",
+                        value: model.session.preferences.historyEnabled
+                            ? "Enabled locally"
+                            : "Off"
+                    )
                 }
 
                 Section("Local Speech Model") {

@@ -13,6 +13,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private var hotKeyMonitor: HotKeyMonitor?
     private var settingsWindowController: SettingsWindowController?
     private var recordingHUDController: RecordingHUDController?
+    private var historyWindowController: HistoryWindowController?
     private var workspaceObservers: [NSObjectProtocol] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -23,6 +24,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             self?.hotKeyMonitor?.synchronizeCancellationHotKey()
         }
         settingsWindowController = SettingsWindowController(session: session)
+        historyWindowController = HistoryWindowController(session: session)
         recordingHUDController = RecordingHUDController(session: session)
         hotKeyMonitor = HotKeyMonitor(session: session)
         session.onShortcutRegistration = { [weak self] shortcut in
@@ -166,6 +168,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             item("Settings…", action: #selector(showSettings), key: ",")
         )
         menu.addItem(
+            item("Dictation History…", action: #selector(showHistory))
+        )
+        menu.addItem(
             item("Quit Autohand Voice", action: #selector(quit), key: "q")
         )
         statusItem.menu = menu
@@ -296,6 +301,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     }
     @objc private func showSettings() {
         settingsWindowController?.show()
+    }
+    @objc private func showHistory() {
+        historyWindowController?.show()
     }
 
     @objc private func selectOutputMode(_ sender: NSMenuItem) {
