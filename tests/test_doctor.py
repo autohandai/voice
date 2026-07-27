@@ -176,7 +176,7 @@ class TestShowStatus:
             result = status()
 
         captured = capsys.readouterr()
-        assert "Dictate Status" in captured.out
+        assert "Autohand Voice Status" in captured.out
         assert result == 0
 
     def test_status_shows_running_instance(self, capsys):

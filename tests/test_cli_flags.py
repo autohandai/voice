@@ -19,7 +19,7 @@ class TestVersionFlag:
             result = main()
         assert result == 0
         printed = mock_print.call_args[0][0]
-        assert "dictate" in printed.lower()
+        assert "autohand-voice" in printed.lower()
 
     @mock.patch("dictate.menubar_main.sys")
     def test_version_flag_short(self, mock_sys):
@@ -30,7 +30,7 @@ class TestVersionFlag:
             result = main()
         assert result == 0
         printed = mock_print.call_args[0][0]
-        assert "dictate" in printed.lower()
+        assert "autohand-voice" in printed.lower()
 
 
 class TestHelpFlag:

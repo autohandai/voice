@@ -51,7 +51,7 @@ class TestConfigShow:
         rc = _run_config()
         assert rc == 0
         out = capsys.readouterr().out
-        assert "Dictate Config" in out
+        assert "Autohand Voice Config" in out
 
     def test_show_with_existing_prefs(self, _isolate_prefs, capsys):
         """Show after setting a preference."""
@@ -446,7 +446,7 @@ class TestConfigMainIntegration:
         rc = main()
         assert rc == 0
         out = capsys.readouterr().out
-        assert "Dictate Config" in out
+        assert "Autohand Voice Config" in out
 
     def test_main_routes_config_set(self, monkeypatch, capsys):
         monkeypatch.setattr("sys.argv", ["dictate", "config", "set", "writing_style", "professional"])
@@ -478,13 +478,13 @@ class TestConfigEdgeCases:
         rc = _run_config("list")
         assert rc == 0
         out = capsys.readouterr().out
-        assert "Dictate Config" in out
+        assert "Autohand Voice Config" in out
 
     def test_get_is_alias_for_show(self, capsys):
         rc = _run_config("get")
         assert rc == 0
         out = capsys.readouterr().out
-        assert "Dictate Config" in out
+        assert "Autohand Voice Config" in out
 
     def test_set_all_languages(self, capsys):
         """Test every valid input language can be set."""

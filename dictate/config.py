@@ -1,4 +1,4 @@
-"""Configuration for the Dictate application."""
+"""Configuration for Autohand Voice."""
 
 from __future__ import annotations
 
@@ -14,6 +14,11 @@ if TYPE_CHECKING:
 from pynput import keyboard
 
 logger = logging.getLogger(__name__)
+
+
+def voice_env(name: str) -> str | None:
+    """Read a canonical setting with legacy upstream compatibility."""
+    return os.environ.get(f"AUTOHAND_VOICE_{name}") or os.environ.get(f"DICTATE_{name}")
 
 
 class STTEngine(str, Enum):
@@ -343,71 +348,71 @@ class Config:
     def from_env(cls) -> "Config":
         config = cls()
 
-        if device := os.environ.get("DICTATE_AUDIO_DEVICE"):
+        if device := voice_env("AUDIO_DEVICE"):
             config.audio.device_id = int(device)
 
-        if mode := os.environ.get("DICTATE_OUTPUT_MODE"):
+        if mode := voice_env("OUTPUT_MODE"):
             config.output_mode = OutputMode(mode.lower())
 
-        if whisper_model := os.environ.get("DICTATE_WHISPER_MODEL"):
+        if whisper_model := voice_env("WHISPER_MODEL"):
             if whisper_model.startswith("mlx-community/"):
                 config.whisper.model = whisper_model
             else:
                 import logging as _log
 
                 _log.getLogger(__name__).warning(
-                    "Ignoring DICTATE_WHISPER_MODEL=%s — only mlx-community/ repos allowed",
+                    "Ignoring AUTOHAND_VOICE_WHISPER_MODEL=%s — only mlx-community/ repos allowed",
                     whisper_model,
                 )
 
-        if lang := os.environ.get("DICTATE_INPUT_LANGUAGE"):
+        if lang := voice_env("INPUT_LANGUAGE"):
             config.whisper.language = None if lang.lower() == "auto" else lang
 
-        if lang := os.environ.get("DICTATE_OUTPUT_LANGUAGE"):
+        if lang := voice_env("OUTPUT_LANGUAGE"):
             config.llm.output_language = None if lang.lower() == "auto" else lang
 
-        if verbose := os.environ.get("DICTATE_VERBOSE"):
+        if verbose := voice_env("VERBOSE"):
             config.verbose = verbose.lower() in ("1", "true", "yes")
 
         # STT engine override
-        if stt_engine := os.environ.get("DICTATE_STT_ENGINE"):
+        if stt_engine := voice_env("STT_ENGINE"):
             try:
                 config.whisper.engine = STTEngine(stt_engine.lower())
             except ValueError:
                 logger.warning(
-                    "Invalid DICTATE_STT_ENGINE=%r, using default %r",
+                    "Invalid AUTOHAND_VOICE_STT_ENGINE=%r, using default %r",
                     stt_engine,
                     config.whisper.engine,
                 )
 
         # LLM cleanup
-        if llm_enabled := os.environ.get("DICTATE_LLM_CLEANUP"):
+        if llm_enabled := voice_env("LLM_CLEANUP"):
             config.llm.enabled = llm_enabled.lower() in ("1", "true", "yes")
 
         # LLM model choice
-        if llm_model := os.environ.get("DICTATE_LLM_MODEL"):
+        if llm_model := voice_env("LLM_MODEL"):
             try:
                 config.llm.model_choice = LLMModel(llm_model.lower())
             except ValueError:
                 logger.warning(
-                    "Invalid DICTATE_LLM_MODEL=%r, using default %r",
+                    "Invalid AUTOHAND_VOICE_LLM_MODEL=%r, using default %r",
                     llm_model,
                     config.llm.model_choice,
                 )
 
         # LLM backend (local or api)
-        if llm_backend := os.environ.get("DICTATE_LLM_BACKEND"):
+        if llm_backend := voice_env("LLM_BACKEND"):
             try:
                 config.llm.backend = LLMBackend(llm_backend.lower())
             except ValueError:
                 logger.warning(
-                    "Invalid DICTATE_LLM_BACKEND=%r, using default %r",
+                    "Invalid AUTOHAND_VOICE_LLM_BACKEND=%r, using default %r",
                     llm_backend,
                     config.llm.backend,
                 )
 
         # LLM API URL (for api backend)
-        if api_url := os.environ.get("DICTATE_LLM_API_URL"):
+        if api_url := voice_env("LLM_API_URL"):
             config.llm.api_url = api_url
 
         return config

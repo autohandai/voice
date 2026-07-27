@@ -1,4 +1,4 @@
-"""Menu bar template icons for Dictate.
+"""Menu bar template icons for Autohand Voice.
 
 Generates monochrome waveform PNGs at 36x36 pixels / 144 DPI so macOS
 renders them as crisp 18x18-point template images on Retina displays.
@@ -14,6 +14,8 @@ import struct
 import tempfile
 import zlib
 from pathlib import Path
+
+from dictate.brand import APP_SUPPORT_DIR
 
 # 144 DPI → 5669 pixels-per-meter (PNG pHYs chunk)
 _PPM_144DPI = 5669
@@ -126,7 +128,7 @@ _reactive_idx = 0
 
 def _icon_tmp_dir() -> str:
     """Return a private temp directory for icon files (owner-only access)."""
-    d = Path.home() / "Library" / "Application Support" / "Dictate" / "tmp"
+    d = APP_SUPPORT_DIR / "tmp"
     d.mkdir(parents=True, exist_ok=True)
     os.chmod(d, 0o700)
     return str(d)
@@ -139,7 +141,7 @@ def generate_reactive_icon(heights: list[int]) -> str:
     if len(_reactive_paths) < 2:
         for _ in range(2):
             tmp = tempfile.NamedTemporaryFile(
-                prefix="dictate_reactive_", suffix=".png", delete=False,
+                prefix="autohand_voice_reactive_", suffix=".png", delete=False,
                 dir=_icon_tmp_dir(),
             )
             tmp.close()
@@ -169,7 +171,7 @@ def get_icon_path(name: str) -> str:
     png_data = _grid_to_png(grid)
 
     tmp = tempfile.NamedTemporaryFile(
-        prefix=f"dictate_{name}_",
+        prefix=f"autohand_voice_{name}_",
         suffix=".png",
         delete=False,
         dir=_icon_tmp_dir(),

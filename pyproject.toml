@@ -3,13 +3,14 @@ requires = ["setuptools>=61.0,<76", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dictate-mlx"
-version = "2.5.3"
-description = "65ms voice-to-text on Apple's Neural Engine. Push-to-talk dictation for macOS — 100% local, free, open source."
+name = "autohand-voice-mlx"
+version = "0.1.0"
+description = "Private, local voice input for Autohand on Apple Silicon using CoreML, ANE, and MLX."
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
 authors = [
+    {name = "Autohand AI LLC"},
     {name = "brando"}
 ]
 keywords = ["dictation", "speech-to-text", "whisper", "mlx", "macos", "voice", "menu-bar", "apple-silicon", "local", "privacy", "open-source", "voice-to-text", "on-device", "neural-engine", "ane", "wispr-flow-alternative"]
@@ -52,11 +53,12 @@ dev = [
 ]
 
 [project.scripts]
-dictate = "dictate.menubar_main:main"
+autohand-voice = "dictate.menubar_main:main"
 
 [project.urls]
-Homepage = "https://github.com/0xbrando/dictate"
-Repository = "https://github.com/0xbrando/dictate"
+Homepage = "https://github.com/autohandai/voice"
+Repository = "https://github.com/autohandai/voice"
+Upstream = "https://github.com/0xbrando/dictate"
 
 [tool.setuptools.packages.find]
 include = ["dictate*"]

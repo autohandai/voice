@@ -10,7 +10,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
 
-from dictate.config import LLMBackend, LLMModel, STTEngine
+from dictate.brand import APP_SUPPORT_DIR
+from dictate.config import LLMBackend, LLMModel, STTEngine, voice_env
 from dictate.llm_discovery import _clean_model_name, discover_llm
 
 logger = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ def recommended_quality_preset() -> int:
     return 2  # Balanced - Qwen3.5-2B (good default for all chips)
 
 
-PREFS_DIR = Path.home() / "Library" / "Application Support" / "Dictate"
+PREFS_DIR = APP_SUPPORT_DIR
 PREFS_FILE = PREFS_DIR / "preferences.json"
 DICTIONARY_FILE = PREFS_DIR / "dictionary.json"
 
@@ -346,7 +347,7 @@ class Preferences:
         """Refresh the discovered model name from the endpoint."""
         if self.backend == LLMBackend.API:
             url = self._endpoint_to_api_url(self.llm_endpoint)
-            if not self._is_safe_api_url(url) and os.environ.get("DICTATE_ALLOW_REMOTE_API") != "1":
+            if not self._is_safe_api_url(url) and voice_env("ALLOW_REMOTE_API") != "1":
                 self._discovered_model = None
                 return
             result = discover_llm(self.llm_endpoint)
@@ -460,13 +461,13 @@ class Preferences:
             url = self._endpoint_to_api_url(self.llm_endpoint)
             # Apply same localhost safety check as legacy path
             if not self._is_safe_api_url(url):
-                if os.environ.get("DICTATE_ALLOW_REMOTE_API") == "1":
+                if voice_env("ALLOW_REMOTE_API") == "1":
                     logger.warning(
-                        "Remote API endpoint allowed via DICTATE_ALLOW_REMOTE_API: %s", url
+                        "Remote API endpoint allowed via AUTOHAND_VOICE_ALLOW_REMOTE_API: %s", url
                     )
                 else:
                     logger.warning(
-                        "Blocked non-localhost endpoint: %s (set DICTATE_ALLOW_REMOTE_API=1 to override)",
+                        "Blocked non-localhost endpoint: %s (set AUTOHAND_VOICE_ALLOW_REMOTE_API=1 to override)",
                         url,
                     )
                     return "http://localhost:8005/v1/chat/completions"
@@ -475,11 +476,14 @@ class Preferences:
         # Legacy local backend uses the stored api_url
         if self._is_safe_api_url(self.api_url):
             return self.api_url
-        if os.environ.get("DICTATE_ALLOW_REMOTE_API") == "1":
-            logger.warning("Remote API URL allowed via DICTATE_ALLOW_REMOTE_API: %s", self.api_url)
+        if voice_env("ALLOW_REMOTE_API") == "1":
+            logger.warning(
+                "Remote API URL allowed via AUTOHAND_VOICE_ALLOW_REMOTE_API: %s",
+                self.api_url,
+            )
             return self.api_url
         logger.warning(
-            "Blocked non-localhost API URL: %s (set DICTATE_ALLOW_REMOTE_API=1 to override)",
+            "Blocked non-localhost API URL: %s (set AUTOHAND_VOICE_ALLOW_REMOTE_API=1 to override)",
             self.api_url,
         )
         return "http://localhost:8005/v1/chat/completions"

@@ -1,8 +1,8 @@
-# Bash completion for dictate
-# Install: source this file or copy to /etc/bash_completion.d/dictate
-# Or add to ~/.bashrc: eval "$(dictate --completions bash)" (future)
+# Bash completion for autohand-voice
+# Install: source this file or copy to /etc/bash_completion.d/autohand-voice
+# Or add to ~/.bashrc: eval "$(autohand-voice --completions bash)" (future)
 
-_dictate_completions() {
+_autohand_voice_completions() {
     local cur prev words cword
     _init_completion || return
 
@@ -62,4 +62,4 @@ _dictate_completions() {
     esac
 }
 
-complete -F _dictate_completions dictate
+complete -F _autohand_voice_completions autohand-voice

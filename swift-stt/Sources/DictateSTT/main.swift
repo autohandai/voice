@@ -225,18 +225,18 @@ func runCheck() {
 // MARK: - Entry point
 
 @main
-struct DictateSTTCLI {
+struct AutohandVoiceSTTCLI {
     static func main() async {
         let arguments = CommandLine.arguments
         guard arguments.count >= 2 else {
             fputs("""
-            dictate-stt: ANE-accelerated speech-to-text for Dictate
+            autohand-voice-stt: ANE-accelerated speech-to-text for Autohand Voice
 
             Usage:
-              dictate-stt transcribe <path.wav> [--model-version v2|v3]
-              dictate-stt transcribe --stdin --sample-rate <rate>
-              dictate-stt serve [--model-version v2|v3]
-              dictate-stt check
+              autohand-voice-stt transcribe <path.wav> [--model-version v2|v3]
+              autohand-voice-stt transcribe --stdin --sample-rate <rate>
+              autohand-voice-stt serve [--model-version v2|v3]
+              autohand-voice-stt check
 
             Commands:
               transcribe  Transcribe audio to text (outputs JSON to stdout)

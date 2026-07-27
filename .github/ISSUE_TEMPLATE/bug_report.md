@@ -21,10 +21,10 @@ assignees: ''
 - macOS version: 
 - Chip: (M1/M2/M3/M4, Pro/Max/Ultra)
 - Python version: 
-- Dictate version: (`pip show dictate-mlx`)
+- Autohand Voice version: (`pip show autohand-voice-mlx`)
 - STT engine: (Whisper / Parakeet)
 
 **Logs**
-<!-- Run `dictate --foreground` and paste relevant output -->
+<!-- Run `autohand-voice --foreground` and paste relevant output -->
 ```
 ```

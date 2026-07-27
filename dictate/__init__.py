@@ -1,10 +1,6 @@
-"""
-Dictate - Push-to-Talk Voice Dictation for macOS
+"""Autohand Voice — local voice input for Autohand on Apple Silicon."""
 
-A local, privacy-first voice dictation menu bar app using Apple Silicon MLX models.
-"""
-
-__version__ = "2.5.3"
-__author__ = "brando"
+__version__ = "0.1.0"
+__author__ = "Autohand AI LLC"
 
 __all__ = ["__version__"]

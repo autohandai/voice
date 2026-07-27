@@ -1,10 +1,10 @@
-"""py2app build configuration for Dictate.app
+"""py2app build configuration for Autohand Voice.app
 
 Build a standalone macOS .app bundle:
     python setup_app.py py2app          # production build
     python setup_app.py py2app -A       # development build (symlinked)
 
-Output: dist/Dictate.app
+Output: dist/Autohand Voice.app
 """
 
 from setuptools import setup
@@ -18,19 +18,19 @@ DATA_FILES = []
 OPTIONS = {
     "argv_emulation": False,  # Must be False for menu bar apps
     "plist": {
-        "CFBundleName": "Dictate",
-        "CFBundleDisplayName": "Dictate",
-        "CFBundleIdentifier": "com.0xbrando.dictate",
+        "CFBundleName": "Autohand Voice",
+        "CFBundleDisplayName": "Autohand Voice",
+        "CFBundleIdentifier": "ai.autohand.voice",
         "CFBundleVersion": __version__,
         "CFBundleShortVersionString": __version__,
         "LSUIElement": True,  # Menu bar only — no Dock icon
         "LSMinimumSystemVersion": "14.0",  # macOS Sonoma+ for MLX
         "NSMicrophoneUsageDescription": (
-            "Dictate needs microphone access for voice-to-text transcription. "
+            "Autohand Voice needs microphone access for voice-to-text transcription. "
             "All processing happens locally on your device."
         ),
         "NSAppleEventsUsageDescription": (
-            "Dictate uses accessibility to type transcribed text "
+            "Autohand Voice uses accessibility to type transcribed text "
             "into your active application."
         ),
     },
@@ -74,13 +74,13 @@ OPTIONS = {
     "arch": "arm64",  # Apple Silicon only
 }
 
-ICON_FILE = ROOT / "assets" / "dictate.icns"
+ICON_FILE = ROOT / "assets" / "autohand-voice.icns"
 if ICON_FILE.exists():
     OPTIONS["iconfile"] = str(ICON_FILE)
 
 setup(
     app=APP,
-    name="Dictate",
+    name="Autohand Voice",
     data_files=DATA_FILES,
     options={"py2app": OPTIONS},
     install_requires=[],

@@ -197,7 +197,7 @@ class TestStatsCLI:
         rc = _show_stats()
         assert rc == 0
         out = capsys.readouterr().out
-        assert "Dictate Stats" in out
+        assert "Autohand Voice Stats" in out
         assert "2" in out  # 2 dictations
         assert "Words" in out
         assert "clean" in out

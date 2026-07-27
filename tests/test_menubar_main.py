@@ -195,8 +195,8 @@ class TestRunUpdate:
         assert result == 0
         # Should have tried pip twice (PyPI then GitHub)
         calls = mock_run.call_args_list
-        # First call: pip install --upgrade dictate-mlx
-        assert "dictate-mlx" in str(calls[0])
+        # First call: pip install --upgrade autohand-voice-mlx
+        assert "autohand-voice-mlx" in str(calls[0])
         # Second call: pip install from git+https://github.com/
         assert "git+" in str(calls[1])
 
@@ -222,7 +222,7 @@ class TestRunUpdate:
         ]
         result = _run_update(from_github=True)
         assert result == 0
-        # First call should be git+ URL, NOT dictate-mlx
+        # First call should be git+ URL, NOT autohand-voice-mlx
         first_call = str(mock_run.call_args_list[0])
         assert "git+" in first_call
 

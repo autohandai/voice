@@ -1,10 +1,10 @@
-#compdef dictate
+#compdef autohand-voice
 
-# Zsh completion for dictate
+# Zsh completion for autohand-voice
 # Install: copy to a directory in your $fpath (e.g., ~/.zsh/completions/)
 # and add to ~/.zshrc: fpath=(~/.zsh/completions $fpath); autoload -Uz compinit && compinit
 
-_dictate_writing_styles=(
+_autohand_voice_writing_styles=(
     'clean:Fixes punctuation, keeps your words'
     'professional:Professional tone and grammar'
     'bullets:Concise bullet points'
@@ -15,7 +15,7 @@ _dictate_writing_styles=(
     'raw:Exact transcription, no LLM processing'
 )
 
-_dictate_quality_values=(
+_autohand_voice_quality_values=(
     'api:Local API backend'
     'fast:1.5B model'
     'balanced:2B model'
@@ -26,7 +26,7 @@ _dictate_quality_values=(
     '3:Quality 3B model'
 )
 
-_dictate_stt_values=(
+_autohand_voice_stt_values=(
     'ane:Apple Neural Engine'
     'qwen3-asr:Qwen3-ASR'
     'parakeet:Parakeet MLX'
@@ -37,7 +37,7 @@ _dictate_stt_values=(
     '3:Whisper'
 )
 
-_dictate_languages=(
+_autohand_voice_languages=(
     'auto:Automatic detection'
     'en:English'
     'pl:Polish'
@@ -53,7 +53,7 @@ _dictate_languages=(
     'ru:Russian'
 )
 
-_dictate_ptt_keys=(
+_autohand_voice_ptt_keys=(
     'ctrl_l:Left Control'
     'ctrl_r:Right Control'
     'cmd_r:Right Command'
@@ -61,7 +61,7 @@ _dictate_ptt_keys=(
     'alt_r:Right Option'
 )
 
-_dictate_command_keys=(
+_autohand_voice_command_keys=(
     'none:Disabled'
     'alt_r:Right Option'
     'alt_l:Left Option'
@@ -69,7 +69,7 @@ _dictate_command_keys=(
     'ctrl_r:Right Control'
 )
 
-_dictate_sound_values=(
+_autohand_voice_sound_values=(
     'soft_pop:Gentle pop sound'
     'chime:Bell chime'
     'warm:Warm tone'
@@ -78,25 +78,25 @@ _dictate_sound_values=(
     'simple:Simple beep'
 )
 
-_dictate_config_set_value() {
+_autohand_voice_config_set_value() {
     local key=$words[4]
     case "$key" in
-        writing_style) _describe 'writing style' _dictate_writing_styles ;;
-        quality) _describe 'quality preset' _dictate_quality_values ;;
-        stt) _describe 'STT engine' _dictate_stt_values ;;
-        input_language) _describe 'input language' _dictate_languages ;;
-        output_language) _describe 'output language' _dictate_languages ;;
-        ptt_key) _describe 'push-to-talk key' _dictate_ptt_keys ;;
-        command_key) _describe 'command key' _dictate_command_keys ;;
+        writing_style) _describe 'writing style' _autohand_voice_writing_styles ;;
+        quality) _describe 'quality preset' _autohand_voice_quality_values ;;
+        stt) _describe 'STT engine' _autohand_voice_stt_values ;;
+        input_language) _describe 'input language' _autohand_voice_languages ;;
+        output_language) _describe 'output language' _autohand_voice_languages ;;
+        ptt_key) _describe 'push-to-talk key' _autohand_voice_ptt_keys ;;
+        command_key) _describe 'command key' _autohand_voice_command_keys ;;
         llm_cleanup) _values 'toggle' on off ;;
-        sound) _describe 'sound preset' _dictate_sound_values ;;
+        sound) _describe 'sound preset' _autohand_voice_sound_values ;;
         llm_endpoint) _message 'host:port (e.g., localhost:11434)' ;;
         advanced_mode) _values 'toggle' on off ;;
         device_id) _values 'input device' auto default system none ;;
     esac
 }
 
-_dictate_config_keys=(
+_autohand_voice_config_keys=(
     'writing_style:Writing style for LLM cleanup'
     'quality:Quality preset (LLM model size)'
     'stt:Speech-to-text engine'
@@ -111,7 +111,7 @@ _dictate_config_keys=(
     'device_id:Audio input device id'
 )
 
-_dictate() {
+_autohand_voice() {
     local -a commands
     commands=(
         'config:View and modify preferences'
@@ -131,7 +131,7 @@ _dictate() {
 
     case "$state" in
         command)
-            _describe 'dictate command' commands
+            _describe 'autohand-voice command' commands
             ;;
         args)
             case $words[1] in
@@ -147,12 +147,12 @@ _dictate() {
                         2) _describe 'config subcommand' config_subcmds ;;
                         3)
                             if [[ $words[2] == "set" ]]; then
-                                _describe 'config key' _dictate_config_keys
+                                _describe 'config key' _autohand_voice_config_keys
                             fi
                             ;;
                         4)
                             if [[ $words[2] == "set" ]]; then
-                                _dictate_config_set_value
+                                _autohand_voice_config_set_value
                             fi
                             ;;
                     esac
@@ -162,4 +162,4 @@ _dictate() {
     esac
 }
 
-_dictate "$@"
+_autohand_voice "$@"

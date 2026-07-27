@@ -623,7 +623,7 @@ class TestApplyPrefs:
 class TestLaunchAtLogin:
     def test_launch_agent_path(self, mock_app):
         path = DictateMenuBarApp._launch_agent_path()
-        assert "com.dictate.app.plist" in str(path)
+        assert "ai.autohand.voice.plist" in str(path)
         assert "LaunchAgents" in str(path)
 
     def test_is_launch_at_login_false(self, mock_app):

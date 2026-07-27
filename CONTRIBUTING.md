@@ -1,68 +1,42 @@
-# Contributing to Dictate
+# Contributing to Autohand Voice
 
-Thanks for your interest in improving Dictate!
+Read [AGENTS.md](AGENTS.md) before making changes.
 
-## Quick Start
+## Setup
 
 ```bash
-git clone https://github.com/0xbrando/dictate.git
-cd dictate
+git clone https://github.com/autohandai/voice.git
+cd voice
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e '.[dev]'
 ```
 
-## Running Tests
+Build the CoreML/ANE helper:
+
+```bash
+cd swift-stt
+swift build -c release
+```
+
+## Pull requests
+
+- Keep one concern per pull request.
+- Start behavioral fixes with a failing test.
+- Preserve local-only defaults and explicit privacy boundaries.
+- Include macOS version and Apple chip details for native failures.
+- Update public documentation with CLI, configuration, model, or workflow
+  changes.
+- Preserve the upstream MIT attribution.
+
+## Validation
 
 ```bash
 python -m pytest tests/ -q
+ruff check <changed-python-files>
+mypy dictate
+cd swift-stt && swift build -c release
 ```
 
-All PRs should maintain the existing test coverage (~97%). New features should include tests.
-
-## Code Style
-
-- Python 3.11+
-- Ruff linter/formatter
-- Type hints encouraged
-- Docstrings for public methods
-
-## What to Work On
-
-Check the [issues page](https://github.com/0xbrando/dictate/issues) for open items. Good first contributions:
-
-- **Bug reports** — If something breaks, file an issue with your macOS version and chip
-- **STT engine improvements** — Better VAD, faster transcription paths
-- **Writing styles** — New cleanup/rewrite modes
-- **Language support** — Test and improve non-English transcription
-- **Documentation** — Tutorials, examples, translations
-
-## Architecture
-
-```
-dictate/
-├── menubar_main.py  # CLI entry point, daemon management
-├── menubar.py       # Menu bar UI (rumps)
-├── transcribe.py    # STT pipeline and LLM text cleanup
-├── presets.py       # Menu presets and preference persistence
-├── audio.py         # Audio capture, VAD
-└── config.py        # Runtime config and env vars
-```
-
-## PR Guidelines
-
-1. Branch from `main`
-2. One concern per PR (don't mix features with bug fixes)
-3. Run the full test suite before submitting
-4. Describe what changed, why, and how to test it
-
-## macOS-Specific Notes
-
-- The menu bar UI uses [rumps](https://github.com/jaredks/rumps) — mock it for unit tests
-- MLX operations require Apple Silicon — tests mock the MLX layer
-- Accessibility (keyboard simulation) requires permissions — tests mock this
-- `os.fork()` is incompatible with ObjC/AppKit — use `subprocess.Popen` for daemon mode
-
-## Questions?
-
-Open an issue or start a discussion on the repo.
+The upstream contribution guide is retained at
+[docs/upstream-contributing.md](docs/upstream-contributing.md).

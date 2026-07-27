@@ -79,7 +79,7 @@ class TestTempWavContext:
         with _temp_wav_context(audio, 16000) as path:
             assert os.path.exists(path)
             assert path.endswith(".wav")
-            assert "dictate_" in os.path.basename(path)
+            assert "autohand_voice_" in os.path.basename(path)
         assert not os.path.exists(path)
 
     def test_wav_file_is_valid(self):

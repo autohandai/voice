@@ -48,9 +48,9 @@ from dictate.transcribe import TranscriptionPipeline
 MAX_UPDATE_RESPONSE_BYTES = 1_048_576
 
 try:
-    from dictate import __version__ as DICTATE_VERSION
+    from dictate import __version__ as AUTOHAND_VOICE_VERSION
 except ImportError:
-    DICTATE_VERSION = "0.0.0"
+    AUTOHAND_VOICE_VERSION = "0.0.0"
 
 try:
     from packaging.version import Version as parse_version
@@ -172,7 +172,7 @@ class DictateMenuBarApp(rumps.App):
                 self.icon = get_icon_path(msg[1])
             elif kind == "notify":
                 text = str(msg[1])[:MAX_NOTIFICATION_LENGTH]
-                rumps.notification("Dictate", "", text)
+                rumps.notification("Autohand Voice", "", text)
             elif kind == "rebuild_menu":
                 self._build_menu()
             elif kind == "recent":
@@ -260,7 +260,7 @@ class DictateMenuBarApp(rumps.App):
             advanced_menu,
             None,
             rumps.MenuItem(pause_label, callback=self._on_pause_toggle),
-            rumps.MenuItem("Quit Dictate", callback=self._on_quit, key="q"),
+            rumps.MenuItem("Quit Autohand Voice", callback=self._on_quit, key="q"),
         ]
 
     def _build_mic_menu(self) -> rumps.MenuItem:
@@ -598,7 +598,7 @@ class DictateMenuBarApp(rumps.App):
         try:
             from urllib.request import urlopen
 
-            with urlopen("https://pypi.org/pypi/dictate-mlx/json", timeout=3) as response:
+            with urlopen("https://pypi.org/pypi/autohand-voice-mlx/json", timeout=3) as response:
                 data = response.read(MAX_UPDATE_RESPONSE_BYTES)
             if len(data) >= MAX_UPDATE_RESPONSE_BYTES:
                 logger.warning("Update check response too large")
@@ -606,11 +606,11 @@ class DictateMenuBarApp(rumps.App):
             latest = json.loads(data.decode("utf-8")).get("info", {}).get("version")
             if not latest:
                 return
-            if parse_version(latest) > parse_version(DICTATE_VERSION):
+            if parse_version(latest) > parse_version(AUTOHAND_VOICE_VERSION):
                 rumps.notification(
-                    "Dictate update available",
+                    "Autohand Voice update available",
                     f"Version {latest} is available",
-                    "Run `dictate update` to upgrade.",
+                    "Run `autohand-voice update` to upgrade.",
                 )
         except Exception:
             logger.debug("Update check failed", exc_info=True)
@@ -883,7 +883,7 @@ class DictateMenuBarApp(rumps.App):
 
     @staticmethod
     def _launch_agent_path() -> Path:
-        return Path.home() / "Library" / "LaunchAgents" / "com.dictate.app.plist"
+        return Path.home() / "Library" / "LaunchAgents" / "ai.autohand.voice.plist"
 
     def _is_launch_at_login(self) -> bool:
         return self._launch_agent_path().exists()
@@ -897,7 +897,7 @@ class DictateMenuBarApp(rumps.App):
             python = sys.executable
             project_dir = str(Path(__file__).resolve().parent.parent)
             plist_data = {
-                "Label": "com.dictate.app",
+                "Label": "ai.autohand.voice",
                 "ProgramArguments": [python, "-m", "dictate"],
                 "WorkingDirectory": project_dir,
                 "RunAtLoad": True,

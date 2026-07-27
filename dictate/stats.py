@@ -1,7 +1,7 @@
-"""Usage statistics tracking for Dictate.
+"""Usage statistics tracking for Autohand Voice.
 
 Tracks dictation sessions, word counts, and audio duration.
-All stats are stored locally in ~/Library/Application Support/Dictate/stats.json.
+All stats are stored locally in ~/Library/Application Support/Autohand Voice/stats.json.
 """
 
 from __future__ import annotations
@@ -13,9 +13,11 @@ import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from dictate.brand import APP_SUPPORT_DIR
+
 logger = logging.getLogger(__name__)
 
-STATS_DIR = Path.home() / "Library" / "Application Support" / "Dictate"
+STATS_DIR = APP_SUPPORT_DIR
 STATS_FILE = STATS_DIR / "stats.json"
 
 

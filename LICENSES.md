@@ -1,6 +1,6 @@
 # Dependency Licenses
 
-All dependencies used by Dictate and their respective licenses.
+All dependencies used by Autohand Voice and their respective licenses.
 
 ## Python Packages
 

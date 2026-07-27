@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Launch the Dictate menu bar app.
+# Launch the Autohand Voice menu bar app.
 # Add this script to System Settings → General → Login Items to start on boot.
 
 set -euo pipefail

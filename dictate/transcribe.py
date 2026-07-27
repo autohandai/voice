@@ -21,6 +21,8 @@ os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
 
 from scipy.io.wavfile import write as wav_write
 
+from dictate.brand import ANE_HELPER_NAME, APP_SUPPORT_DIR
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     import numpy as np
@@ -39,9 +41,7 @@ MLX_UNAVAILABLE_HINT = (
 
 def _private_tmp_dir() -> str:
     """Return a private temp directory for audio files (owner-only access)."""
-    from pathlib import Path
-
-    d = Path.home() / "Library" / "Application Support" / "Dictate" / "tmp"
+    d = APP_SUPPORT_DIR / "tmp"
     d.mkdir(parents=True, exist_ok=True)
     os.chmod(d, 0o700)
     return str(d)
@@ -50,7 +50,7 @@ def _private_tmp_dir() -> str:
 @contextlib.contextmanager
 def _temp_wav_context(audio: "NDArray[np.int16]", sample_rate: int):
     """Context manager for creating and cleaning up temporary WAV files."""
-    fd, path = tempfile.mkstemp(suffix=".wav", prefix="dictate_", dir=_private_tmp_dir())
+    fd, path = tempfile.mkstemp(suffix=".wav", prefix="autohand_voice_", dir=_private_tmp_dir())
     os.close(fd)
     try:
         try:
@@ -280,9 +280,10 @@ class Qwen3ASRTranscriber:
 
 
 class ANETranscriber:
-    """Speech-to-text using Apple Neural Engine via the dictate-stt Swift CLI."""
+    """Speech-to-text using Apple Neural Engine via the Autohand Voice Swift CLI."""
 
-    _BINARY_NAME = "dictate-stt"
+    _BINARY_NAME = ANE_HELPER_NAME
+    _LEGACY_BINARY_NAME = "dictate-stt"
 
     def __init__(self, config: "WhisperConfig", binary_path: str | None = None) -> None:
         self._config = config
@@ -292,19 +293,23 @@ class ANETranscriber:
 
     @staticmethod
     def _find_binary() -> str | None:
-        """Locate the dictate-stt binary in PATH or known build locations."""
+        """Locate the Autohand Voice STT binary in PATH or known build locations."""
         import shutil
 
-        found = shutil.which("dictate-stt")
+        found = shutil.which(ANETranscriber._BINARY_NAME) or shutil.which(
+            ANETranscriber._LEGACY_BINARY_NAME
+        )
         if found:
             return found
 
         # Check relative to this file: app bundle and dev build
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         candidates = [
-            os.path.join(base, "MacOS", "dictate-stt"),
-            os.path.join(base, "swift-stt", ".build", "release", "dictate-stt"),
-            os.path.join(base, "..", "swift-stt", ".build", "release", "dictate-stt"),
+            os.path.join(base, "MacOS", ANETranscriber._BINARY_NAME),
+            os.path.join(base, "swift-stt", ".build", "release", ANETranscriber._BINARY_NAME),
+            os.path.join(base, "..", "swift-stt", ".build", "release", ANETranscriber._BINARY_NAME),
+            os.path.join(base, "MacOS", ANETranscriber._LEGACY_BINARY_NAME),
+            os.path.join(base, "swift-stt", ".build", "release", ANETranscriber._LEGACY_BINARY_NAME),
         ]
         for path in candidates:
             path = os.path.realpath(path)
@@ -338,7 +343,7 @@ class ANETranscriber:
             selector.register(stream, selectors.EVENT_READ)
             events = selector.select(timeout)
             if not events:
-                raise subprocess.TimeoutExpired("dictate-stt serve", timeout)
+                raise subprocess.TimeoutExpired("autohand-voice-stt serve", timeout)
             return stream.readline()
         finally:
             selector.close()
@@ -366,7 +371,7 @@ class ANETranscriber:
 
         if not self._binary:
             raise RuntimeError(
-                "dictate-stt binary not found. Build it with: "
+                "autohand-voice-stt binary not found. Build it with: "
                 "cd swift-stt && swift build -c release"
             )
 
@@ -382,24 +387,24 @@ class ANETranscriber:
             )
 
             if not self._server.stdout:
-                raise RuntimeError("dictate-stt serve did not expose stdout")
+                raise RuntimeError("autohand-voice-stt serve did not expose stdout")
 
             line = self._readline_with_timeout(self._server.stdout, 120)
             if not line:
                 stderr = self._server.stderr.read() if self._server.stderr else ""
-                raise RuntimeError(f"dictate-stt serve exited early: {stderr.strip()}")
+                raise RuntimeError(f"autohand-voice-stt serve exited early: {stderr.strip()}")
 
             ready = json.loads(line)
             if not ready.get("ready"):
-                raise RuntimeError(f"dictate-stt serve did not become ready: {line.strip()}")
+                raise RuntimeError(f"autohand-voice-stt serve did not become ready: {line.strip()}")
         except FileNotFoundError:
-            raise RuntimeError(f"dictate-stt not found at: {self._binary}")
+            raise RuntimeError(f"autohand-voice-stt not found at: {self._binary}")
         except subprocess.TimeoutExpired:
             self._stop_server()
-            raise RuntimeError("dictate-stt model load timed out")
+            raise RuntimeError("autohand-voice-stt model load timed out")
         except json.JSONDecodeError as e:
             self._stop_server()
-            raise RuntimeError(f"dictate-stt serve returned invalid JSON: {e}") from e
+            raise RuntimeError(f"autohand-voice-stt serve returned invalid JSON: {e}") from e
         except Exception:
             self._stop_server()
             raise
@@ -414,7 +419,7 @@ class ANETranscriber:
         language: str | None = None,  # unused — FluidAudio handles language internally
     ) -> str:
         if not self._binary:
-            raise RuntimeError("dictate-stt binary not found")
+            raise RuntimeError("autohand-voice-stt binary not found")
 
         if not self._model_loaded or not self._server or self._server.poll() is not None:
             self._model_loaded = False
@@ -429,7 +434,7 @@ class ANETranscriber:
         with _temp_wav_context(audio, sample_rate) as wav_path:
             try:
                 if not self._server or not self._server.stdin or not self._server.stdout:
-                    raise RuntimeError("dictate-stt serve is not running")
+                    raise RuntimeError("autohand-voice-stt serve is not running")
                 self._server.stdin.write(json.dumps({"path": wav_path}) + "\n")
                 self._server.stdin.flush()
                 line = self._readline_with_timeout(self._server.stdout, 30)

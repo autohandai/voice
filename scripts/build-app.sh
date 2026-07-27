@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build Dictate.app and optionally package as DMG
+# Build Autohand Voice.app and optionally package as DMG
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -7,7 +7,7 @@ cd "$REPO_ROOT"
 
 PYTHON="${PYTHON:-python3}"
 VERSION=$("$PYTHON" -c "from dictate import __version__; print(__version__)")
-APP_NAME="Dictate"
+APP_NAME="Autohand Voice"
 DMG_NAME="${APP_NAME}-v${VERSION}-arm64.dmg"
 
 echo "🔨 Building ${APP_NAME} v${VERSION}..."
@@ -23,12 +23,12 @@ trap 'rm -rf "$BUILD_ROOT"' EXIT
 (cd "$BUILD_ROOT" && "$PYTHON" "$REPO_ROOT/setup_app.py" py2app --dist-dir "$REPO_ROOT/dist" --bdist-base "$BUILD_ROOT/build")
 
 # Bundle the Swift ANE helper into Contents/MacOS so the app is self-contained.
-SWIFT_HELPER="$REPO_ROOT/swift-stt/.build/release/dictate-stt"
+SWIFT_HELPER="$REPO_ROOT/swift-stt/.build/release/autohand-voice-stt"
 if [[ ! -x "$SWIFT_HELPER" ]]; then
     echo "🔨 Building Swift ANE helper..."
     (cd "$REPO_ROOT/swift-stt" && swift build -c release)
 fi
-cp "$SWIFT_HELPER" "dist/${APP_NAME}.app/Contents/MacOS/dictate-stt"
+cp "$SWIFT_HELPER" "dist/${APP_NAME}.app/Contents/MacOS/autohand-voice-stt"
 
 # Ad-hoc code sign (free, allows right-click → Open)
 echo

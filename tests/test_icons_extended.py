@@ -223,7 +223,7 @@ class TestGenerateReactiveIconExtended:
     def test_file_prefix(self):
         """Test file has correct prefix."""
         path = generate_reactive_icon([10, 15, 20, 15, 10])
-        assert "dictate_reactive_" in path
+        assert "autohand_voice_reactive_" in path
 
     def test_file_is_writable(self):
         """Test file is writable and can be updated."""
@@ -274,7 +274,7 @@ class TestGetIconPathExtended:
     def test_file_prefix_includes_icon_name(self):
         """Test file prefix includes icon name."""
         path = get_icon_path("idle")
-        assert "dictate_idle_" in path
+        assert "autohand_voice_idle_" in path
 
     def test_unknown_icon_raises_value_error(self):
         """Test unknown icon raises ValueError."""

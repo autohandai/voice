@@ -5,7 +5,11 @@ import subprocess
 import sys
 
 if platform.system() != "Darwin":
-    print("Dictate requires macOS with Apple Silicon. See https://github.com/0xbrando/dictate", file=sys.stderr)
+    print(
+        "Autohand Voice requires macOS with Apple Silicon. "
+        "See https://github.com/autohandai/voice",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 import fcntl
@@ -14,6 +18,8 @@ import os
 import signal
 import time
 from pathlib import Path
+
+from dictate.brand import APP_SUPPORT_DIR, GITHUB_GIT_URL, LOG_DIR
 
 # Disable HuggingFace telemetry — all inference is local
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
@@ -34,19 +40,19 @@ try:
 except ImportError:
     pass
 
-LOCK_FILE = Path.home() / "Library" / "Application Support" / "Dictate" / "dictate.lock"
-LOG_FILE = Path.home() / "Library" / "Logs" / "Dictate" / "dictate.log"
+LOCK_FILE = APP_SUPPORT_DIR / "autohand-voice.lock"
+LOG_FILE = LOG_DIR / "autohand-voice.log"
 
 
 def _config_command(args: list[str]) -> int:
-    """Handle 'dictate config' subcommands.
+    """Handle 'autohand-voice config' subcommands.
 
     Usage:
-        dictate config              Show all current settings
-        dictate config show         Show all current settings
-        dictate config set KEY VAL  Set a preference
-        dictate config reset        Reset all preferences to defaults
-        dictate config path         Show config file path
+        autohand-voice config              Show all current settings
+        autohand-voice config show         Show all current settings
+        autohand-voice config set KEY VAL  Set a preference
+        autohand-voice config reset        Reset all preferences to defaults
+        autohand-voice config path         Show config file path
     """
     from dictate.presets import (
         Preferences, QUALITY_PRESETS, STT_PRESETS, WRITING_STYLES,
@@ -143,7 +149,7 @@ def _config_command(args: list[str]) -> int:
 
     if subcmd == "set":
         if len(args) < 3:
-            print(f"{R}Usage:{N} dictate config set KEY VALUE", file=sys.stderr)
+            print(f"{R}Usage:{N} autohand-voice config set KEY VALUE", file=sys.stderr)
             print(f"\n{W}Available keys:{N}")
             for key, info in CONFIG_KEYS.items():
                 desc = info["description"]
@@ -224,7 +230,7 @@ def _config_command(args: list[str]) -> int:
                     return 1
             else:
                 print(f"{R}Invalid device_id:{N} {value}", file=sys.stderr)
-                print(f"{D}Use a device number from 'dictate devices', or auto{N}", file=sys.stderr)
+                print(f"{D}Use a device number from 'autohand-voice devices', or auto{N}", file=sys.stderr)
                 return 1
 
         else:
@@ -246,7 +252,7 @@ def _config_command(args: list[str]) -> int:
     # Default: show config
     if subcmd not in ("show", "list", "get"):
         print(f"{R}Unknown subcommand:{N} {subcmd}", file=sys.stderr)
-        print(f"{D}Usage: dictate config [show|set|reset|path]{N}", file=sys.stderr)
+        print(f"{D}Usage: autohand-voice config [show|set|reset|path]{N}", file=sys.stderr)
         return 1
 
     if not PREFS_FILE.exists():
@@ -275,7 +281,7 @@ def _config_command(args: list[str]) -> int:
         except Exception:
             device_label = "Unknown or unavailable"
 
-    print(f"\n{W}{B}Dictate Config{N}\n")
+    print(f"\n{W}{B}Autohand Voice Config{N}\n")
     print(f"  {W}writing_style{N}   {Y}{prefs.writing_style}{N}  {D}({style_name}){N}")
     print(f"  {W}quality{N}         {Y}{prefs.quality_preset}{N}  {D}({quality.label if quality else 'Unknown'}){N}")
     print(f"  {W}stt{N}             {Y}{prefs.stt_preset}{N}  {D}({stt.label if stt else 'Unknown'}){N}")
@@ -290,7 +296,7 @@ def _config_command(args: list[str]) -> int:
     print(f"  {W}advanced_mode{N}   {Y}{'on' if prefs.advanced_mode else 'off'}{N}")
     print()
     print(f"  {D}Config file: {PREFS_FILE}{N}")
-    print(f"  {D}Use 'dictate config set KEY VALUE' to change a setting{N}")
+    print(f"  {D}Use 'autohand-voice config set KEY VALUE' to change a setting{N}")
     print()
     return 0
 
@@ -312,7 +318,7 @@ def _show_status() -> int:
     B = "\033[1m"    # bold
     N = "\033[0m"    # reset
 
-    print(f"\n{W}{B}Dictate Status{N}  {D}v{__version__}{N}\n")
+    print(f"\n{W}{B}Autohand Voice Status{N}  {D}v{__version__}{N}\n")
 
     # System info
     import platform
@@ -425,7 +431,7 @@ def _show_stats() -> int:
         print(f"\n{D}No dictations recorded yet. Start talking!{N}\n")
         return 0
 
-    print(f"\n{W}{B}Dictate Stats{N}\n")
+    print(f"\n{W}{B}Autohand Voice Stats{N}\n")
     print(f"  {W}Dictations{N}      {Y}{stats.total_dictations:,}{N}")
     print(f"  {W}Words{N}           {Y}{stats.total_words:,}{N}")
     print(f"  {W}Characters{N}      {Y}{stats.total_characters:,}{N}")
@@ -464,7 +470,7 @@ def _run_doctor() -> int:
     B = "\033[1m"
     N = "\033[0m"
 
-    print(f"\n{W}{B}Dictate Doctor{N}  {D}v{__version__}{N}\n")
+    print(f"\n{W}{B}Autohand Voice Doctor{N}  {D}v{__version__}{N}\n")
 
     issues = []
     warnings = []
@@ -574,7 +580,7 @@ def _run_doctor() -> int:
         warnings.append("Less than 10 GB free — model downloads may fail")
     else:
         print(f"  {R}✗{N} Disk space: {free_gb:.1f} GB free (critically low)")
-        issues.append("Less than 3 GB free — Dictate needs space for models")
+        issues.append("Less than 3 GB free — Autohand Voice needs space for models")
 
     # 9. Check accessibility permissions
     print()
@@ -595,11 +601,11 @@ def _run_doctor() -> int:
         pids = [p for p in result.stdout.strip().split("\n") if p and p != str(os.getpid())]
         if len(pids) > 1:
             print(f"  {Y}⚠{N} Multiple instances running (PIDs: {', '.join(pids)})")
-            warnings.append("Multiple Dictate instances — run 'pkill -f dictate.menubar_main' to clean up")
+            warnings.append("Multiple Autohand Voice instances — run 'pkill -f dictate.menubar_main' to clean up")
         elif len(pids) == 1:
             print(f"  {G}✓{N} One instance running (PID {pids[0]})")
         else:
-            print(f"  {D}○{N} Dictate not currently running")
+            print(f"  {D}○{N} Autohand Voice not currently running")
     except Exception:
         pass
 
@@ -614,11 +620,11 @@ def _run_doctor() -> int:
         for warning in warnings:
             print(f"  {Y}  • {warning}{N}")
     if not issues and not warnings:
-        print(f"  {G}{B}All checks passed!{N} Dictate should work correctly.")
+        print(f"  {G}{B}All checks passed!{N} Autohand Voice should work correctly.")
     elif not issues:
         print(f"\n  {G}No critical issues.{N} Warnings are informational.")
     else:
-        print(f"\n  {R}Fix the issues above before running Dictate.{N}")
+        print(f"\n  {R}Fix the issues above before running Autohand Voice.{N}")
     print()
 
     return 1 if issues else 0
@@ -672,16 +678,16 @@ def _list_devices() -> int:
         print(f"  {marker} [{W}{dev.index}{N}] {dev.name}{suffix}")
 
     print()
-    print(f"  {D}Set input device: dictate config set device_id <NUMBER>{N}")
-    print(f"  {D}Reset to default: dictate config set device_id auto{N}")
+    print(f"  {D}Set input device: autohand-voice config set device_id <NUMBER>{N}")
+    print(f"  {D}Reset to default: autohand-voice config set device_id auto{N}")
     print()
     return 0
 
 
 def _run_update(check_only: bool = False, from_github: bool = False) -> int:
-    """Update Dictate to the latest version.
+    """Update Autohand Voice to the latest version.
 
-    Tries PyPI first (``pip install --upgrade dictate-mlx``).  If PyPI
+    Tries PyPI first (``pip install --upgrade autohand-voice-mlx``).  If PyPI
     fails (package not published yet), falls back to installing from
     the GitHub repository.
 
@@ -699,15 +705,15 @@ def _run_update(check_only: bool = False, from_github: bool = False) -> int:
     B = "\033[1m"
     N = "\033[0m"
 
-    GITHUB_REPO = "https://github.com/0xbrando/dictate.git"
+    GITHUB_REPO = GITHUB_GIT_URL
 
-    print(f"\n{W}{B}Dictate Update{N}  {D}current: v{__version__}{N}\n")
+    print(f"\n{W}{B}Autohand Voice Update{N}  {D}current: v{__version__}{N}\n")
 
     if check_only:
         print(f"  {D}Checking for updates...{N}")
         try:
             result = subprocess.run(
-                [sys.executable, "-m", "pip", "index", "versions", "dictate-mlx"],
+                [sys.executable, "-m", "pip", "index", "versions", "autohand-voice-mlx"],
                 capture_output=True, text=True, check=False,
             )
             if result.returncode == 0 and result.stdout.strip():
@@ -723,7 +729,7 @@ def _run_update(check_only: bool = False, from_github: bool = False) -> int:
                 print(f"  {D}pip install git+{GITHUB_REPO}{N}")
         except Exception:
             print(f"  {Y}Could not check PyPI.{N}")
-        print(f"\n  {D}Run 'dictate update' to install the latest version.{N}\n")
+        print(f"\n  {D}Run 'autohand-voice update' to install the latest version.{N}\n")
         return 0
 
     # --- Install ---
@@ -737,7 +743,7 @@ def _run_update(check_only: bool = False, from_github: bool = False) -> int:
         # Try PyPI first
         print(f"  {W}Checking PyPI...{N}")
         install_cmd = [
-            sys.executable, "-m", "pip", "install", "--upgrade", "dictate-mlx",
+            sys.executable, "-m", "pip", "install", "--upgrade", "autohand-voice-mlx",
         ]
 
     try:
@@ -805,7 +811,7 @@ def _run_update(check_only: bool = False, from_github: bool = False) -> int:
                 )
                 print(f"  {G}✓ Restarted{N}")
             except Exception:
-                print(f"  {Y}Run 'dictate' to restart.{N}")
+                print(f"  {Y}Run 'autohand-voice' to restart.{N}")
     except Exception:
         pass
 
@@ -985,18 +991,18 @@ def main() -> int:
     # Handle --version flag
     if "--version" in sys.argv or "-V" in sys.argv:
         from dictate import __version__
-        print(f"dictate {__version__}")
+        print(f"autohand-voice {__version__}")
         return 0
 
     # Handle --help flag
     if "--help" in sys.argv or "-h" in sys.argv:
         from dictate import __version__
-        print(f"dictate v{__version__} — local push-to-talk dictation for macOS")
+        print(f"autohand-voice v{__version__} — local push-to-talk dictation for macOS")
         print()
-        print("Usage: dictate [COMMAND] [OPTIONS]")
+        print("Usage: autohand-voice [COMMAND] [OPTIONS]")
         print()
         print("Commands:")
-        print("  (default)       Launch Dictate in the menu bar")
+        print("  (default)       Launch Autohand Voice in the menu bar")
         print("  config          View and modify preferences")
         print("  stats           Show usage statistics")
         print("  status          Show system info and model status")
@@ -1012,13 +1018,13 @@ def main() -> int:
         print("  -h, --help        Show this help and exit")
         print()
         print("Config examples:")
-        print("  dictate config                    Show current settings")
-        print("  dictate config set writing_style professional")
-        print("  dictate config set quality fast")
-        print("  dictate config set ptt_key cmd_r")
-        print("  dictate config reset              Reset to defaults")
+        print("  autohand-voice config                    Show current settings")
+        print("  autohand-voice config set writing_style professional")
+        print("  autohand-voice config set quality fast")
+        print("  autohand-voice config set ptt_key cmd_r")
+        print("  autohand-voice config reset              Reset to defaults")
         print()
-        print("https://github.com/0xbrando/dictate")
+        print("https://github.com/autohandai/voice")
         return 0
 
     # Handle config command
@@ -1111,7 +1117,7 @@ def main() -> int:
                 _first_time_download()
 
             _tty = open("/dev/tty", "w")
-            _tty.write(f"""  {O}Dictate is running in your menu bar.{R}
+            _tty.write(f"""  {O}Autohand Voice is running in your menu bar.{R}
 
   {W}HOW TO USE{R}
   {D}Hold{R} {O}{_ptt_label}{R}       {D}talk, release to transcribe{R}
@@ -1127,7 +1133,7 @@ def main() -> int:
   {D}Remote endpoints are blocked unless you explicitly opt in.{R}
 
   {D}─────────────────────────────────────────{R}
-  {D}You can close this window — Dictate keeps running.{R}
+  {D}You can close this window — Autohand Voice keeps running.{R}
   {D}Enable {R}{W}Launch at Login{R}{D} from the menu bar to start automatically.{R}
 """)
             _tty.flush()
@@ -1145,11 +1151,11 @@ def main() -> int:
 
     lock_fd = _acquire_singleton_lock()
     if lock_fd is None:
-        logger.error("Another instance of Dictate is already running. Exiting.")
-        print("Dictate is already running.", file=sys.stderr)
+        logger.error("Another instance of Autohand Voice is already running. Exiting.")
+        print("Autohand Voice is already running.", file=sys.stderr)
         return 1
 
-    logger.info("Starting Dictate menu bar app (pid=%d)", os.getpid())
+    logger.info("Starting Autohand Voice menu bar app (pid=%d)", os.getpid())
 
     try:
         from dictate.menubar import DictateMenuBarApp

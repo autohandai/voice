@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "DictateSTT",
+    name: "AutohandVoiceSTT",
     platforms: [
         .macOS(.v14),
     ],
@@ -11,7 +11,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "dictate-stt",
+            name: "autohand-voice-stt",
             dependencies: [
                 .product(name: "FluidAudio", package: "FluidAudio"),
             ],
