@@ -16,13 +16,19 @@ final class AppSettingsModel {
     private(set) var actionMessage: String?
     private(set) var audioInputDevices: [AudioInputDevice] = []
     private(set) var audioInputStatus = "Checking microphones…"
+    private(set) var operationalIssues: [OperationalIssue] = []
     @ObservationIgnored private var audioInputDeviceMonitor: AudioInputDeviceMonitor?
+    @ObservationIgnored private let operationalIssueStore =
+        OperationalIssueStore()
 
     init(session: VoiceSession) {
         self.session = session
         vocabulary = VocabularySettingsModel()
         appProfiles = AppProfileSettingsModel(session: session)
         systemCheck = SystemCheck()
+        session.onOperationalIssuesChange = { [weak self] in
+            self?.refreshOperationalIssues()
+        }
         refresh()
         installAudioInputDeviceMonitor()
     }
@@ -68,6 +74,7 @@ final class AppSettingsModel {
             launchAtLoginStatus = "Unknown"
         }
         refreshAudioInputDevices()
+        refreshOperationalIssues()
     }
 
     func refreshAudioInputDevices() {
@@ -197,7 +204,8 @@ final class AppSettingsModel {
         } catch {
             actionMessage = "Could not update launch at login: \(error.localizedDescription)"
             session.reportFailure(
-                "Could not update launch at login: \(error.localizedDescription)"
+                "Could not update launch at login: \(error.localizedDescription)",
+                kind: .settings
             )
         }
         refresh()
@@ -205,19 +213,77 @@ final class AppSettingsModel {
 
     func copyDiagnosticReport() {
         do {
-            let report = DiagnosticReport(
-                check: systemCheck,
-                preferences: session.preferences
-            )
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
-            guard pasteboard.setString(try report.json(), forType: .string) else {
+            guard pasteboard.setString(
+                try diagnosticSnapshot.report.json(),
+                forType: .string
+            ) else {
                 actionMessage = "The diagnostic report could not be copied."
                 return
             }
             actionMessage = "Redacted diagnostic report copied."
         } catch {
             actionMessage = "The diagnostic report could not be created."
+        }
+    }
+
+    var diagnosticSnapshot: DiagnosticSnapshot {
+        DiagnosticSnapshot(
+            check: systemCheck,
+            preferences: session.preferences,
+            runtime: DiagnosticRuntime(
+                shortcutState: session.shortcutRegistrationState,
+                microphoneState: microphoneDiagnosticState,
+                microphoneDisplayName: selectedAudioInputDevice?.name
+                    ?? session.audioInputName,
+                signal: session.audioInputHealth,
+                modelState: modelDiagnosticState,
+                modelStorageBytes: session.modelStorageBytes,
+                issues: operationalIssues
+            )
+        )
+    }
+
+    func performDiagnosticRemediation(
+        _ remediation: DiagnosticRemediation
+    ) {
+        switch remediation {
+        case .useSupportedMac:
+            actionMessage =
+                "Autohand Voice requires macOS 14 or later on Apple Silicon."
+        case .allowMicrophone:
+            openMicrophoneSettings()
+        case .allowAccessibility:
+            openAccessibilitySettings()
+        case .registerShortcut:
+            _ = session.setShortcut(.controlOptionSpace)
+        case .refreshMicrophones:
+            refreshAudioInputDevices()
+        case .testMicrophone:
+            session.startMicrophoneTest()
+        case .prepareModel:
+            session.prepareLocalModel()
+        }
+        refresh()
+    }
+
+    func clearOperationalIssues() {
+        do {
+            try operationalIssueStore.reset()
+            operationalIssues = []
+            actionMessage = "Recent operational issues cleared."
+        } catch {
+            actionMessage = "Recent operational issues could not be cleared."
+        }
+    }
+
+    private func refreshOperationalIssues() {
+        do {
+            operationalIssues = try operationalIssueStore.load()
+        } catch {
+            operationalIssues = []
+            actionMessage = "Recent operational issues could not be loaded."
         }
     }
 
@@ -231,5 +297,21 @@ final class AppSettingsModel {
             string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)"
         ) else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    private var microphoneDiagnosticState: DiagnosticMicrophoneState {
+        guard selectedAudioInputDevice != nil else { return .unavailable }
+        return session.preferences.audioInputDeviceUID == nil
+            ? .systemDefault
+            : .configured
+    }
+
+    private var modelDiagnosticState: DiagnosticModelState {
+        switch session.modelState {
+        case .notChecked: .notChecked
+        case .preparing: .preparing
+        case .ready: .ready
+        case .failed: .unavailable
+        }
     }
 }

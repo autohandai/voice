@@ -36,4 +36,10 @@ public enum Brand {
             "usage-insights.json"
         )
     }
+
+    public static var operationalIssuesURL: URL {
+        applicationSupportDirectory.appendingPathComponent(
+            "operational-issues.json"
+        )
+    }
 }

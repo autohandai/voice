@@ -66,10 +66,15 @@ final class VoiceSession {
         ((RegisteredShortcut) -> OSStatus)?
     @ObservationIgnored var onHistoryChange: (() -> Void)?
     @ObservationIgnored var onInsightsChange: (() -> Void)?
+    @ObservationIgnored var onOperationalIssuesChange: (() -> Void)?
     private(set) var state: State = .ready { didSet { onChange?() } }
     private(set) var audioLevel: Float = 0
     private(set) var audioInputHealth: AudioInputHealth = .idle
     private(set) var audioInputName = "System Default"
+    private(set) var shortcutRegistrationState:
+        DiagnosticShortcutState = .notChecked {
+        didSet { onChange?() }
+    }
     private(set) var isTestingMicrophone = false
     private(set) var modelState: ModelState = .notChecked {
         didSet { onChange?() }
@@ -175,6 +180,8 @@ final class VoiceSession {
     @ObservationIgnored private let vocabularyStore = VocabularyStore()
     @ObservationIgnored private let appProfileStore = AppProfileStore()
     @ObservationIgnored private let usageInsightsStore = UsageInsightsStore()
+    @ObservationIgnored private let operationalIssueStore =
+        OperationalIssueStore()
     @ObservationIgnored private var historyEntryID: UUID?
     @ObservationIgnored private var pendingUsageDay: Date?
     @ObservationIgnored private var previewBuffer = ProvisionalPreviewBuffer()
@@ -259,12 +266,14 @@ final class VoiceSession {
         insertionTarget = nil
         if configuration.outputMode == .type {
             guard inserter.hasAccessibilityPermission(prompt: true) else {
+                recordOperationalIssue(.accessibility)
                 state = .failed(
                     VoiceError.accessibilityPermissionDenied.localizedDescription
                 )
                 return
             }
             guard let target = inserter.captureTarget() else {
+                recordOperationalIssue(.insertion)
                 state = .failed(VoiceError.noFocusedTextField.localizedDescription)
                 return
             }
@@ -327,6 +336,7 @@ final class VoiceSession {
                 await stopProvisionalPreview()
                 audioLevel = 0
                 insertionTarget = nil
+                recordOperationalIssue(.microphone)
                 if error as? AudioInputDeviceError
                     == .selectedDeviceUnavailable {
                     audioHealthMonitor.disconnect()
@@ -579,6 +589,13 @@ final class VoiceSession {
             } catch {
                 await stopProvisionalPreview()
                 insertionTarget = nil
+                if case .failed = modelState {
+                    // Model preparation records its own finite issue category.
+                } else {
+                    recordOperationalIssue(
+                        pendingTranscript == nil ? .transcription : .insertion
+                    )
+                }
                 Self.logger.error(
                     "Dictation failed: \(error.localizedDescription)"
                 )
@@ -650,7 +667,11 @@ final class VoiceSession {
         state = .ready
     }
 
-    func reportFailure(_ message: String) {
+    func reportFailure(
+        _ message: String,
+        kind: OperationalIssueKind = .runtime
+    ) {
+        recordOperationalIssue(kind)
         state = .failed(message)
     }
 
@@ -689,6 +710,7 @@ final class VoiceSession {
             self.pendingTranscript = nil
             state = .ready
         } catch {
+            recordOperationalIssue(.insertion)
             state = .failed(error.localizedDescription)
         }
     }
@@ -705,6 +727,7 @@ final class VoiceSession {
             self.pendingTranscript = nil
             state = .ready
         } catch {
+            recordOperationalIssue(.insertion)
             state = .failed(error.localizedDescription)
         }
     }
@@ -779,8 +802,12 @@ final class VoiceSession {
     }
 
     func reportAudioInputDisconnected() {
+        let wasDisconnected = audioInputHealth == .disconnected
         audioHealthMonitor.disconnect()
         audioInputHealth = .disconnected
+        if !wasDisconnected {
+            recordOperationalIssue(.microphone)
+        }
     }
 
     func reportAudioInputAvailable(name: String) {
@@ -823,6 +850,7 @@ final class VoiceSession {
                 } else {
                     audioInputHealth = .idle
                 }
+                recordOperationalIssue(.microphone)
                 state = .failed(
                     "Microphone test failed: \(error.localizedDescription)"
                 )
@@ -849,17 +877,22 @@ final class VoiceSession {
     func setShortcut(_ shortcut: RegisteredShortcut) -> Bool {
         guard shortcut.isValid else {
             shortcutFailureActive = true
+            shortcutRegistrationState = .unavailable
+            recordOperationalIssue(.shortcut)
             state = .failed("Choose a valid shortcut with at least one modifier.")
             return false
         }
         let status = onShortcutRegistration?(shortcut) ?? noErr
         guard status == noErr else {
             shortcutFailureActive = true
+            shortcutRegistrationState = .unavailable
+            recordOperationalIssue(.shortcut)
             state = .failed(
                 "That shortcut is unavailable (registration error \(status))."
             )
             return false
         }
+        shortcutRegistrationState = .registered
         preferences.shortcut = shortcut
         if shortcutFailureActive {
             shortcutFailureActive = false
@@ -958,6 +991,7 @@ final class VoiceSession {
             historyError = nil
             onHistoryChange?()
         } catch {
+            recordOperationalIssue(.storage)
             historyError = "Could not erase history: \(error.localizedDescription)"
             onChange?()
         }
@@ -1079,6 +1113,7 @@ final class VoiceSession {
     }
 
     private func setModelFailure(_ error: Error) {
+        recordOperationalIssue(.model)
         let message = error.localizedDescription
         modelFailureKind = .classify(message)
         modelProgress = 0
@@ -1271,6 +1306,7 @@ final class VoiceSession {
             onHistoryChange?()
         } catch {
             historyEntryID = nil
+            recordOperationalIssue(.storage)
             historyError = "Could not save local history: \(error.localizedDescription)"
             onChange?()
         }
@@ -1287,6 +1323,7 @@ final class VoiceSession {
             historyError = nil
             onHistoryChange?()
         } catch {
+            recordOperationalIssue(.storage)
             historyError = "Could not update local history: \(error.localizedDescription)"
             onChange?()
         }
@@ -1314,6 +1351,7 @@ final class VoiceSession {
             onInsightsChange?()
             return day
         } catch {
+            recordOperationalIssue(.storage)
             usageInsightsError =
                 "Usage insights could not be saved: \(error.localizedDescription)"
             return nil
@@ -1333,6 +1371,7 @@ final class VoiceSession {
             usageInsightsError = nil
             onInsightsChange?()
         } catch {
+            recordOperationalIssue(.storage)
             usageInsightsError =
                 "Usage insights could not be updated: \(error.localizedDescription)"
         }
@@ -1348,6 +1387,7 @@ final class VoiceSession {
             historyError = nil
             onHistoryChange?()
         } catch {
+            recordOperationalIssue(.storage)
             historyError = "Could not prune local history: \(error.localizedDescription)"
             onChange?()
         }
@@ -1357,6 +1397,7 @@ final class VoiceSession {
         do {
             try store.save(preferences)
         } catch {
+            recordOperationalIssue(.settings)
             state = .failed("Could not save settings: \(error.localizedDescription)")
         }
         if !isRecordingOrStarting, state != .processing {
@@ -1371,5 +1412,15 @@ final class VoiceSession {
             level: level,
             at: ProcessInfo.processInfo.systemUptime
         )
+    }
+
+    func reportShortcutRegistration(succeeded: Bool) {
+        shortcutRegistrationState = succeeded ? .registered : .unavailable
+    }
+
+    private func recordOperationalIssue(_ kind: OperationalIssueKind) {
+        if (try? operationalIssueStore.record(kind)) != nil {
+            onOperationalIssuesChange?()
+        }
     }
 }

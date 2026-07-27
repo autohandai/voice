@@ -71,6 +71,26 @@
         }
       }
     },
+    "App runtime": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App runtime"
+          }
+        }
+      }
+    },
+    "App version": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App version"
+          }
+        }
+      }
+    },
     "Application": {
       "localizations": {
         "en": {
@@ -87,6 +107,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Audio Input"
+          }
+        }
+      }
+    },
+    "Authorized": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authorized"
           }
         }
       }
@@ -131,12 +161,52 @@
         }
       }
     },
+    "Clear Issues": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Issues"
+          }
+        }
+      }
+    },
+    "Clear Recent Issues…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Recent Issues…"
+          }
+        }
+      }
+    },
+    "Clear recent operational issues?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear recent operational issues?"
+          }
+        }
+      }
+    },
     "Collect Insights": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Collect Insights"
+          }
+        }
+      }
+    },
+    "Configured microphone": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Configured microphone"
           }
         }
       }
@@ -411,6 +481,16 @@
         }
       }
     },
+    "Information": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Information"
+          }
+        }
+      }
+    },
     "Input Monitoring": {
       "localizations": {
         "en": {
@@ -427,6 +507,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Insert at Cursor"
+          }
+        }
+      }
+    },
+    "Keyboard shortcut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keyboard shortcut"
           }
         }
       }
@@ -471,12 +561,52 @@
         }
       }
     },
+    "Live signal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live signal"
+          }
+        }
+      }
+    },
     "Local Model": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Local Model"
+          }
+        }
+      }
+    },
+    "Local speech model": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local speech model"
+          }
+        }
+      }
+    },
+    "Local storage": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local storage"
+          }
+        }
+      }
+    },
+    "Local transcription": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local transcription"
           }
         }
       }
@@ -507,6 +637,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Microphone input level"
+          }
+        }
+      }
+    },
+    "Microphone permission": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone permission"
+          }
+        }
+      }
+    },
+    "Model disk use": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model disk use"
           }
         }
       }
@@ -557,6 +707,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "No Usage Yet"
+          }
+        }
+      }
+    },
+    "No recent operational issues": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No recent operational issues"
           }
         }
       }
@@ -731,6 +891,16 @@
         }
       }
     },
+    "Recent Operational Issues": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent Operational Issues"
+          }
+        }
+      }
+    },
     "Recording Mode": {
       "localizations": {
         "en": {
@@ -771,6 +941,36 @@
         }
       }
     },
+    "Refresh Microphones": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Microphones"
+          }
+        }
+      }
+    },
+    "Registered shortcut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registered shortcut"
+          }
+        }
+      }
+    },
+    "Remote fallback": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote fallback"
+          }
+        }
+      }
+    },
     "Remove Local Model": {
       "localizations": {
         "en": {
@@ -791,6 +991,16 @@
         }
       }
     },
+    "Report Privacy": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Report Privacy"
+          }
+        }
+      }
+    },
     "Reset": {
       "localizations": {
         "en": {
@@ -807,6 +1017,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reset All…"
+          }
+        }
+      }
+    },
+    "Reset Shortcut": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset Shortcut"
           }
         }
       }
@@ -841,6 +1061,16 @@
         }
       }
     },
+    "Runtime Checks": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runtime Checks"
+          }
+        }
+      }
+    },
     "Save History": {
       "localizations": {
         "en": {
@@ -857,6 +1087,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Search transcripts"
+          }
+        }
+      }
+    },
+    "Selected audio file": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected audio file"
+          }
+        }
+      }
+    },
+    "Selected microphone": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected microphone"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
           }
         }
       }
@@ -887,6 +1147,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Signal"
+          }
+        }
+      }
+    },
+    "Sleep or wake": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sleep or wake"
           }
         }
       }
@@ -991,6 +1261,16 @@
         }
       }
     },
+    "Text insertion": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text insertion"
+          }
+        }
+      }
+    },
     "Toggle": {
       "localizations": {
         "en": {
@@ -1051,12 +1331,42 @@
         }
       }
     },
+    "Unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable"
+          }
+        }
+      }
+    },
+    "Unsupported": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsupported"
+          }
+        }
+      }
+    },
     "Use Global": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Use Global"
+          }
+        }
+      }
+    },
+    "Use macOS 14+ on Apple Silicon": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use macOS 14+ on Apple Silicon"
           }
         }
       }

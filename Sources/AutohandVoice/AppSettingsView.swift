@@ -1250,6 +1250,7 @@ private struct LanguageModelSettingsView: View {
 
 private struct PrivacyDiagnosticsView: View {
     @Bindable var model: AppSettingsModel
+    @State private var confirmsClearIssues = false
 
     var body: some View {
         SettingsPage(
@@ -1257,36 +1258,54 @@ private struct PrivacyDiagnosticsView: View {
             subtitle: "Verify the local runtime without exposing dictated text."
         ) {
             Form {
-                Section("Privacy") {
-                    LabeledContent("Speech Recognition", value: "Local CoreML")
-                    LabeledContent("Remote Fallback", value: "Disabled")
-                    LabeledContent("Audio Storage", value: "In memory only")
-                    LabeledContent("Provisional Text", value: "Never inserted")
-                    LabeledContent(
-                        "Text History",
-                        value: model.session.preferences.historyEnabled
-                            ? "Enabled locally"
-                            : "Off"
-                    )
-                    LabeledContent(
-                        "Selected Language",
-                        value: model.selectedDictationLanguage.displayName
-                    )
+                Section("Runtime Checks") {
+                    ForEach(model.diagnosticSnapshot.checks) { check in
+                        DiagnosticCheckRow(check: check) {
+                            if let remediation = check.remediation {
+                                model.performDiagnosticRemediation(
+                                    remediation
+                                )
+                            }
+                        }
+                    }
                 }
 
-                Section("System") {
-                    LabeledContent(
-                        "Platform",
-                        value: model.systemCheck.supported ? "Supported" : "Unsupported"
+                Section("Recent Operational Issues") {
+                    if model.operationalIssues.isEmpty {
+                        Label(
+                            "No recent operational issues",
+                            systemImage: "checkmark.circle"
+                        )
+                        .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(model.operationalIssues) { issue in
+                            LabeledContent {
+                                Text(
+                                    "\(issue.count.formatted()) · "
+                                        + issue.lastSeenAt.formatted(
+                                            date: .abbreviated,
+                                            time: .shortened
+                                        )
+                                )
+                            } label: {
+                                Text(LocalizedStringKey(issue.kind.title))
+                            }
+                        }
+                        Button(
+                            "Clear Recent Issues…",
+                            role: .destructive
+                        ) {
+                            confirmsClearIssues = true
+                        }
+                    }
+                }
+
+                Section("Report Privacy") {
+                    Text(
+                        "The copied report contains only diagnostic states, aggregate issue categories and counts, dates, and model disk bytes. It excludes transcript text, audio, file paths, usernames, focused content, credentials, environment values, and microphone names."
                     )
-                    LabeledContent(
-                        "Architecture",
-                        value: model.systemCheck.architecture
-                    )
-                    LabeledContent(
-                        "macOS",
-                        value: model.systemCheck.macOSVersion
-                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
             }
             .formStyle(.grouped)
@@ -1302,6 +1321,81 @@ private struct PrivacyDiagnosticsView: View {
             }
 
             ActionMessage(message: model.actionMessage)
+        }
+        .confirmationDialog(
+            "Clear recent operational issues?",
+            isPresented: $confirmsClearIssues
+        ) {
+            Button("Clear Issues", role: .destructive) {
+                model.clearOperationalIssues()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "This removes only bounded diagnostic categories and counts. It does not change settings or transcript history."
+            )
+        }
+    }
+}
+
+private struct DiagnosticCheckRow: View {
+    let check: DiagnosticCheck
+    let remediate: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Label(statusLabel, systemImage: statusSymbol)
+                .labelStyle(.iconOnly)
+                .foregroundStyle(statusColor)
+                .accessibilityLabel(statusLabel)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(LocalizedStringKey(check.title))
+                Text(verbatim: check.value)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+
+            Spacer()
+
+            if let remediation = check.remediation {
+                Button(action: remediate) {
+                    Text(LocalizedStringKey(remediation.label))
+                }
+            } else {
+                Text(statusLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var statusLabel: LocalizedStringKey {
+        switch check.status {
+        case .ready: "Ready"
+        case .attention: "Needs attention"
+        case .unavailable: "Unavailable"
+        case .informational: "Information"
+        }
+    }
+
+    private var statusSymbol: String {
+        switch check.status {
+        case .ready: "checkmark.circle.fill"
+        case .attention: "exclamationmark.circle"
+        case .unavailable: "xmark.octagon.fill"
+        case .informational: "info.circle"
+        }
+    }
+
+    private var statusColor: Color {
+        switch check.status {
+        case .ready: .green
+        case .attention: .orange
+        case .unavailable: .red
+        case .informational: .secondary
         }
     }
 }

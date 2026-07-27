@@ -41,10 +41,12 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
                 ?? OSStatus(eventNotHandledErr)
         }
         let hotKeyStatus = hotKeyMonitor?.start() ?? OSStatus(eventNotHandledErr)
+        session.reportShortcutRegistration(succeeded: hotKeyStatus == noErr)
         if hotKeyStatus != noErr {
             session.reportFailure(
                 "\(session.preferences.shortcut.accessibilityName) "
-                    + "could not be registered (\(hotKeyStatus))."
+                    + "could not be registered (\(hotKeyStatus)).",
+                kind: .shortcut
             )
         }
         observeWorkspaceLifecycle()

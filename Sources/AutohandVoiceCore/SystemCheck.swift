@@ -2,7 +2,7 @@ import AVFoundation
 import ApplicationServices
 import Foundation
 
-public struct SystemCheck: Codable, Sendable {
+public struct SystemCheck: Codable, Equatable, Sendable {
     public let supported: Bool
     public let architecture: String
     public let macOSVersion: String
@@ -27,6 +27,21 @@ public struct SystemCheck: Codable, Sendable {
         @unknown default: microphonePermission = "unknown"
         }
         accessibilityPermission = AXIsProcessTrusted()
+        remoteFallbackEnabled = false
+    }
+
+    public init(
+        supported: Bool,
+        architecture: String,
+        macOSVersion: String,
+        microphonePermission: String,
+        accessibilityPermission: Bool
+    ) {
+        self.supported = supported
+        self.architecture = architecture
+        self.macOSVersion = macOSVersion
+        self.microphonePermission = microphonePermission
+        self.accessibilityPermission = accessibilityPermission
         remoteFallbackEnabled = false
     }
 }

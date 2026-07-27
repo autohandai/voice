@@ -521,6 +521,11 @@ Acceptance:
 
 Priority: P0
 
+Status: implemented with one shared app/CLI diagnostic snapshot, explicit
+remediation for every unavailable check, a redacted report, and an owner-only
+operational issue ledger limited to finite categories, 30 days, and 9,999
+events per category. Corrupt or oversized ledgers are replaced safely.
+
 Create a single screen for platform support, permissions, registered shortcut,
 selected microphone, live signal, model readiness, disk use, app version,
 recent bounded operational errors, and the invariant “Remote fallback:

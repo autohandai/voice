@@ -132,6 +132,15 @@ localized strings as release requirements. Setup, microphone testing,
 transcript recovery, and destructive history controls expose explicit labels
 and state instead of relying on color, motion, or sound.
 
+Privacy & Diagnostics uses the same diagnostic snapshot as
+`autohand-voice check --json`. It shows platform and permission support,
+shortcut registration, the selected microphone and live signal, model
+readiness and disk use, app version, and the fixed invariant “Remote fallback:
+Disabled.” Recent failures are stored for at most 30 days as bounded category
+counts—never raw error messages—and the copied report automatically omits
+transcripts, audio, paths, usernames, focused content, credentials, environment
+values, and microphone names.
+
 ## Configuration
 
 Preferences are stored at:

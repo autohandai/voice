@@ -32,6 +32,7 @@ private func printUsage() {
 
 private func printJSON<T: Encodable>(_ value: T) throws {
     let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .iso8601
     encoder.outputFormatting = [.sortedKeys]
     let data = try encoder.encode(value)
     print(String(decoding: data, as: UTF8.self))
@@ -174,20 +175,27 @@ struct AutohandVoiceCommand {
                 try printJSON(["text": try transcript.finalText()])
             case "check", "doctor":
                 let check = SystemCheck()
-                if arguments.contains("--json") {
-                    try printJSON(
-                        DiagnosticReport(
-                            check: check,
-                            preferences: PreferencesStore().load()
-                        )
+                let preferences = PreferencesStore().load()
+                let issues =
+                    (try? OperationalIssueStore().load()) ?? []
+                let diagnostics = DiagnosticSnapshot(
+                    check: check,
+                    preferences: preferences,
+                    runtime: .commandLine(
+                        preferences: preferences,
+                        issues: issues
                     )
+                )
+                if arguments.contains("--json") {
+                    try printJSON(diagnostics.report)
                 } else {
-                    print("Platform: \(check.supported ? "supported" : "unsupported")")
-                    print("Architecture: \(check.architecture)")
-                    print("macOS: \(check.macOSVersion)")
-                    print("Microphone: \(check.microphonePermission)")
-                    print("Accessibility: \(check.accessibilityPermission ? "authorized" : "not authorized")")
-                    print("Remote fallback: disabled")
+                    for item in diagnostics.checks {
+                        print("\(item.title): \(item.value)")
+                    }
+                    print(
+                        "Recent operational issue categories: "
+                            + "\(issues.count)"
+                    )
                 }
                 if !check.supported { exit(EXIT_FAILURE) }
             case "model-check":

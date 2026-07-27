@@ -14,7 +14,7 @@ public struct AudioInputDevice: Identifiable, Equatable, Sendable {
     }
 }
 
-public enum AudioInputHealth: String, Equatable, Sendable {
+public enum AudioInputHealth: String, Codable, Equatable, Sendable {
     case idle
     case listening
     case healthy
