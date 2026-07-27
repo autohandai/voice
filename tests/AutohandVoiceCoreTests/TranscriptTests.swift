@@ -25,4 +25,20 @@ final class TranscriptTests: XCTestCase {
 
         XCTAssertEqual(aggregator.text, "second third")
     }
+
+    func testProvisionalPreviewIsBoundedAndNeverCommittable() throws {
+        var preview = ProvisionalPreviewBuffer(maximumCharacters: 12)
+
+        preview.update("  this is provisional text  ")
+
+        let transcript = try XCTUnwrap(preview.transcript)
+        XCTAssertEqual(transcript.phase, .provisional)
+        XCTAssertEqual(transcript.text, "isional text")
+        XCTAssertThrowsError(try transcript.finalText()) {
+            XCTAssertEqual($0 as? VoiceError, .transcriptIsNotFinal)
+        }
+
+        preview.clear()
+        XCTAssertNil(preview.transcript)
+    }
 }

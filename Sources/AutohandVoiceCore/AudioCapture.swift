@@ -13,6 +13,7 @@ public final class AudioCapture: @unchecked Sendable {
     private var recording = false
     private var startedAt: Date?
     private var levelHandler: (@Sendable (Float) -> Void)?
+    private var sampleHandler: (@Sendable ([Float], Double) -> Void)?
     private var levelFramesSinceEmission = 0
 
     public init() {}
@@ -30,7 +31,8 @@ public final class AudioCapture: @unchecked Sendable {
 
     public func start(
         deviceUID: String? = nil,
-        onLevel: (@Sendable (Float) -> Void)? = nil
+        onLevel: (@Sendable (Float) -> Void)? = nil,
+        onSamples: (@Sendable ([Float], Double) -> Void)? = nil
     ) async throws {
         guard await requestPermission() else {
             throw VoiceError.microphonePermissionDenied
@@ -40,6 +42,7 @@ public final class AudioCapture: @unchecked Sendable {
             guard !recording else { return false }
             samples.removeAll(keepingCapacity: true)
             levelHandler = onLevel
+            sampleHandler = onSamples
             levelFramesSinceEmission = 0
             recording = true
             startedAt = Date()
@@ -112,6 +115,7 @@ public final class AudioCapture: @unchecked Sendable {
         let inputRate = sourceSampleRate
         samples.removeAll(keepingCapacity: false)
         levelHandler = nil
+        sampleHandler = nil
         levelFramesSinceEmission = 0
         startedAt = nil
         lock.unlock()
@@ -145,6 +149,7 @@ public final class AudioCapture: @unchecked Sendable {
         recording = false
         samples.removeAll(keepingCapacity: false)
         levelHandler = nil
+        sampleHandler = nil
         levelFramesSinceEmission = 0
         startedAt = nil
         lock.unlock()
@@ -177,8 +182,11 @@ public final class AudioCapture: @unchecked Sendable {
         } else {
             handler = nil
         }
+        let samplesHandler = sampleHandler
+        let rate = sourceSampleRate
         lock.unlock()
         handler?(rms)
+        samplesHandler?(incoming, rate)
     }
 
     static func resample(

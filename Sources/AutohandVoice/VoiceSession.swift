@@ -4,6 +4,11 @@ import Foundation
 import Observation
 import OSLog
 
+private struct PreviewAudioChunk: Sendable {
+    let samples: [Float]
+    let sampleRate: Double
+}
+
 @MainActor
 @Observable
 final class VoiceSession {
@@ -80,6 +85,12 @@ final class VoiceSession {
         didSet { onChange?() }
     }
     private(set) var pendingTranscript: String? { didSet { onChange?() } }
+    private(set) var provisionalTranscript: String? {
+        didSet { onChange?() }
+    }
+    private(set) var provisionalPreviewNotice: String? {
+        didSet { onChange?() }
+    }
     private(set) var hasRecoverableAudio = false { didSet { onChange?() } }
     private(set) var recoverableAudioDuration: TimeInterval = 0
     private(set) var historyError: String?
@@ -139,6 +150,10 @@ final class VoiceSession {
     @ObservationIgnored private let vocabularyStore = VocabularyStore()
     @ObservationIgnored private let appProfileStore = AppProfileStore()
     @ObservationIgnored private var historyEntryID: UUID?
+    @ObservationIgnored private var previewBuffer = ProvisionalPreviewBuffer()
+    @ObservationIgnored private var previewAudioContinuation:
+        AsyncStream<PreviewAudioChunk>.Continuation?
+    @ObservationIgnored private var previewAudioTask: Task<Void, Never>?
 
     init(store: PreferencesStore = PreferencesStore()) {
         self.store = store
@@ -172,6 +187,11 @@ final class VoiceSession {
         activeConfiguration.showRecordingHUD
     }
 
+    var effectiveLivePreviewEnabled: Bool {
+        activeConfiguration.livePreviewEnabled
+            && activeConfiguration.showRecordingHUD
+    }
+
     var effectivePlaySounds: Bool {
         activeConfiguration.playSounds
     }
@@ -182,6 +202,7 @@ final class VoiceSession {
         }
         if !value, state == .recording {
             capture.cancel()
+            Task { await stopProvisionalPreview() }
             audioLevel = 0
             state = .ready
         }
@@ -192,6 +213,7 @@ final class VoiceSession {
         refreshActiveProfile()
         guard canStartRecording else { return }
         let configuration = activeConfiguration
+        clearProvisionalPreview()
         insertionTarget = nil
         if configuration.outputMode == .type {
             guard inserter.hasAccessibilityPermission(prompt: true) else {
@@ -214,17 +236,33 @@ final class VoiceSession {
         cancelWhenStarted = false
         Task {
             do {
-                try await capture.start(
-                    deviceUID: preferences.audioInputDeviceUID
-                ) { [weak self] level in
-                    Task { @MainActor [weak self] in
-                        self?.observeAudioLevel(level)
-                    }
+                if configuration.livePreviewEnabled
+                    && configuration.showRecordingHUD
+                {
+                    await startProvisionalPreview()
                 }
+                let previewSink = previewAudioContinuation
+                try await capture.start(
+                    deviceUID: preferences.audioInputDeviceUID,
+                    onLevel: { [weak self] level in
+                        Task { @MainActor [weak self] in
+                            self?.observeAudioLevel(level)
+                        }
+                    },
+                    onSamples: { samples, sampleRate in
+                        previewSink?.yield(
+                            PreviewAudioChunk(
+                                samples: samples,
+                                sampleRate: sampleRate
+                            )
+                        )
+                    }
+                )
                 Self.logger.notice("Audio capture started")
                 if cancelWhenStarted {
                     cancelWhenStarted = false
                     capture.cancel()
+                    await stopProvisionalPreview()
                     audioLevel = 0
                     audioHealthMonitor.reset()
                     audioInputHealth = .idle
@@ -238,6 +276,7 @@ final class VoiceSession {
                     if activeConfiguration.playSounds { NSSound.beep() }
                 }
             } catch {
+                await stopProvisionalPreview()
                 audioLevel = 0
                 insertionTarget = nil
                 if error as? AudioInputDeviceError
@@ -270,6 +309,7 @@ final class VoiceSession {
         }
         guard state == .recording else { return }
         capture.cancel()
+        Task { await stopProvisionalPreview() }
         insertionTarget = nil
         audioLevel = 0
         audioHealthMonitor.reset()
@@ -424,6 +464,7 @@ final class VoiceSession {
         Task {
             do {
                 let samples = try capture.stop()
+                await stopProvisionalPreview()
                 retainAudioRecovery(samples)
                 Self.logger.notice(
                     "Audio capture stopped with \(samples.count) local samples"
@@ -433,6 +474,7 @@ final class VoiceSession {
                     target: insertionTarget
                 )
             } catch {
+                await stopProvisionalPreview()
                 insertionTarget = nil
                 Self.logger.error(
                     "Dictation failed: \(error.localizedDescription)"
@@ -440,6 +482,63 @@ final class VoiceSession {
                 state = .failed(error.localizedDescription)
             }
         }
+    }
+
+    private func startProvisionalPreview() async {
+        do {
+            try await recognizer.startProvisionalPreview {
+                [weak self] transcript in
+                Task { @MainActor [weak self] in
+                    self?.receiveProvisionalTranscript(transcript)
+                }
+            }
+            let (stream, continuation) =
+                AsyncStream<PreviewAudioChunk>.makeStream(
+                    bufferingPolicy: .bufferingNewest(64)
+                )
+            previewAudioContinuation = continuation
+            previewAudioTask = Task { [weak self] in
+                guard let self else { return }
+                for await chunk in stream {
+                    guard !Task.isCancelled else { return }
+                    await self.recognizer.appendProvisionalSamples(
+                        chunk.samples,
+                        sampleRate: chunk.sampleRate
+                    )
+                }
+            }
+            provisionalPreviewNotice = nil
+        } catch {
+            provisionalPreviewNotice =
+                "Live preview unavailable: \(error.localizedDescription)"
+            Self.logger.error(
+                "Provisional preview failed; final local transcription remains available: \(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func stopProvisionalPreview() async {
+        previewAudioContinuation?.finish()
+        previewAudioContinuation = nil
+        let audioTask = previewAudioTask
+        audioTask?.cancel()
+        previewAudioTask = nil
+        _ = await audioTask?.result
+        await recognizer.stopProvisionalPreview()
+        clearProvisionalPreview()
+    }
+
+    private func receiveProvisionalTranscript(_ transcript: Transcript) {
+        guard transcript.phase == .provisional, state == .recording else {
+            return
+        }
+        previewBuffer.update(transcript.text)
+        provisionalTranscript = previewBuffer.transcript?.text
+    }
+
+    private func clearProvisionalPreview() {
+        previewBuffer.clear()
+        provisionalTranscript = nil
     }
 
     func recover() {
@@ -681,6 +780,17 @@ final class VoiceSession {
 
     func setShowRecordingHUD(_ value: Bool) {
         preferences.showRecordingHUD = value
+        if !value {
+            preferences.livePreviewEnabled = false
+        }
+        persist()
+    }
+
+    func setLivePreviewEnabled(_ value: Bool) {
+        preferences.livePreviewEnabled = value
+        if value {
+            preferences.showRecordingHUD = true
+        }
         persist()
     }
 
@@ -863,9 +973,12 @@ final class VoiceSession {
         target: TextInsertionTarget?
     ) async throws {
         try await prepareModelForUse()
-        let transcript = try await recognizer.transcribe(samples: samples)
-        let recognizedText = try transcript.finalText()
         let configuration = activeConfiguration
+        let transcript = try await recognizer.transcribe(
+            samples: samples,
+            languageCode: configuration.dictationLanguageCode
+        )
+        let recognizedText = try transcript.finalText()
         let commandResult = DictationCommandProcessor.process(
             recognizedText,
             enabled: configuration.dictationCommandsEnabled,

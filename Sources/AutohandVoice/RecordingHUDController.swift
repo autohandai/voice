@@ -38,6 +38,11 @@ final class RecordingHUDController: NSWindowController {
             window?.orderOut(nil)
             return
         }
+        window?.setContentSize(
+            session.effectiveLivePreviewEnabled
+                ? NSSize(width: 420, height: 132)
+                : NSSize(width: 360, height: 88)
+        )
         switch session.state {
         case .ready:
             window?.orderOut(nil)
@@ -95,6 +100,29 @@ private struct RecordingHUDView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                     }
+
+                    if let provisional = session.provisionalTranscript {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text("Provisional")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Text(provisional)
+                                .font(.caption)
+                                .lineLimit(2)
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(
+                            "Provisional transcript, \(provisional)"
+                        )
+                    } else if let notice =
+                        session.provisionalPreviewNotice
+                    {
+                        Text(notice)
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                            .lineLimit(2)
+                            .accessibilityLabel(notice)
+                    }
                 } else {
                     Text(statusDetail)
                         .font(.caption)
@@ -108,8 +136,12 @@ private struct RecordingHUDView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
-        .frame(width: 360)
-        .frame(minHeight: 88)
+        .frame(
+            width: session.effectiveLivePreviewEnabled ? 420 : 360
+        )
+        .frame(
+            minHeight: session.effectiveLivePreviewEnabled ? 132 : 88
+        )
         .background(.regularMaterial)
         .clipShape(.rect(cornerRadius: 14))
         .accessibilityElement(children: .contain)

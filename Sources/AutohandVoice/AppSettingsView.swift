@@ -311,6 +311,12 @@ private struct AppProfilesSettingsView: View {
             model.updateSelected { $0.showRecordingHUD = value }
         }
         booleanOverride(
+            "Live Provisional Preview",
+            value: profile.livePreviewEnabled
+        ) { value in
+            model.updateSelected { $0.livePreviewEnabled = value }
+        }
+        booleanOverride(
             "Sound Feedback",
             value: profile.playSounds
         ) { value in
@@ -751,6 +757,26 @@ private struct GeneralSettingsView: View {
                             set: { model.session.setShowRecordingHUD($0) }
                         )
                     )
+
+                    Toggle(
+                        "Live Provisional Preview",
+                        isOn: Binding(
+                            get: {
+                                model.session.preferences.livePreviewEnabled
+                            },
+                            set: {
+                                model.session.setLivePreviewEnabled($0)
+                            }
+                        )
+                    )
+
+                    if model.session.preferences.livePreviewEnabled {
+                        Text(
+                            "Shows changing local text only inside the HUD. Provisional text is never inserted; stopping runs one final language-aware transcription."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
 
                     Toggle(
                         "Enable Dictation Commands",

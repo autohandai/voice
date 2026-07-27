@@ -412,6 +412,11 @@ Acceptance:
 
 Priority: P1
 
+Status: implemented as an opt-in, bounded FluidAudio sliding-window session
+shown only in the nonactivating HUD. Preview text is explicitly provisional,
+cannot pass the final-transcript gate, and is cancelled and cleaned up before
+the single authoritative final transcription and insertion.
+
 Use FluidAudio’s local sliding-window/streaming support to show provisional text
 inside the Autohand Voice HUD or scratchpad. Never stream provisional text into
 the target app. On stop, run finalization and insert exactly one final

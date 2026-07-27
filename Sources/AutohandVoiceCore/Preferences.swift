@@ -47,6 +47,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var modelVersion: String
     public var hasCompletedOnboarding: Bool
     public var showRecordingHUD: Bool
+    public var livePreviewEnabled: Bool
     public var audioInputDeviceUID: String?
     public var shortcut: RegisteredShortcut
     public var recordingMode: RecordingMode
@@ -67,6 +68,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         modelVersion: String = "v3",
         hasCompletedOnboarding: Bool = false,
         showRecordingHUD: Bool = true,
+        livePreviewEnabled: Bool = false,
         audioInputDeviceUID: String? = nil,
         shortcut: RegisteredShortcut = .controlOptionSpace,
         recordingMode: RecordingMode = .pressAndHold,
@@ -86,6 +88,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         self.modelVersion = modelVersion
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.showRecordingHUD = showRecordingHUD
+        self.livePreviewEnabled = livePreviewEnabled
         self.audioInputDeviceUID = audioInputDeviceUID
         self.shortcut = shortcut
         self.recordingMode = recordingMode
@@ -116,6 +119,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         case modelVersion
         case hasCompletedOnboarding
         case showRecordingHUD
+        case livePreviewEnabled
         case audioInputDeviceUID
         case shortcut
         case recordingMode
@@ -147,6 +151,10 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
             Bool.self,
             forKey: .showRecordingHUD
         ) ?? true
+        livePreviewEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .livePreviewEnabled
+        ) ?? false
         audioInputDeviceUID = try container.decodeIfPresent(
             String.self,
             forKey: .audioInputDeviceUID

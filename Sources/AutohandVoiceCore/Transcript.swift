@@ -48,6 +48,31 @@ public enum TranscriptNormalizer {
     }
 }
 
+public struct ProvisionalPreviewBuffer: Sendable {
+    public let maximumCharacters: Int
+    public private(set) var transcript: Transcript?
+
+    public init(maximumCharacters: Int = 500) {
+        self.maximumCharacters = max(1, maximumCharacters)
+    }
+
+    public mutating func update(_ text: String) {
+        let normalized = TranscriptNormalizer.normalize(text)
+        guard !normalized.isEmpty else {
+            transcript = nil
+            return
+        }
+        transcript = Transcript(
+            text: String(normalized.suffix(maximumCharacters)),
+            phase: .provisional
+        )
+    }
+
+    public mutating func clear() {
+        transcript = nil
+    }
+}
+
 public struct TranscriptAggregator: Sendable {
     public let maximumCharacters: Int
     private var entries: [String] = []

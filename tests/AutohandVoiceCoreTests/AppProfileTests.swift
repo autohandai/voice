@@ -13,6 +13,7 @@ final class AppProfileTests: XCTestCase {
             smartFormattingEnabled: false,
             automaticTerminalPunctuation: false,
             showRecordingHUD: false,
+            livePreviewEnabled: true,
             playSounds: false
         )
 
@@ -35,6 +36,7 @@ final class AppProfileTests: XCTestCase {
         XCTAssertFalse(resolved.smartFormattingEnabled)
         XCTAssertFalse(resolved.automaticTerminalPunctuation)
         XCTAssertFalse(resolved.showRecordingHUD)
+        XCTAssertTrue(resolved.livePreviewEnabled)
     }
 
     func testUnknownAndLocalizedNamesUseGlobalFallback() {

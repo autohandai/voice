@@ -18,6 +18,21 @@ final class AppLayerPreferencesTests: XCTestCase {
         XCTAssertFalse(decoded.dictationCommandsEnabled)
     }
 
+    func testLivePreviewDefaultsOffForExistingPreferences() throws {
+        let data = try JSONEncoder().encode(VoicePreferences())
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        object.removeValue(forKey: "livePreviewEnabled")
+
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertFalse(decoded.livePreviewEnabled)
+    }
+
     func testSmartFormattingDefaultsOffForExistingPreferences() throws {
         let data = try JSONEncoder().encode(VoicePreferences())
         var object = try XCTUnwrap(

@@ -12,6 +12,7 @@ public struct AppProfile: Codable, Equatable, Identifiable, Sendable {
     public var smartFormattingEnabled: Bool?
     public var automaticTerminalPunctuation: Bool?
     public var showRecordingHUD: Bool?
+    public var livePreviewEnabled: Bool?
     public var playSounds: Bool?
 
     public init(
@@ -26,6 +27,7 @@ public struct AppProfile: Codable, Equatable, Identifiable, Sendable {
         smartFormattingEnabled: Bool? = nil,
         automaticTerminalPunctuation: Bool? = nil,
         showRecordingHUD: Bool? = nil,
+        livePreviewEnabled: Bool? = nil,
         playSounds: Bool? = nil
     ) {
         self.id = id
@@ -40,6 +42,7 @@ public struct AppProfile: Codable, Equatable, Identifiable, Sendable {
         self.smartFormattingEnabled = smartFormattingEnabled
         self.automaticTerminalPunctuation = automaticTerminalPunctuation
         self.showRecordingHUD = showRecordingHUD
+        self.livePreviewEnabled = livePreviewEnabled
         self.playSounds = playSounds
     }
 
@@ -79,6 +82,7 @@ public struct ResolvedAppProfile: Equatable, Sendable {
     public let smartFormattingEnabled: Bool
     public let automaticTerminalPunctuation: Bool
     public let showRecordingHUD: Bool
+    public let livePreviewEnabled: Bool
     public let playSounds: Bool
 }
 
@@ -115,6 +119,8 @@ public enum AppProfileResolver {
                 ?? preferences.automaticTerminalPunctuation,
             showRecordingHUD: profile?.showRecordingHUD
                 ?? preferences.showRecordingHUD,
+            livePreviewEnabled: profile?.livePreviewEnabled
+                ?? preferences.livePreviewEnabled,
             playSounds: profile?.playSounds ?? preferences.playSounds
         )
     }

@@ -49,7 +49,9 @@ never committed. The registered native shortcut does not require Input
 Monitoring permission.
 A nonactivating recording HUD shows starting, input level, local processing,
 and failure state without taking focus from the target app; it can be disabled
-in Settings.
+in Settings. An opt-in live preview uses FluidAudio's local sliding-window
+decoder and labels all changing text as provisional. Preview text never leaves
+the HUD or reaches the target app; stopping runs one final transcription.
 Settings also provides a remembered microphone picker, system-default tracking,
 hot-plug recovery, bounded signal diagnostics, and a local microphone test.
 
@@ -61,6 +63,7 @@ The menu supports:
 - changing the registered shortcut without requiring Input Monitoring;
 - disabling sound feedback;
 - showing or hiding the recording HUD;
+- enabling local provisional HUD preview;
 - copying the most recent final transcript;
 - opening optional local dictation history with search, export, and deletion;
 - opening native Settings with Command + comma.
@@ -99,9 +102,10 @@ the exact result, and the menu keeps the most recent pre-formatting text
 available to copy in memory.
 
 App Profiles can override output, recording mode, language, local model choice,
-dictation commands, smart formatting, HUD visibility, and sound feedback for
-an exact application bundle identifier. Unset values use the global settings.
-Profiles never inspect window titles, document names, or application content.
+dictation commands, smart formatting, HUD visibility, provisional preview, and
+sound feedback for an exact application bundle identifier. Unset values use
+the global settings. Profiles never inspect window titles, document names, or
+application content.
 
 ## Configuration
 
@@ -124,6 +128,7 @@ autohand-voice config set recording_mode hands_free
 autohand-voice config set model v3
 autohand-voice config set language en
 autohand-voice config set sounds off
+autohand-voice config set live_preview on
 autohand-voice config reset
 ```
 
@@ -144,8 +149,7 @@ does not read legacy upstream environment variables.
 - The focused app and selection are captured before recording. If focus moves,
   the final transcript stays in memory with Retry Here, Copy, and Discard
   actions.
-- Direct insertion uses the focused accessibility element and does not replace
-  the user's clipboard.
+- Cursor insertion preserves and restores the user's clipboard.
 - Text history is off by default. When enabled, it stores only final transcript
   text, timestamps, and insertion outcomes in an owner-only bounded JSON file.
 - Vocabulary replacements are deterministic and local. A malformed vocabulary
