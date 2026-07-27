@@ -258,6 +258,9 @@ Acceptance:
 
 Priority: P0
 
+Status: implemented with a five-minute maximum sample cap, 15-minute
+in-memory expiry, local transcription retry, and explicit discard.
+
 Keep bounded audio samples in memory until transcription and insertion either
 succeed or the user explicitly discards them. Permit retrying local
 transcription after model or transient runtime failure. Do not write recovery

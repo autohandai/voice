@@ -30,3 +30,5 @@
   toggle, and Escape-cancellable hands-free recording modes.
 - Added focus-safe target and selection validation with explicit Retry Here,
   Copy, and Discard recovery for insertion failures.
+- Added bounded in-memory audio recovery with local retry, explicit discard,
+  and automatic 15-minute expiry after transcription failures.

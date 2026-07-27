@@ -124,6 +124,23 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             )
         }
 
+        if session.hasRecoverableAudio {
+            menu.addItem(.separator())
+            menu.addItem(
+                item(
+                    "Retry Local Transcription "
+                        + "(\(Int(ceil(session.recoverableAudioDuration)))s audio)",
+                    action: #selector(retryRecoverableAudio)
+                )
+            )
+            menu.addItem(
+                item(
+                    "Discard Recovery Audio",
+                    action: #selector(discardRecoverableAudio)
+                )
+            )
+        }
+
         menu.addItem(.separator())
         addPermissionItems(to: menu)
         menu.addItem(outputMenu())
@@ -259,6 +276,12 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     }
     @objc private func discardPendingTranscript() {
         session.discardPendingTranscript()
+    }
+    @objc private func retryRecoverableAudio() {
+        session.retryRecoverableAudio()
+    }
+    @objc private func discardRecoverableAudio() {
+        session.discardRecoverableAudio()
     }
     @objc private func toggleEnabled() { session.setEnabled(!session.isEnabled) }
     @objc private func toggleSounds() {

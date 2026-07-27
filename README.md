@@ -99,6 +99,8 @@ does not read legacy upstream environment variables.
 ## Privacy and failure behavior
 
 - Audio samples stay in memory and are bounded to five minutes.
+- After a transient local transcription failure, bounded audio remains only in
+  memory for up to 15 minutes and can be retried or explicitly discarded.
 - Speech recognition runs in the local CoreML process.
 - No speech or cleanup request is sent to a remote endpoint.
 - There is no silent engine fallback.

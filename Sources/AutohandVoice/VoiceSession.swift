@@ -69,6 +69,8 @@ final class VoiceSession {
     }
     private(set) var lastTranscript: String? { didSet { onChange?() } }
     private(set) var pendingTranscript: String? { didSet { onChange?() } }
+    private(set) var hasRecoverableAudio = false { didSet { onChange?() } }
+    private(set) var recoverableAudioDuration: TimeInterval = 0
     private(set) var isEnabled = true { didSet { onChange?() } }
     private(set) var preferences: VoicePreferences
 
@@ -88,7 +90,7 @@ final class VoiceSession {
 
     var canStartRecording: Bool {
         isEnabled && state == .ready && modelState == .ready
-            && !isTestingMicrophone
+            && !isTestingMicrophone && !hasRecoverableAudio
     }
 
     var isRecordingOrStarting: Bool {
@@ -105,6 +107,8 @@ final class VoiceSession {
     @ObservationIgnored private var audioHealthMonitor = AudioHealthMonitor()
     @ObservationIgnored private var microphoneTestID: UUID?
     @ObservationIgnored private var insertionTarget: TextInsertionTarget?
+    @ObservationIgnored private var audioRecovery = InMemoryAudioRecovery()
+    @ObservationIgnored private var audioRecoveryID: UUID?
 
     init(store: PreferencesStore = PreferencesStore()) {
         self.store = store
@@ -244,27 +248,14 @@ final class VoiceSession {
         Task {
             do {
                 let samples = try capture.stop()
+                retainAudioRecovery(samples)
                 Self.logger.notice(
                     "Audio capture stopped with \(samples.count) local samples"
                 )
-                try await prepareModelForUse()
-                let transcript = try await recognizer.transcribe(samples: samples)
-                let finalText = try transcript.finalText()
-                pendingTranscript = finalText
-                Self.logger.notice(
-                    "Final local transcript produced with \(finalText.count) characters"
-                )
-                try inserter.commit(
-                    transcript,
-                    mode: preferences.outputMode,
+                try await transcribeAndCommit(
+                    samples: samples,
                     target: insertionTarget
                 )
-                Self.logger.notice("Final transcript committed at the cursor")
-                lastTranscript = finalText
-                pendingTranscript = nil
-                insertionTarget = nil
-                state = .ready
-                if preferences.playSounds { NSSound.beep() }
             } catch {
                 insertionTarget = nil
                 Self.logger.error(
@@ -329,6 +320,53 @@ final class VoiceSession {
         pendingTranscript = nil
         insertionTarget = nil
         if case .failed = state {
+            state = .ready
+        }
+    }
+
+    func retryRecoverableAudio() {
+        guard state != .processing else { return }
+        guard let samples = audioRecovery.samples(
+            at: ProcessInfo.processInfo.systemUptime
+        ) else {
+            discardAudioRecovery()
+            state = .failed("Recovery audio expired and was erased.")
+            return
+        }
+
+        let target: TextInsertionTarget?
+        if preferences.outputMode == .type {
+            guard inserter.hasAccessibilityPermission(prompt: true) else {
+                state = .failed(
+                    VoiceError.accessibilityPermissionDenied.localizedDescription
+                )
+                return
+            }
+            guard let currentTarget = inserter.captureTarget() else {
+                state = .failed(VoiceError.noFocusedTextField.localizedDescription)
+                return
+            }
+            target = currentTarget
+        } else {
+            target = nil
+        }
+
+        state = .processing
+        Task {
+            do {
+                try await transcribeAndCommit(samples: samples, target: target)
+            } catch {
+                Self.logger.error(
+                    "Recovery failed: \(error.localizedDescription)"
+                )
+                state = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    func discardRecoverableAudio() {
+        discardAudioRecovery()
+        if case .failed = state, pendingTranscript == nil {
             state = .ready
         }
     }
@@ -476,6 +514,64 @@ final class VoiceSession {
             modelState = .failed(error.localizedDescription)
             throw error
         }
+    }
+
+    private func transcribeAndCommit(
+        samples: [Float],
+        target: TextInsertionTarget?
+    ) async throws {
+        try await prepareModelForUse()
+        let transcript = try await recognizer.transcribe(samples: samples)
+        let finalText = try transcript.finalText()
+        pendingTranscript = finalText
+        discardAudioRecovery()
+        Self.logger.notice(
+            "Final local transcript produced with \(finalText.count) characters"
+        )
+        try inserter.commit(
+            transcript,
+            mode: preferences.outputMode,
+            target: target
+        )
+        Self.logger.notice("Final transcript committed at the cursor")
+        lastTranscript = finalText
+        pendingTranscript = nil
+        insertionTarget = nil
+        state = .ready
+        if preferences.playSounds { NSSound.beep() }
+    }
+
+    private func retainAudioRecovery(_ samples: [Float]) {
+        let recoveryID = UUID()
+        audioRecoveryID = recoveryID
+        audioRecovery.store(
+            samples,
+            at: ProcessInfo.processInfo.systemUptime
+        )
+        recoverableAudioDuration = audioRecovery.duration
+        hasRecoverableAudio = audioRecovery.sampleCount > 0
+
+        Task { [weak self] in
+            try? await Task.sleep(
+                for: .seconds(InMemoryAudioRecovery.defaultExpiration)
+            )
+            guard let self, self.audioRecoveryID == recoveryID else { return }
+            self.discardAudioRecovery()
+            if self.pendingTranscript == nil {
+                self.state = .failed("Recovery audio expired and was erased.")
+            }
+        }
+    }
+
+    private func discardAudioRecovery() {
+        audioRecoveryID = nil
+        audioRecovery.discard()
+        clearAudioRecoveryState()
+    }
+
+    private func clearAudioRecoveryState() {
+        recoverableAudioDuration = 0
+        hasRecoverableAudio = false
     }
 
     private func persist() {

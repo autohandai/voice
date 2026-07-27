@@ -122,9 +122,13 @@ private struct RecordingHUDView: View {
         case .recording: "Listening locally"
         case .processing: "Finalizing on this Mac"
         case .failed:
-            session.pendingTranscript == nil
-                ? "Open the menu or Settings for recovery"
-                : "Final transcript is recoverable from the menu"
+            if session.pendingTranscript != nil {
+                "Final transcript is recoverable from the menu"
+            } else if session.hasRecoverableAudio {
+                "Audio is retained in memory for 15-minute local retry"
+            } else {
+                "Open the menu or Settings for recovery"
+            }
         }
     }
 
