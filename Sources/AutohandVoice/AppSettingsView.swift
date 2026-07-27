@@ -10,6 +10,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
     case general
     case formatting
     case vocabulary
+    case appProfiles
     case permissions
     case privacy
 
@@ -21,6 +22,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         case .general: "General"
         case .formatting: "Formatting"
         case .vocabulary: "Vocabulary"
+        case .appProfiles: "App Profiles"
         case .permissions: "Permissions"
         case .privacy: "Privacy & Diagnostics"
         }
@@ -32,6 +34,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         case .general: "gearshape"
         case .formatting: "textformat"
         case .vocabulary: "text.book.closed"
+        case .appProfiles: "square.stack.3d.up"
         case .permissions: "hand.raised"
         case .privacy: "lock.shield"
         }
@@ -85,10 +88,229 @@ struct AppSettingsView: View {
             FormattingSettingsView(model: model)
         case .vocabulary:
             VocabularySettingsView(model: model.vocabulary)
+        case .appProfiles:
+            AppProfilesSettingsView(model: model.appProfiles)
         case .permissions:
             PermissionCenterView(model: model)
         case .privacy:
             PrivacyDiagnosticsView(model: model)
+        }
+    }
+}
+
+private enum ProfileBooleanOverride: String, CaseIterable, Identifiable {
+    case global = "Use Global"
+    case enabled = "On"
+    case disabled = "Off"
+
+    var id: Self { self }
+
+    init(_ value: Bool?) {
+        self = value.map { $0 ? .enabled : .disabled } ?? .global
+    }
+
+    var value: Bool? {
+        switch self {
+        case .global: nil
+        case .enabled: true
+        case .disabled: false
+        }
+    }
+}
+
+private struct AppProfilesSettingsView: View {
+    @Bindable var model: AppProfileSettingsModel
+
+    var body: some View {
+        SettingsPage(
+            "App Profiles",
+            subtitle: "Override global behavior using only an app’s bundle identifier."
+        ) {
+            Form {
+                Section("Active") {
+                    LabeledContent(
+                        "Current Profile",
+                        value: model.sessionLabel
+                    )
+                }
+
+                Section("Add Running App") {
+                    Picker(
+                        "Application",
+                        selection: $model.selectedRunningBundleIdentifier
+                    ) {
+                        ForEach(model.runningApps) { app in
+                            Text("\(app.name) — \(app.id)")
+                                .tag(Optional(app.id))
+                        }
+                    }
+                    HStack {
+                        Button("Refresh Apps") {
+                            model.refreshRunningApps()
+                        }
+                        Button("Add Profile") {
+                            model.addRunningApp()
+                        }
+                        .disabled(model.selectedRunningBundleIdentifier == nil)
+                    }
+                }
+
+                Section("Add by Bundle Identifier") {
+                    TextField("Profile name", text: $model.manualName)
+                    TextField(
+                        "Bundle identifier, for example com.example.Editor",
+                        text: $model.manualBundleIdentifier
+                    )
+                    HStack {
+                        Spacer()
+                        Button("Add Profile") {
+                            model.addManual()
+                        }
+                    }
+                }
+
+                Section("Profiles") {
+                    if model.profiles.isEmpty {
+                        ContentUnavailableView(
+                            "No App Profiles",
+                            systemImage: "square.stack.3d.up",
+                            description: Text(
+                                "Global settings apply to every application."
+                            )
+                        )
+                    } else {
+                        Picker("Profile", selection: $model.selectedID) {
+                            ForEach(model.profiles) { profile in
+                                Text(profile.name).tag(Optional(profile.id))
+                            }
+                        }
+                        if let profile = model.selectedProfile {
+                            LabeledContent(
+                                "Bundle Identifier",
+                                value: profile.bundleIdentifier
+                            )
+                            profileOverrides(profile)
+                            HStack {
+                                Spacer()
+                                Button("Delete Profile", role: .destructive) {
+                                    model.deleteSelected()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .formStyle(.grouped)
+
+            Text(
+                "Profiles match exact bundle identifiers. No window title, document name, or app content is read. Any setting left on Use Global follows General."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            ActionMessage(message: model.message)
+        }
+    }
+
+    @ViewBuilder
+    private func profileOverrides(_ profile: AppProfile) -> some View {
+        Picker(
+            "Output",
+            selection: Binding<OutputMode?>(
+                get: { profile.outputMode },
+                set: { value in
+                    model.updateSelected { $0.outputMode = value }
+                }
+            )
+        ) {
+            Text("Use Global").tag(OutputMode?.none)
+            Text("Insert at Cursor").tag(Optional(OutputMode.type))
+            Text("Copy to Clipboard").tag(Optional(OutputMode.clipboard))
+        }
+
+        Picker(
+            "Recording Mode",
+            selection: Binding<RecordingMode?>(
+                get: { profile.recordingMode },
+                set: { value in
+                    model.updateSelected { $0.recordingMode = value }
+                }
+            )
+        ) {
+            Text("Use Global").tag(RecordingMode?.none)
+            ForEach(RecordingMode.allCases, id: \.self) {
+                Text($0.displayName).tag(Optional($0))
+            }
+        }
+
+        Picker(
+            "Local Model",
+            selection: Binding<String?>(
+                get: { profile.modelVersion },
+                set: { value in
+                    model.updateSelected { $0.modelVersion = value }
+                }
+            )
+        ) {
+            Text("Use Global").tag(String?.none)
+            ForEach(SpeechModelVariant.allCases, id: \.self) {
+                Text($0.displayName).tag(Optional($0.rawValue))
+            }
+        }
+
+        booleanOverride(
+            "Dictation Commands",
+            value: profile.dictationCommandsEnabled
+        ) { value in
+            model.updateSelected {
+                $0.dictationCommandsEnabled = value
+            }
+        }
+        booleanOverride(
+            "Smart Formatting",
+            value: profile.smartFormattingEnabled
+        ) { value in
+            model.updateSelected {
+                $0.smartFormattingEnabled = value
+            }
+        }
+        booleanOverride(
+            "Terminal Punctuation",
+            value: profile.automaticTerminalPunctuation
+        ) { value in
+            model.updateSelected {
+                $0.automaticTerminalPunctuation = value
+            }
+        }
+        booleanOverride(
+            "Recording HUD",
+            value: profile.showRecordingHUD
+        ) { value in
+            model.updateSelected { $0.showRecordingHUD = value }
+        }
+        booleanOverride(
+            "Sound Feedback",
+            value: profile.playSounds
+        ) { value in
+            model.updateSelected { $0.playSounds = value }
+        }
+    }
+
+    private func booleanOverride(
+        _ title: String,
+        value: Bool?,
+        update: @escaping (Bool?) -> Void
+    ) -> some View {
+        Picker(
+            title,
+            selection: Binding(
+                get: { ProfileBooleanOverride(value) },
+                set: { update($0.value) }
+            )
+        ) {
+            ForEach(ProfileBooleanOverride.allCases) {
+                Text($0.rawValue).tag($0)
+            }
         }
     }
 }

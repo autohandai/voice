@@ -34,7 +34,7 @@ final class RecordingHUDController: NSWindowController {
     }
 
     func update() {
-        guard session.preferences.showRecordingHUD else {
+        guard session.effectiveShowRecordingHUD else {
             window?.orderOut(nil)
             return
         }

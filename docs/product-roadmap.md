@@ -372,6 +372,10 @@ Acceptance:
 
 Priority: P1
 
+Status: implemented with bounded owner-only storage, exact bundle-identifier
+matching, global fallback for every override, native management for running or
+manual apps, and visible active-profile state in Settings and the menu.
+
 Let users bind settings to a frontmost application bundle identifier: output
 mode, shortcut mode, language/model, command grammar, formatting, HUD visibility,
 and sound feedback. Include a clear global fallback.

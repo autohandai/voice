@@ -96,6 +96,11 @@ capitalization, and optional terminal punctuation. The Formatting pane previews
 the exact result, and the menu keeps the most recent pre-formatting text
 available to copy in memory.
 
+App Profiles can override output, recording mode, local model choice,
+dictation commands, smart formatting, HUD visibility, and sound feedback for
+an exact application bundle identifier. Unset values use the global settings.
+Profiles never inspect window titles, document names, or application content.
+
 ## Configuration
 
 Preferences are stored at:
@@ -147,6 +152,8 @@ does not read legacy upstream environment variables.
   literally.
 - Smart Formatting does not read surrounding paragraphs or call a cleanup
   service. Unknown cursor context remains literal.
+- App Profiles are owner-only and bounded. Matching uses only the frontmost
+  application’s bundle identifier.
 
 ## Development
 

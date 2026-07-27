@@ -84,6 +84,9 @@ final class VoiceSession {
     private(set) var recoverableAudioDuration: TimeInterval = 0
     private(set) var historyError: String?
     private(set) var vocabularyError: String? { didSet { onChange?() } }
+    private(set) var profileError: String? { didSet { onChange?() } }
+    private(set) var appProfiles: [AppProfile] = []
+    private(set) var activeConfiguration: ResolvedAppProfile
     private(set) var isEnabled = true { didSet { onChange?() } }
     private(set) var preferences: VoicePreferences
 
@@ -121,6 +124,7 @@ final class VoiceSession {
     @ObservationIgnored private let capture = AudioCapture()
     @ObservationIgnored private let inserter = TextInserter()
     @ObservationIgnored private var recognizer: LocalSpeechRecognizer
+    @ObservationIgnored private var recognizerModelVersion: String
     @ObservationIgnored private var stopWhenStarted = false
     @ObservationIgnored private var cancelWhenStarted = false
     @ObservationIgnored private var shortcutFailureActive = false
@@ -133,13 +137,43 @@ final class VoiceSession {
     @ObservationIgnored private var modelOperationID: UUID?
     @ObservationIgnored private let historyStore = HistoryStore()
     @ObservationIgnored private let vocabularyStore = VocabularyStore()
+    @ObservationIgnored private let appProfileStore = AppProfileStore()
     @ObservationIgnored private var historyEntryID: UUID?
 
     init(store: PreferencesStore = PreferencesStore()) {
         self.store = store
         let loaded = store.load()
         preferences = loaded
+        activeConfiguration = AppProfileResolver.resolve(
+            preferences: loaded,
+            profiles: [],
+            bundleIdentifier: nil
+        )
         recognizer = LocalSpeechRecognizer(modelVersion: loaded.modelVersion)
+        recognizerModelVersion = loaded.modelVersion
+        reloadAppProfiles()
+        refreshActiveProfile()
+    }
+
+    var activeProfileLabel: String {
+        activeConfiguration.profileName ?? "Global"
+    }
+
+    var activeAppProfile: AppProfile? {
+        guard let id = activeConfiguration.profileID else { return nil }
+        return appProfiles.first { $0.id == id }
+    }
+
+    var effectiveRecordingMode: RecordingMode {
+        activeConfiguration.recordingMode
+    }
+
+    var effectiveShowRecordingHUD: Bool {
+        activeConfiguration.showRecordingHUD
+    }
+
+    var effectivePlaySounds: Bool {
+        activeConfiguration.playSounds
     }
 
     func setEnabled(_ value: Bool) {
@@ -155,9 +189,11 @@ final class VoiceSession {
     }
 
     func beginRecording() {
+        refreshActiveProfile()
         guard canStartRecording else { return }
+        let configuration = activeConfiguration
         insertionTarget = nil
-        if preferences.outputMode == .type {
+        if configuration.outputMode == .type {
             guard inserter.hasAccessibilityPermission(prompt: true) else {
                 state = .failed(
                     VoiceError.accessibilityPermissionDenied.localizedDescription
@@ -199,7 +235,7 @@ final class VoiceSession {
                     finishStartedRecording()
                 } else {
                     state = .recording
-                    if preferences.playSounds { NSSound.beep() }
+                    if activeConfiguration.playSounds { NSSound.beep() }
                 }
             } catch {
                 audioLevel = 0
@@ -239,6 +275,24 @@ final class VoiceSession {
         audioHealthMonitor.reset()
         audioInputHealth = .idle
         state = .ready
+    }
+
+    func refreshActiveProfile() {
+        let bundleIdentifier = NSWorkspace.shared.frontmostApplication?
+            .bundleIdentifier
+        activeConfiguration = AppProfileResolver.resolve(
+            preferences: preferences,
+            profiles: appProfiles,
+            bundleIdentifier: bundleIdentifier
+        )
+        synchronizeRecognizerWithActiveProfile()
+        onChange?()
+    }
+
+    func replaceAppProfiles(_ profiles: [AppProfile]) {
+        appProfiles = profiles
+        profileError = nil
+        refreshActiveProfile()
     }
 
     func requestMicrophonePermission() {
@@ -304,6 +358,7 @@ final class VoiceSession {
         cancelModelPreparation()
         preferences.modelVersion = variant.rawValue
         recognizer = LocalSpeechRecognizer(modelVersion: variant.rawValue)
+        recognizerModelVersion = variant.rawValue
         modelStorageBytes = 0
         modelLastValidated = nil
         modelFailureKind = nil
@@ -418,8 +473,9 @@ final class VoiceSession {
             return
         }
 
+        refreshActiveProfile()
         let target: TextInsertionTarget?
-        if preferences.outputMode == .type {
+        if activeConfiguration.outputMode == .type {
             guard inserter.hasAccessibilityPermission(prompt: true) else {
                 state = .failed(
                     VoiceError.accessibilityPermissionDenied.localizedDescription
@@ -757,9 +813,10 @@ final class VoiceSession {
         try await prepareModelForUse()
         let transcript = try await recognizer.transcribe(samples: samples)
         let recognizedText = try transcript.finalText()
+        let configuration = activeConfiguration
         let commandResult = DictationCommandProcessor.process(
             recognizedText,
-            enabled: preferences.dictationCommandsEnabled
+            enabled: configuration.dictationCommandsEnabled
         )
         if commandResult.shouldCancel {
             discardAudioRecovery()
@@ -791,9 +848,9 @@ final class VoiceSession {
         let finalText = SmartTextFormatter.format(
             replacementText,
             context: target?.context ?? .unknown,
-            enabled: preferences.smartFormattingEnabled,
+            enabled: configuration.smartFormattingEnabled,
             addsTerminalPunctuation:
-                preferences.automaticTerminalPunctuation
+                configuration.automaticTerminalPunctuation
         )
         lastUnformattedTranscript = finalText == replacementText
             ? nil
@@ -806,7 +863,7 @@ final class VoiceSession {
         )
         try inserter.commitVerifiedFinalText(
             finalText,
-            mode: preferences.outputMode,
+            mode: configuration.outputMode,
             target: target
         )
         Self.logger.notice("Final transcript committed at the cursor")
@@ -815,7 +872,34 @@ final class VoiceSession {
         pendingTranscript = nil
         insertionTarget = nil
         state = .ready
-        if preferences.playSounds { NSSound.beep() }
+        if configuration.playSounds { NSSound.beep() }
+    }
+
+    private func reloadAppProfiles() {
+        do {
+            appProfiles = try appProfileStore.load()
+            profileError = nil
+        } catch {
+            appProfiles = []
+            profileError = "App profiles could not be loaded: \(error.localizedDescription)"
+        }
+    }
+
+    private func synchronizeRecognizerWithActiveProfile() {
+        guard
+            !isRecordingOrStarting,
+            state != .processing,
+            activeConfiguration.modelVersion != recognizerModelVersion
+        else { return }
+        cancelModelPreparation()
+        recognizerModelVersion = activeConfiguration.modelVersion
+        recognizer = LocalSpeechRecognizer(
+            modelVersion: activeConfiguration.modelVersion
+        )
+        modelStorageBytes = 0
+        modelLastValidated = nil
+        modelFailureKind = nil
+        prepareLocalModel()
     }
 
     private func retainAudioRecovery(_ samples: [Float]) {
@@ -912,6 +996,9 @@ final class VoiceSession {
             try store.save(preferences)
         } catch {
             state = .failed("Could not save settings: \(error.localizedDescription)")
+        }
+        if !isRecordingOrStarting, state != .processing {
+            refreshActiveProfile()
         }
         onChange?()
     }

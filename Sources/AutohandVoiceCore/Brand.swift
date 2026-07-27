@@ -26,4 +26,8 @@ public enum Brand {
     public static var vocabularyURL: URL {
         applicationSupportDirectory.appendingPathComponent("vocabulary.json")
     }
+
+    public static var appProfilesURL: URL {
+        applicationSupportDirectory.appendingPathComponent("app-profiles.json")
+    }
 }

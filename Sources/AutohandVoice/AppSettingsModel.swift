@@ -8,6 +8,7 @@ import ServiceManagement
 final class AppSettingsModel {
     let session: VoiceSession
     let vocabulary: VocabularySettingsModel
+    let appProfiles: AppProfileSettingsModel
     private(set) var systemCheck: SystemCheck
     private(set) var launchAtLoginEnabled = false
     private(set) var launchAtLoginAvailable = true
@@ -20,6 +21,7 @@ final class AppSettingsModel {
     init(session: VoiceSession) {
         self.session = session
         vocabulary = VocabularySettingsModel()
+        appProfiles = AppProfileSettingsModel(session: session)
         systemCheck = SystemCheck()
         refresh()
         audioInputDeviceMonitor = AudioInputDeviceMonitor { [weak self] in

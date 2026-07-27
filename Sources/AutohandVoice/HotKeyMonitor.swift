@@ -116,7 +116,7 @@ final class HotKeyMonitor {
     }
 
     func synchronizeCancellationHotKey() {
-        let shouldRegister = session.preferences.recordingMode == .handsFree
+        let shouldRegister = session.effectiveRecordingMode == .handsFree
             && session.isRecordingOrStarting
         if shouldRegister {
             let status = registerCancelHotKey()
@@ -150,7 +150,7 @@ final class HotKeyMonitor {
             return
         }
         perform(
-            session.preferences.recordingMode.action(
+            session.effectiveRecordingMode.action(
                 for: event,
                 isRecording: session.isRecordingOrStarting
             )

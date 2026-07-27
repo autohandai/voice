@@ -44,3 +44,5 @@
 - Added opt-in cursor-aware smart spacing, sentence and paragraph
   capitalization, terminal punctuation, before/after preview, and an
   in-memory copy of the latest unformatted transcript.
+- Added bounded owner-only per-app profiles with exact bundle-identifier
+  matching, global fallback, native management UI, and visible active profile.

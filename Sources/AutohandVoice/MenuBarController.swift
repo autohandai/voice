@@ -72,6 +72,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         )
         status.isEnabled = false
         menu.addItem(status)
+        let profile = NSMenuItem(
+            title: "Profile: \(session.activeProfileLabel)",
+            action: nil,
+            keyEquivalent: ""
+        )
+        profile.isEnabled = false
+        menu.addItem(profile)
         if let vocabularyError = session.vocabularyError {
             let warning = NSMenuItem(
                 title: vocabularyError,
@@ -85,13 +92,26 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             warning.isEnabled = false
             menu.addItem(warning)
         }
+        if let profileError = session.profileError {
+            let warning = NSMenuItem(
+                title: profileError,
+                action: nil,
+                keyEquivalent: ""
+            )
+            warning.image = NSImage(
+                systemSymbolName: "exclamationmark.triangle",
+                accessibilityDescription: "App profile warning"
+            )
+            warning.isEnabled = false
+            menu.addItem(warning)
+        }
         menu.addItem(.separator())
 
         if session.state == .recording || session.state == .starting {
             menu.addItem(
                 item("Stop Recording", action: #selector(stopRecording))
             )
-            if session.preferences.recordingMode == .handsFree {
+            if session.effectiveRecordingMode == .handsFree {
                 menu.addItem(
                     item(
                         "Cancel Recording",
@@ -171,7 +191,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         menu.addItem(recordingModeMenu())
 
         let sounds = item("Sound Feedback", action: #selector(toggleSounds))
-        sounds.state = session.preferences.playSounds ? .on : .off
+        sounds.state = session.effectivePlaySounds ? .on : .off
+        sounds.isEnabled = session.activeAppProfile?.playSounds == nil
         menu.addItem(sounds)
 
         let enabled = item(
@@ -224,12 +245,22 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private func outputMenu() -> NSMenuItem {
         let parent = NSMenuItem(title: "Output", action: nil, keyEquivalent: "")
         let menu = NSMenu()
+        let isOverridden = session.activeAppProfile?.outputMode != nil
         for mode in OutputMode.allCases {
             let title = mode == .type ? "Insert at Cursor" : "Copy to Clipboard"
             let child = item(title, action: #selector(selectOutputMode))
             child.representedObject = mode.rawValue
-            child.state = session.preferences.outputMode == mode ? .on : .off
+            child.state = session.activeConfiguration.outputMode == mode
+                ? .on
+                : .off
+            child.isEnabled = !isOverridden
             menu.addItem(child)
+        }
+        if isOverridden {
+            menu.addItem(.separator())
+            menu.addItem(
+                item("Change in App Profiles…", action: #selector(showSettings))
+            )
         }
         parent.submenu = menu
         return parent
@@ -263,14 +294,22 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             keyEquivalent: ""
         )
         let menu = NSMenu()
+        let isOverridden = session.activeAppProfile?.recordingMode != nil
         for mode in RecordingMode.allCases {
             let child = item(
                 mode.displayName,
                 action: #selector(selectRecordingMode)
             )
             child.representedObject = mode.rawValue
-            child.state = session.preferences.recordingMode == mode ? .on : .off
+            child.state = session.effectiveRecordingMode == mode ? .on : .off
+            child.isEnabled = !isOverridden
             menu.addItem(child)
+        }
+        if isOverridden {
+            menu.addItem(.separator())
+            menu.addItem(
+                item("Change in App Profiles…", action: #selector(showSettings))
+            )
         }
         parent.submenu = menu
         return parent
@@ -375,5 +414,16 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
                 }
             )
         }
+        workspaceObservers.append(
+            center.addObserver(
+                forName: NSWorkspace.didActivateApplicationNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.session.refreshActiveProfile()
+                }
+            }
+        )
     }
 }
