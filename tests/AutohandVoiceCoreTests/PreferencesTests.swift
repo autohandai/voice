@@ -8,8 +8,28 @@ final class PreferencesTests: XCTestCase {
 
         XCTAssertEqual(preferences.engine, .coreML)
         XCTAssertEqual(preferences.outputMode, .type)
-        XCTAssertEqual(preferences.pushToTalkKey, .rightOption)
+        XCTAssertEqual(preferences.pushToTalkKey, .controlOptionSpace)
         XCTAssertFalse(preferences.allowsRemoteServices)
+    }
+
+    func testLegacyModifierOnlyShortcutMigratesToRegisteredHotKey() throws {
+        let json = """
+        {
+          "engine": "coreml",
+          "outputMode": "type",
+          "pushToTalkKey": "right_option",
+          "playSounds": true,
+          "launchAtLogin": false,
+          "modelVersion": "v3"
+        }
+        """
+
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: Data(json.utf8)
+        )
+
+        XCTAssertEqual(decoded.pushToTalkKey, .controlOptionSpace)
     }
 
     func testInvalidPreferencesFallBackWithoutThrowing() throws {

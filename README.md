@@ -12,7 +12,7 @@ Accessibility APIs.
 - macOS 14 or newer
 - Apple Silicon (M1 or newer)
 - Xcode 15.0 or newer
-- Microphone, Accessibility, and Input Monitoring permission
+- Microphone and Accessibility permission
 
 There is no Python runtime, MLX runtime, remote speech service, or automatic
 cloud fallback.
@@ -41,9 +41,13 @@ swift run autohand-voice-stt check
 
 ## Use
 
-Launch the app, hold Right Option, speak, then release. The menu bar icon shows
-recording and local processing state. A final transcript is inserted into the
-focused editable control. Provisional text is never committed.
+Launch the app, hold Control + Option + Space, speak, then release. The menu bar
+icon shows recording and local processing state. A final transcript is inserted
+into the focused editable control. Provisional text is never committed. The
+registered native shortcut does not require Input Monitoring permission.
+A nonactivating recording HUD shows starting, input level, local processing,
+and failure state without taking focus from the target app; it can be disabled
+in Settings.
 
 The menu supports:
 
@@ -51,7 +55,16 @@ The menu supports:
 - choosing direct cursor insertion or explicit clipboard output;
 - changing the push-to-talk key;
 - disabling sound feedback;
-- copying the most recent final transcript.
+- showing or hiding the recording HUD;
+- copying the most recent final transcript;
+- opening native Settings with Command + comma.
+
+On first launch, Settings guides you through Microphone and Accessibility
+permission and prepares the pinned local model before your first real
+dictation. The General pane controls output, sound feedback, and launch at
+login. Privacy & Diagnostics shows the local runtime state and can copy a
+redacted report that never includes audio, transcript text, file paths, or
+environment values.
 
 ## Configuration
 
@@ -67,7 +80,7 @@ Use the menu or the native CLI:
 autohand-voice config show
 autohand-voice config set output type
 autohand-voice config set output clipboard
-autohand-voice config set ptt_key right_option
+autohand-voice config set ptt_key control_option_space
 autohand-voice config set sounds off
 autohand-voice config reset
 ```

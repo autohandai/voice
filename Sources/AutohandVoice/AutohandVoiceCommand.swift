@@ -23,7 +23,7 @@ private func printUsage() {
       autohand-voice config [show|path|reset|set <key> <value>]
       autohand-voice --version
 
-    Run without a command to open the menu bar app. Hold Right Option to speak.
+    Run without a command to open the menu bar app. Hold Control + Option + Space to speak.
     Speech recognition stays on-device; no remote fallback is available.
     """)
 }
@@ -66,7 +66,7 @@ private func runConfig(_ arguments: ArraySlice<String>) throws {
         case "ptt_key":
             guard let hotKey = PushToTalkKey(rawValue: raw) else {
                 throw CommandError.invalidArguments(
-                    "ptt_key must be right_option or right_control"
+                    "ptt_key must be control_option_space"
                 )
             }
             value.pushToTalkKey = hotKey
@@ -98,6 +98,19 @@ private func runMenuBar() -> Never {
     exit(EXIT_SUCCESS)
 }
 
+@MainActor
+private func runHotKeyCheck() -> Never {
+    let application = NSApplication.shared
+    let delegate = HotKeyCheckDelegate()
+    application.delegate = delegate
+    application.setActivationPolicy(.prohibited)
+    withExtendedLifetime(delegate) {
+        application.finishLaunching()
+        application.run()
+    }
+    exit(EXIT_SUCCESS)
+}
+
 @main
 struct AutohandVoiceCommand {
     static func main() async {
@@ -107,6 +120,8 @@ struct AutohandVoiceCommand {
             switch command {
             case "run":
                 runMenuBar()
+            case "hotkey-check":
+                runHotKeyCheck()
             case "transcribe":
                 guard arguments.count == 2, let path = arguments.dropFirst().first else {
                     printUsage()
@@ -120,14 +135,18 @@ struct AutohandVoiceCommand {
             case "check", "doctor":
                 let check = SystemCheck()
                 if arguments.contains("--json") {
-                    try printJSON(check)
+                    try printJSON(
+                        DiagnosticReport(
+                            check: check,
+                            preferences: PreferencesStore().load()
+                        )
+                    )
                 } else {
                     print("Platform: \(check.supported ? "supported" : "unsupported")")
                     print("Architecture: \(check.architecture)")
                     print("macOS: \(check.macOSVersion)")
                     print("Microphone: \(check.microphonePermission)")
                     print("Accessibility: \(check.accessibilityPermission ? "authorized" : "not authorized")")
-                    print("Input Monitoring: \(check.inputMonitoringPermission ? "authorized" : "not authorized")")
                     print("Remote fallback: disabled")
                 }
                 if !check.supported { exit(EXIT_FAILURE) }

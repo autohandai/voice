@@ -21,7 +21,7 @@ _autohand_voice_completions() {
             4)
                 case "${COMP_WORDS[3]}" in
                     output) COMPREPLY=($(compgen -W "type clipboard" -- "$current")) ;;
-                    ptt_key) COMPREPLY=($(compgen -W "right_option right_control" -- "$current")) ;;
+                    ptt_key) COMPREPLY=($(compgen -W "control_option_space" -- "$current")) ;;
                     sounds) COMPREPLY=($(compgen -W "on off" -- "$current")) ;;
                 esac
                 ;;

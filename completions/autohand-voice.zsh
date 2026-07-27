@@ -38,7 +38,7 @@ _autohand_voice() {
                     elif [[ "$words[3]" == "set" ]] && (( CURRENT == 5 )); then
                         case "$words[4]" in
                             output) _values 'output mode' type clipboard ;;
-                            ptt_key) _values 'push-to-talk key' right_option right_control ;;
+                            ptt_key) _values 'push-to-talk key' control_option_space ;;
                             sounds) _values 'sound feedback' on off ;;
                         esac
                     fi

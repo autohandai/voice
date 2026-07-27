@@ -12,6 +12,7 @@ public final class AudioCapture: @unchecked Sendable {
     private var recording = false
     private var startedAt: Date?
     private var levelHandler: (@Sendable (Float) -> Void)?
+    private var levelFramesSinceEmission = 0
 
     public init() {}
 
@@ -37,6 +38,7 @@ public final class AudioCapture: @unchecked Sendable {
             guard !recording else { return false }
             samples.removeAll(keepingCapacity: true)
             levelHandler = onLevel
+            levelFramesSinceEmission = 0
             recording = true
             startedAt = Date()
             return true
@@ -77,6 +79,7 @@ public final class AudioCapture: @unchecked Sendable {
         let inputRate = sourceSampleRate
         samples.removeAll(keepingCapacity: false)
         levelHandler = nil
+        levelFramesSinceEmission = 0
         startedAt = nil
         lock.unlock()
 
@@ -109,6 +112,7 @@ public final class AudioCapture: @unchecked Sendable {
         recording = false
         samples.removeAll(keepingCapacity: false)
         levelHandler = nil
+        levelFramesSinceEmission = 0
         startedAt = nil
         lock.unlock()
     }
@@ -122,14 +126,26 @@ public final class AudioCapture: @unchecked Sendable {
         let rms = sqrt(sum / Float(count))
 
         lock.lock()
-        defer { lock.unlock() }
-        guard recording else { return }
+        guard recording else {
+            lock.unlock()
+            return
+        }
         let maximumSamples = Int(sourceSampleRate * Self.maximumDuration)
         let remaining = max(0, maximumSamples - samples.count)
         if remaining > 0 {
             samples.append(contentsOf: incoming.prefix(remaining))
         }
-        levelHandler?(rms)
+        levelFramesSinceEmission += count
+        let emissionInterval = max(1, Int(sourceSampleRate / 20))
+        let handler: (@Sendable (Float) -> Void)?
+        if levelFramesSinceEmission >= emissionInterval {
+            levelFramesSinceEmission = 0
+            handler = levelHandler
+        } else {
+            handler = nil
+        }
+        lock.unlock()
+        handler?(rms)
     }
 
     static func resample(

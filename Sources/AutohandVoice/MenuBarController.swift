@@ -1,6 +1,7 @@
 import AppKit
+import ApplicationServices
 import AutohandVoiceCore
-import CoreGraphics
+import Carbon
 import Foundation
 
 @MainActor
@@ -10,19 +11,32 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     )
     private let session = VoiceSession()
     private var hotKeyMonitor: HotKeyMonitor?
+    private var settingsWindowController: SettingsWindowController?
+    private var recordingHUDController: RecordingHUDController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        session.onChange = { [weak self] in self?.rebuildMenu() }
+        session.onChange = { [weak self] in
+            self?.rebuildMenu()
+            self?.recordingHUDController?.update()
+        }
+        settingsWindowController = SettingsWindowController(session: session)
+        recordingHUDController = RecordingHUDController(session: session)
         hotKeyMonitor = HotKeyMonitor(session: session)
-        hotKeyMonitor?.start()
-        if !CGPreflightListenEventAccess() {
-            _ = CGRequestListenEventAccess()
+        let hotKeyStatus = hotKeyMonitor?.start() ?? OSStatus(eventNotHandledErr)
+        if hotKeyStatus != noErr {
             session.reportFailure(
-                "Input Monitoring is required for push-to-talk. Grant access in System Settings, then relaunch."
+                "Control + Option + Space could not be registered (\(hotKeyStatus))."
             )
         }
         rebuildMenu()
+        recordingHUDController?.update()
+        session.prepareLocalModel()
+        if !session.preferences.hasCompletedOnboarding {
+            DispatchQueue.main.async { [weak self] in
+                self?.settingsWindowController?.show()
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -31,18 +45,22 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
     private func rebuildMenu() {
         statusItem.button?.image = NSImage(
-            systemSymbolName: session.state.symbol,
-            accessibilityDescription: session.state.label
+            systemSymbolName: session.statusSymbol,
+            accessibilityDescription: session.statusLabel
         )
-        statusItem.button?.toolTip = "Autohand Voice — \(session.state.label)"
+        statusItem.button?.toolTip = "Autohand Voice — \(session.statusLabel)"
 
         let menu = NSMenu()
-        let status = NSMenuItem(title: session.state.label, action: nil, keyEquivalent: "")
+        let status = NSMenuItem(
+            title: session.statusLabel,
+            action: nil,
+            keyEquivalent: ""
+        )
         status.isEnabled = false
         menu.addItem(status)
         menu.addItem(.separator())
 
-        if session.state == .recording {
+        if session.state == .recording || session.state == .starting {
             menu.addItem(
                 item("Stop Recording", action: #selector(stopRecording))
             )
@@ -51,7 +69,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
                 "Start Recording",
                 action: #selector(startRecording)
             )
-            record.isEnabled = session.isEnabled && session.state == .ready
+            record.isEnabled = session.canStartRecording
             menu.addItem(record)
         }
 
@@ -65,6 +83,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         }
 
         menu.addItem(.separator())
+        addPermissionItems(to: menu)
         menu.addItem(outputMenu())
         menu.addItem(pushToTalkMenu())
 
@@ -84,9 +103,36 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
         menu.addItem(
+            item("Settings…", action: #selector(showSettings), key: ",")
+        )
+        menu.addItem(
             item("Quit Autohand Voice", action: #selector(quit), key: "q")
         )
         statusItem.menu = menu
+    }
+
+    private func addPermissionItems(to menu: NSMenu) {
+        let check = SystemCheck()
+        if check.microphonePermission != "authorized" {
+            menu.addItem(
+                item(
+                    "Open Microphone Settings…",
+                    action: #selector(openMicrophoneSettings)
+                )
+            )
+        }
+        if !check.accessibilityPermission {
+            menu.addItem(
+                item(
+                    "Open Accessibility Settings…",
+                    action: #selector(openAccessibilitySettings)
+                )
+            )
+        }
+        if check.microphonePermission != "authorized"
+            || !check.accessibilityPermission {
+            menu.addItem(.separator())
+        }
     }
 
     private func outputMenu() -> NSMenuItem {
@@ -142,6 +188,15 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         session.setPlaySounds(!session.preferences.playSounds)
     }
     @objc private func dismissError() { session.recover() }
+    @objc private func openMicrophoneSettings() {
+        openPrivacySettings(anchor: "Privacy_Microphone")
+    }
+    @objc private func openAccessibilitySettings() {
+        openPrivacySettings(anchor: "Privacy_Accessibility")
+    }
+    @objc private func showSettings() {
+        settingsWindowController?.show()
+    }
 
     @objc private func selectOutputMode(_ sender: NSMenuItem) {
         guard
@@ -161,5 +216,12 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+
+    private func openPrivacySettings(anchor: String) {
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)"
+        ) else { return }
+        NSWorkspace.shared.open(url)
     }
 }

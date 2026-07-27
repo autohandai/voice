@@ -10,21 +10,31 @@ public enum OutputMode: String, Codable, CaseIterable, Sendable {
 }
 
 public enum PushToTalkKey: String, Codable, CaseIterable, Sendable {
-    case rightOption = "right_option"
-    case rightControl = "right_control"
+    case controlOptionSpace = "control_option_space"
 
     public var displayName: String {
-        switch self {
-        case .rightOption: "Right Option"
-        case .rightControl: "Right Control"
+        "Control + Option + Space"
+    }
+
+    public var requiresInputMonitoring: Bool { false }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        switch rawValue {
+        case Self.controlOptionSpace.rawValue, "right_option", "right_control":
+            self = .controlOptionSpace
+        default:
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unknown push-to-talk shortcut: \(rawValue)"
+            )
         }
     }
 
-    public var keyCode: UInt16 {
-        switch self {
-        case .rightOption: 61
-        case .rightControl: 62
-        }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
     }
 }
 
@@ -35,14 +45,18 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var playSounds: Bool
     public var launchAtLogin: Bool
     public var modelVersion: String
+    public var hasCompletedOnboarding: Bool
+    public var showRecordingHUD: Bool
 
     public init(
         engine: SpeechEngine = .coreML,
         outputMode: OutputMode = .type,
-        pushToTalkKey: PushToTalkKey = .rightOption,
+        pushToTalkKey: PushToTalkKey = .controlOptionSpace,
         playSounds: Bool = true,
         launchAtLogin: Bool = false,
-        modelVersion: String = "v3"
+        modelVersion: String = "v3",
+        hasCompletedOnboarding: Bool = false,
+        showRecordingHUD: Bool = true
     ) {
         self.engine = engine
         self.outputMode = outputMode
@@ -50,9 +64,43 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         self.playSounds = playSounds
         self.launchAtLogin = launchAtLogin
         self.modelVersion = modelVersion
+        self.hasCompletedOnboarding = hasCompletedOnboarding
+        self.showRecordingHUD = showRecordingHUD
     }
 
     public var allowsRemoteServices: Bool { false }
+
+    private enum CodingKeys: String, CodingKey {
+        case engine
+        case outputMode
+        case pushToTalkKey
+        case playSounds
+        case launchAtLogin
+        case modelVersion
+        case hasCompletedOnboarding
+        case showRecordingHUD
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        engine = try container.decode(SpeechEngine.self, forKey: .engine)
+        outputMode = try container.decode(OutputMode.self, forKey: .outputMode)
+        pushToTalkKey = try container.decode(
+            PushToTalkKey.self,
+            forKey: .pushToTalkKey
+        )
+        playSounds = try container.decode(Bool.self, forKey: .playSounds)
+        launchAtLogin = try container.decode(Bool.self, forKey: .launchAtLogin)
+        modelVersion = try container.decode(String.self, forKey: .modelVersion)
+        hasCompletedOnboarding = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .hasCompletedOnboarding
+        ) ?? false
+        showRecordingHUD = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .showRecordingHUD
+        ) ?? true
+    }
 }
 
 public struct PreferencesStore: Sendable {

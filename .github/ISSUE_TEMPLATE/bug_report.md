@@ -23,7 +23,6 @@ assignees: ''
 - Autohand Voice version (`autohand-voice --version`):
 - Microphone permission:
 - Accessibility permission:
-- Input Monitoring permission:
 
 **Diagnostics**
 

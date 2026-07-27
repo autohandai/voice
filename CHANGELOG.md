@@ -12,3 +12,15 @@
   configuration, transcript, and audio contracts.
 - Consolidated the contributor roster under Autohand Evolve and igorcosta while
   retaining required upstream MIT attribution.
+
+## Unreleased
+
+- Replaced the Input Monitoring-dependent modifier shortcut with a registered
+  Control + Option + Space push-to-talk hotkey.
+- Added legacy shortcut preference migration and explicit microphone and
+  Accessibility recovery actions.
+- Added a native SwiftUI Settings window with guided first-run setup,
+  contextual permission requests, local-model readiness, launch-at-login
+  control, and redacted privacy diagnostics.
+- Added an optional nonactivating recording HUD with throttled local microphone
+  level, processing/failure state, and accessible Stop and Dismiss actions.

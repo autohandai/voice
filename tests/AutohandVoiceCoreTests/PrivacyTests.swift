@@ -12,6 +12,11 @@ final class PrivacyTests: XCTestCase {
     }
 
     func testSystemCheckNeverEnablesRemoteFallback() {
-        XCTAssertFalse(SystemCheck().remoteFallbackEnabled)
+        let check = SystemCheck()
+        XCTAssertFalse(check.remoteFallbackEnabled)
+    }
+
+    func testRegisteredShortcutDoesNotRequireInputMonitoring() {
+        XCTAssertFalse(PushToTalkKey.controlOptionSpace.requiresInputMonitoring)
     }
 }

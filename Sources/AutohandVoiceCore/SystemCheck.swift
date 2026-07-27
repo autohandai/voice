@@ -1,6 +1,5 @@
 import AVFoundation
 import ApplicationServices
-import CoreGraphics
 import Foundation
 
 public struct SystemCheck: Codable, Sendable {
@@ -9,7 +8,6 @@ public struct SystemCheck: Codable, Sendable {
     public let macOSVersion: String
     public let microphonePermission: String
     public let accessibilityPermission: Bool
-    public let inputMonitoringPermission: Bool
     public let remoteFallbackEnabled: Bool
 
     public init() {
@@ -29,7 +27,6 @@ public struct SystemCheck: Codable, Sendable {
         @unknown default: microphonePermission = "unknown"
         }
         accessibilityPermission = AXIsProcessTrusted()
-        inputMonitoringPermission = CGPreflightListenEventAccess()
         remoteFallbackEnabled = false
     }
 }
