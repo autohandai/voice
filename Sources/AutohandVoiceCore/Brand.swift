@@ -30,4 +30,10 @@ public enum Brand {
     public static var appProfilesURL: URL {
         applicationSupportDirectory.appendingPathComponent("app-profiles.json")
     }
+
+    public static var usageInsightsURL: URL {
+        applicationSupportDirectory.appendingPathComponent(
+            "usage-insights.json"
+        )
+    }
 }

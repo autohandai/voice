@@ -65,6 +65,7 @@ final class VoiceSession {
     @ObservationIgnored var onShortcutRegistration:
         ((RegisteredShortcut) -> OSStatus)?
     @ObservationIgnored var onHistoryChange: (() -> Void)?
+    @ObservationIgnored var onInsightsChange: (() -> Void)?
     private(set) var state: State = .ready { didSet { onChange?() } }
     private(set) var audioLevel: Float = 0
     private(set) var audioInputHealth: AudioInputHealth = .idle
@@ -94,6 +95,9 @@ final class VoiceSession {
     private(set) var hasRecoverableAudio = false { didSet { onChange?() } }
     private(set) var recoverableAudioDuration: TimeInterval = 0
     private(set) var historyError: String?
+    private(set) var usageInsightsError: String? {
+        didSet { onChange?() }
+    }
     private(set) var vocabularyError: String? { didSet { onChange?() } }
     private(set) var profileError: String? { didSet { onChange?() } }
     private(set) var isFileTranscriptionActive = false {
@@ -170,7 +174,9 @@ final class VoiceSession {
     @ObservationIgnored private let historyStore = HistoryStore()
     @ObservationIgnored private let vocabularyStore = VocabularyStore()
     @ObservationIgnored private let appProfileStore = AppProfileStore()
+    @ObservationIgnored private let usageInsightsStore = UsageInsightsStore()
     @ObservationIgnored private var historyEntryID: UUID?
+    @ObservationIgnored private var pendingUsageDay: Date?
     @ObservationIgnored private var previewBuffer = ProvisionalPreviewBuffer()
     @ObservationIgnored private var previewAudioContinuation:
         AsyncStream<PreviewAudioChunk>.Continuation?
@@ -679,6 +685,7 @@ final class VoiceSession {
             )
             lastTranscript = pendingTranscript
             updateHistoryOutcome(.inserted)
+            markPendingUsageInsertionSucceeded()
             self.pendingTranscript = nil
             state = .ready
         } catch {
@@ -902,6 +909,22 @@ final class VoiceSession {
         onHistoryChange?()
     }
 
+    func setUsageInsightsEnabled(_ value: Bool) {
+        preferences.usageInsightsEnabled = value
+        if !value {
+            pendingUsageDay = nil
+        }
+        persist()
+        onInsightsChange?()
+    }
+
+    func resetUsageInsights() throws {
+        try usageInsightsStore.reset()
+        pendingUsageDay = nil
+        usageInsightsError = nil
+        onInsightsChange?()
+    }
+
     func setHistoryRetentionDays(_ value: Int) {
         preferences.historyRetentionDays = max(1, value)
         persist()
@@ -1069,6 +1092,7 @@ final class VoiceSession {
         samples: [Float],
         target: TextInsertionTarget?
     ) async throws {
+        let processingStartedAt = ProcessInfo.processInfo.systemUptime
         try await prepareModelForUse()
         let configuration = activeConfiguration
         let transcript = try await recognizer.transcribe(
@@ -1132,15 +1156,36 @@ final class VoiceSession {
         Self.logger.notice(
             "Final local transcript produced with \(finalText.count) characters"
         )
-        try inserter.commitVerifiedFinalText(
-            finalText,
-            mode: configuration.outputMode,
-            target: target
+        let processingDuration = max(
+            0,
+            ProcessInfo.processInfo.systemUptime - processingStartedAt
         )
+        do {
+            try inserter.commitVerifiedFinalText(
+                finalText,
+                mode: configuration.outputMode,
+                target: target
+            )
+            recordUsageInsights(
+                text: finalText,
+                samples: samples,
+                processingDuration: processingDuration,
+                insertionSucceeded: true
+            )
+        } catch {
+            pendingUsageDay = recordUsageInsights(
+                text: finalText,
+                samples: samples,
+                processingDuration: processingDuration,
+                insertionSucceeded: false
+            )
+            throw error
+        }
         Self.logger.notice("Final transcript committed at the cursor")
         lastTranscript = finalText
         updateHistoryOutcome(.inserted)
         pendingTranscript = nil
+        pendingUsageDay = nil
         insertionTarget = nil
         state = .ready
         if configuration.playSounds { NSSound.beep() }
@@ -1244,6 +1289,52 @@ final class VoiceSession {
         } catch {
             historyError = "Could not update local history: \(error.localizedDescription)"
             onChange?()
+        }
+    }
+
+    @discardableResult
+    private func recordUsageInsights(
+        text: String,
+        samples: [Float],
+        processingDuration: TimeInterval,
+        insertionSucceeded: Bool
+    ) -> Date? {
+        guard preferences.usageInsightsEnabled else { return nil }
+        do {
+            let day = try usageInsightsStore.record(
+                UsageMetricEvent(
+                    wordCount: text.split(whereSeparator: \.isWhitespace).count,
+                    recordingDuration: Double(samples.count)
+                        / AudioCapture.targetSampleRate,
+                    processingDuration: processingDuration,
+                    insertionSucceeded: insertionSucceeded
+                )
+            )
+            usageInsightsError = nil
+            onInsightsChange?()
+            return day
+        } catch {
+            usageInsightsError =
+                "Usage insights could not be saved: \(error.localizedDescription)"
+            return nil
+        }
+    }
+
+    private func markPendingUsageInsertionSucceeded() {
+        guard
+            preferences.usageInsightsEnabled,
+            let pendingUsageDay
+        else { return }
+        do {
+            try usageInsightsStore.markInsertionSucceeded(
+                on: pendingUsageDay
+            )
+            self.pendingUsageDay = nil
+            usageInsightsError = nil
+            onInsightsChange?()
+        } catch {
+            usageInsightsError =
+                "Usage insights could not be updated: \(error.localizedDescription)"
         }
     }
 

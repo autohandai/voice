@@ -33,6 +33,21 @@ final class AppLayerPreferencesTests: XCTestCase {
         XCTAssertFalse(decoded.livePreviewEnabled)
     }
 
+    func testUsageInsightsDefaultOffForExistingPreferences() throws {
+        let data = try JSONEncoder().encode(VoicePreferences())
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        object.removeValue(forKey: "usageInsightsEnabled")
+
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertFalse(decoded.usageInsightsEnabled)
+    }
+
     func testSmartFormattingDefaultsOffForExistingPreferences() throws {
         let data = try JSONEncoder().encode(VoicePreferences())
         var object = try XCTUnwrap(

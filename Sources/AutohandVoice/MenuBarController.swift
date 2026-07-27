@@ -16,6 +16,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private var historyWindowController: HistoryWindowController?
     private var fileTranscriptionWindowController:
         FileTranscriptionWindowController?
+    private var usageInsightsWindowController:
+        UsageInsightsWindowController?
     private var workspaceObservers: [NSObjectProtocol] = []
     private var lastRuntimeRestoreAt: TimeInterval = 0
 
@@ -30,6 +32,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         historyWindowController = HistoryWindowController(session: session)
         fileTranscriptionWindowController =
             FileTranscriptionWindowController(session: session)
+        usageInsightsWindowController =
+            UsageInsightsWindowController(session: session)
         recordingHUDController = RecordingHUDController(session: session)
         hotKeyMonitor = HotKeyMonitor(session: session)
         session.onShortcutRegistration = { [weak self] shortcut in
@@ -246,6 +250,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             )
         )
         menu.addItem(
+            item("Private Usage Insights…", action: #selector(showInsights))
+        )
+        menu.addItem(
             item("Quit Autohand Voice", action: #selector(quit), key: "q")
         )
         statusItem.menu = menu
@@ -403,6 +410,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     }
     @objc private func showFileTranscription() {
         fileTranscriptionWindowController?.show()
+    }
+    @objc private func showInsights() {
+        usageInsightsWindowController?.show()
     }
 
     @objc private func selectOutputMode(_ sender: NSMenuItem) {

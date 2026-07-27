@@ -474,6 +474,10 @@ Acceptance:
 
 Priority: P2
 
+Status: implemented as independently opt-in, owner-only daily aggregates
+bounded to 366 rows, with monotonic duration inputs, a Swift Charts view,
+accessible summary and table, a documented 40-WPM estimate, and full reset.
+
 Provide an optional local dashboard for dictation count, words, recording time,
 processing latency, insertion success, and estimated typing time saved. Store
 aggregates rather than transcript content when history is off.

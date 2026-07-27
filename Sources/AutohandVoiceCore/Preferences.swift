@@ -58,6 +58,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var smartFormattingEnabled: Bool
     public var automaticTerminalPunctuation: Bool
     public var dictationLanguageCode: String
+    public var usageInsightsEnabled: Bool
 
     public init(
         engine: SpeechEngine = .coreML,
@@ -78,7 +79,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         dictationCommandsEnabled: Bool = false,
         smartFormattingEnabled: Bool = false,
         automaticTerminalPunctuation: Bool = true,
-        dictationLanguageCode: String = "en"
+        dictationLanguageCode: String = "en",
+        usageInsightsEnabled: Bool = false
     ) {
         self.engine = engine
         self.outputMode = outputMode
@@ -102,6 +104,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
             SupportedDictationLanguage(rawValue: dictationLanguageCode) != nil
             ? dictationLanguageCode
             : "en"
+        self.usageInsightsEnabled = usageInsightsEnabled
         if SpeechModelVariant(rawValue: self.modelVersion)?
             .supports(languageCode: self.dictationLanguageCode) == false {
             self.modelVersion = SpeechModelVariant.v3.rawValue
@@ -130,6 +133,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         case smartFormattingEnabled
         case automaticTerminalPunctuation
         case dictationLanguageCode
+        case usageInsightsEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -205,6 +209,10 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
             SupportedDictationLanguage(rawValue: decodedLanguage) != nil
             ? decodedLanguage
             : "en"
+        usageInsightsEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .usageInsightsEnabled
+        ) ?? false
         if SpeechModelVariant(rawValue: modelVersion)?
             .supports(languageCode: dictationLanguageCode) == false {
             modelVersion = SpeechModelVariant.v3.rawValue

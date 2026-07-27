@@ -119,6 +119,13 @@ security-scoped access is released on completion or cancellation, and the final
 text can be edited, copied, or exported as plain text or Markdown. File audio
 and generated text are never uploaded.
 
+Private Usage Insights is independently opt-in. It stores at most 366 daily
+aggregate rows—dictation count, word count, recording and processing time, and
+insertion outcomes—with no transcript text. The native chart is paired with an
+accessible summary and data table. Estimated time saved assumes 40 words per
+minute and subtracts recording plus local processing time; all statistics can
+be reset.
+
 ## Configuration
 
 Preferences are stored at:
