@@ -256,6 +256,61 @@ private struct GeneralSettingsView: View {
                     )
                 }
 
+                Section("Audio Input") {
+                    Picker(
+                        "Microphone",
+                        selection: Binding<String?>(
+                            get: {
+                                model.session.preferences.audioInputDeviceUID
+                            },
+                            set: { model.setAudioInputDevice($0) }
+                        )
+                    ) {
+                        Text("System Default")
+                            .tag(String?.none)
+                        ForEach(model.audioInputDevices) { device in
+                            Text(
+                                device.isSystemDefault
+                                    ? "\(device.name) (Default)"
+                                    : device.name
+                            )
+                            .tag(Optional(device.id))
+                        }
+                    }
+
+                    Text(model.audioInputStatus)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    LabeledContent(
+                        "Signal",
+                        value: model.session.audioInputHealth.label
+                    )
+
+                    ProgressView(value: Double(model.session.audioLevel))
+                        .accessibilityLabel("Microphone input level")
+                        .accessibilityValue(
+                            "\(Int(model.session.audioLevel * 100)) percent"
+                        )
+
+                    HStack {
+                        Button(
+                            model.session.isTestingMicrophone
+                                ? "Stop Test"
+                                : "Test Microphone"
+                        ) {
+                            if model.session.isTestingMicrophone {
+                                model.session.stopMicrophoneTest()
+                            } else {
+                                model.session.startMicrophoneTest()
+                            }
+                        }
+                        Button("Refresh Devices") {
+                            model.refreshAudioInputDevices()
+                        }
+                    }
+                }
+
                 Section {
                     Toggle(
                         "Launch at Login",

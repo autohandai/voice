@@ -1,4 +1,5 @@
 import AVFoundation
+import AudioToolbox
 import Foundation
 
 public final class AudioCapture: @unchecked Sendable {
@@ -28,6 +29,7 @@ public final class AudioCapture: @unchecked Sendable {
     }
 
     public func start(
+        deviceUID: String? = nil,
         onLevel: (@Sendable (Float) -> Void)? = nil
     ) async throws {
         guard await requestPermission() else {
@@ -46,6 +48,12 @@ public final class AudioCapture: @unchecked Sendable {
         guard shouldStart else { return }
 
         let input = engine.inputNode
+        do {
+            try selectInputDevice(deviceUID, for: input)
+        } catch {
+            reset()
+            throw error
+        }
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else {
             reset()
@@ -68,6 +76,31 @@ public final class AudioCapture: @unchecked Sendable {
             input.removeTap(onBus: 0)
             reset()
             throw VoiceError.microphoneUnavailable(error.localizedDescription)
+        }
+    }
+
+    private func selectInputDevice(
+        _ deviceUID: String?,
+        for input: AVAudioInputNode
+    ) throws {
+        guard let audioUnit = input.audioUnit else {
+            throw VoiceError.microphoneUnavailable(
+                "the audio input unit is unavailable"
+            )
+        }
+        var deviceID = try AudioInputDevices.deviceID(forUID: deviceUID)
+        let status = AudioUnitSetProperty(
+            audioUnit,
+            kAudioOutputUnitProperty_CurrentDevice,
+            kAudioUnitScope_Global,
+            0,
+            &deviceID,
+            UInt32(MemoryLayout<AudioDeviceID>.size)
+        )
+        guard status == noErr else {
+            throw VoiceError.microphoneUnavailable(
+                "the selected input could not be opened (error \(status))"
+            )
         }
     }
 

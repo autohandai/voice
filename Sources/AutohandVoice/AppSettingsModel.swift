@@ -12,11 +12,19 @@ final class AppSettingsModel {
     private(set) var launchAtLoginAvailable = true
     private(set) var launchAtLoginStatus = "Not registered"
     private(set) var actionMessage: String?
+    private(set) var audioInputDevices: [AudioInputDevice] = []
+    private(set) var audioInputStatus = "Checking microphones…"
+    @ObservationIgnored private var audioInputDeviceMonitor: AudioInputDeviceMonitor?
 
     init(session: VoiceSession) {
         self.session = session
         systemCheck = SystemCheck()
         refresh()
+        audioInputDeviceMonitor = AudioInputDeviceMonitor { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.refreshAudioInputDevices()
+            }
+        }
     }
 
     func refresh() {
@@ -44,6 +52,48 @@ final class AppSettingsModel {
             launchAtLoginEnabled = false
             launchAtLoginStatus = "Unknown"
         }
+        refreshAudioInputDevices()
+    }
+
+    func refreshAudioInputDevices() {
+        do {
+            audioInputDevices = try AudioInputDevices.available()
+            if let selectedUID = session.preferences.audioInputDeviceUID,
+               !audioInputDevices.contains(where: { $0.id == selectedUID }) {
+                audioInputStatus = "Selected microphone is disconnected."
+                session.reportAudioInputDisconnected()
+            } else {
+                let selected = selectedAudioInputDevice
+                audioInputStatus = selected.map {
+                    $0.isSystemDefault
+                        ? "\($0.name) · system default"
+                        : $0.name
+                } ?? "No input device is available."
+                session.reportAudioInputAvailable(
+                    name: selected?.name ?? "System Default"
+                )
+            }
+        } catch {
+            audioInputDevices = []
+            audioInputStatus = error.localizedDescription
+            session.reportAudioInputDisconnected()
+        }
+    }
+
+    var selectedAudioInputDevice: AudioInputDevice? {
+        if let selectedUID = session.preferences.audioInputDeviceUID {
+            return audioInputDevices.first { $0.id == selectedUID }
+        }
+        return audioInputDevices.first { $0.isSystemDefault }
+    }
+
+    func setAudioInputDevice(_ uid: String?) {
+        session.stopMicrophoneTest()
+        session.setAudioInputDevice(uid)
+        refreshAudioInputDevices()
+        actionMessage = selectedAudioInputDevice.map {
+            "Microphone set to \($0.name)."
+        } ?? "No input device is available."
     }
 
     func requestMicrophonePermission() async {

@@ -59,6 +59,9 @@ final class VoiceSession {
     @ObservationIgnored var onChange: (() -> Void)?
     private(set) var state: State = .ready { didSet { onChange?() } }
     private(set) var audioLevel: Float = 0
+    private(set) var audioInputHealth: AudioInputHealth = .idle
+    private(set) var audioInputName = "System Default"
+    private(set) var isTestingMicrophone = false
     private(set) var modelState: ModelState = .notChecked {
         didSet { onChange?() }
     }
@@ -82,6 +85,7 @@ final class VoiceSession {
 
     var canStartRecording: Bool {
         isEnabled && state == .ready && modelState == .ready
+            && !isTestingMicrophone
     }
 
     @ObservationIgnored private let store: PreferencesStore
@@ -89,6 +93,8 @@ final class VoiceSession {
     @ObservationIgnored private let inserter = TextInserter()
     @ObservationIgnored private var recognizer: LocalSpeechRecognizer
     @ObservationIgnored private var stopWhenStarted = false
+    @ObservationIgnored private var audioHealthMonitor = AudioHealthMonitor()
+    @ObservationIgnored private var microphoneTestID: UUID?
 
     init(store: PreferencesStore = PreferencesStore()) {
         self.store = store
@@ -98,6 +104,9 @@ final class VoiceSession {
     }
 
     func setEnabled(_ value: Bool) {
+        if !value, isTestingMicrophone {
+            stopMicrophoneTest()
+        }
         if !value, state == .recording {
             capture.cancel()
             audioLevel = 0
@@ -113,9 +122,11 @@ final class VoiceSession {
         stopWhenStarted = false
         Task {
             do {
-                try await capture.start { [weak self] level in
+                try await capture.start(
+                    deviceUID: preferences.audioInputDeviceUID
+                ) { [weak self] level in
                     Task { @MainActor [weak self] in
-                        self?.audioLevel = min(max(level * 8, 0), 1)
+                        self?.observeAudioLevel(level)
                     }
                 }
                 Self.logger.notice("Audio capture started")
@@ -128,6 +139,11 @@ final class VoiceSession {
                 }
             } catch {
                 audioLevel = 0
+                if error as? AudioInputDeviceError
+                    == .selectedDeviceUnavailable {
+                    audioHealthMonitor.disconnect()
+                    audioInputHealth = .disconnected
+                }
                 Self.logger.error(
                     "Audio capture failed: \(error.localizedDescription)"
                 )
@@ -221,6 +237,75 @@ final class VoiceSession {
         persist()
     }
 
+    func setAudioInputDevice(_ uid: String?) {
+        preferences.audioInputDeviceUID = uid
+        audioHealthMonitor.reset()
+        audioInputHealth = .idle
+        persist()
+    }
+
+    func reportAudioInputDisconnected() {
+        audioHealthMonitor.disconnect()
+        audioInputHealth = .disconnected
+    }
+
+    func reportAudioInputAvailable(name: String) {
+        audioInputName = name
+        guard !isTestingMicrophone, state != .recording else { return }
+        audioHealthMonitor.reset()
+        audioInputHealth = .idle
+    }
+
+    func startMicrophoneTest() {
+        guard state == .ready, !isTestingMicrophone else { return }
+        let testID = UUID()
+        microphoneTestID = testID
+        isTestingMicrophone = true
+        audioHealthMonitor.reset()
+        audioInputHealth = .listening
+        Task {
+            do {
+                try await capture.start(
+                    deviceUID: preferences.audioInputDeviceUID
+                ) { [weak self] level in
+                    Task { @MainActor [weak self] in
+                        self?.observeAudioLevel(level)
+                    }
+                }
+                try await Task.sleep(for: .seconds(8))
+                guard microphoneTestID == testID else { return }
+                stopMicrophoneTest()
+            } catch is CancellationError {
+                stopMicrophoneTest()
+            } catch {
+                capture.cancel()
+                microphoneTestID = nil
+                isTestingMicrophone = false
+                audioLevel = 0
+                if error as? AudioInputDeviceError
+                    == .selectedDeviceUnavailable {
+                    audioHealthMonitor.disconnect()
+                    audioInputHealth = .disconnected
+                } else {
+                    audioInputHealth = .idle
+                }
+                state = .failed(
+                    "Microphone test failed: \(error.localizedDescription)"
+                )
+            }
+        }
+    }
+
+    func stopMicrophoneTest() {
+        guard isTestingMicrophone else { return }
+        microphoneTestID = nil
+        capture.cancel()
+        isTestingMicrophone = false
+        audioLevel = 0
+        audioHealthMonitor.reset()
+        audioInputHealth = .idle
+    }
+
     func setPushToTalkKey(_ key: PushToTalkKey) {
         preferences.pushToTalkKey = key
         persist()
@@ -267,5 +352,13 @@ final class VoiceSession {
             state = .failed("Could not save settings: \(error.localizedDescription)")
         }
         onChange?()
+    }
+
+    private func observeAudioLevel(_ level: Float) {
+        audioLevel = min(max(level * 8, 0), 1)
+        audioInputHealth = audioHealthMonitor.observe(
+            level: level,
+            at: ProcessInfo.processInfo.systemUptime
+        )
     }
 }

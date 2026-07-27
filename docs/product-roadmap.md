@@ -86,7 +86,10 @@ Current Phase A delivery:
   accessible nonactivating recording HUD;
 - retained: the existing AppKit status item and Carbon registered hot key for
   runtime compatibility;
-- next: microphone selection/audio health and insertion recovery.
+- implemented: remembered Core Audio microphone selection, system-default
+  tracking, hot-plug refresh, bounded level metering, an eight-second local
+  microphone test, and visible no-signal, clipping, and disconnect states;
+- next: configurable recording modes and insertion recovery.
 
 ### 1. Native SwiftUI app shell and Settings scene
 
@@ -183,6 +186,8 @@ Acceptance:
 ### 5. Microphone picker and audio health
 
 Priority: P0
+
+Status: implemented in the native Settings audio section and capture path.
 
 Add a microphone picker with “System Default,” remembered device choice,
 hot-plug handling, a level meter, and a test recording. Detect no signal,

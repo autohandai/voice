@@ -48,6 +48,8 @@ registered native shortcut does not require Input Monitoring permission.
 A nonactivating recording HUD shows starting, input level, local processing,
 and failure state without taking focus from the target app; it can be disabled
 in Settings.
+Settings also provides a remembered microphone picker, system-default tracking,
+hot-plug recovery, bounded signal diagnostics, and a local microphone test.
 
 The menu supports:
 
@@ -61,8 +63,8 @@ The menu supports:
 
 On first launch, Settings guides you through Microphone and Accessibility
 permission and prepares the pinned local model before your first real
-dictation. The General pane controls output, sound feedback, and launch at
-login. Privacy & Diagnostics shows the local runtime state and can copy a
+dictation. The General pane controls audio input, output, sound feedback, and
+launch at login. Privacy & Diagnostics shows the local runtime state and can copy a
 redacted report that never includes audio, transcript text, file paths, or
 environment values.
 

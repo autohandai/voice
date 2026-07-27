@@ -24,3 +24,5 @@
   control, and redacted privacy diagnostics.
 - Added an optional nonactivating recording HUD with throttled local microphone
   level, processing/failure state, and accessible Stop and Dismiss actions.
+- Added stable microphone selection, system-default and hot-plug tracking,
+  bounded signal health diagnostics, and an eight-second local microphone test.

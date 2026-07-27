@@ -47,6 +47,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var modelVersion: String
     public var hasCompletedOnboarding: Bool
     public var showRecordingHUD: Bool
+    public var audioInputDeviceUID: String?
 
     public init(
         engine: SpeechEngine = .coreML,
@@ -56,7 +57,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         launchAtLogin: Bool = false,
         modelVersion: String = "v3",
         hasCompletedOnboarding: Bool = false,
-        showRecordingHUD: Bool = true
+        showRecordingHUD: Bool = true,
+        audioInputDeviceUID: String? = nil
     ) {
         self.engine = engine
         self.outputMode = outputMode
@@ -66,6 +68,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         self.modelVersion = modelVersion
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.showRecordingHUD = showRecordingHUD
+        self.audioInputDeviceUID = audioInputDeviceUID
     }
 
     public var allowsRemoteServices: Bool { false }
@@ -79,6 +82,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         case modelVersion
         case hasCompletedOnboarding
         case showRecordingHUD
+        case audioInputDeviceUID
     }
 
     public init(from decoder: Decoder) throws {
@@ -100,6 +104,10 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
             Bool.self,
             forKey: .showRecordingHUD
         ) ?? true
+        audioInputDeviceUID = try container.decodeIfPresent(
+            String.self,
+            forKey: .audioInputDeviceUID
+        )
     }
 }
 

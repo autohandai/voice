@@ -78,15 +78,23 @@ private struct RecordingHUDView: View {
                     .lineLimit(2)
 
                 if session.state == .recording {
-                    ProgressView(
-                        value: Double(session.audioLevel),
-                        total: 1
-                    )
-                    .progressViewStyle(.linear)
-                    .accessibilityLabel("Microphone level")
-                    .accessibilityValue(
-                        "\(Int(session.audioLevel * 100)) percent"
-                    )
+                    VStack(alignment: .leading, spacing: 3) {
+                        ProgressView(
+                            value: Double(session.audioLevel),
+                            total: 1
+                        )
+                        .progressViewStyle(.linear)
+                        .accessibilityLabel("Microphone level")
+                        .accessibilityValue(
+                            "\(Int(session.audioLevel * 100)) percent"
+                        )
+                        Text(
+                            "\(session.audioInputName) · \(session.audioInputHealth.label)"
+                        )
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    }
                 } else {
                     Text(statusDetail)
                         .font(.caption)

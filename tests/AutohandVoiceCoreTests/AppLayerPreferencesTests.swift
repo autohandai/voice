@@ -25,6 +25,7 @@ final class AppLayerPreferencesTests: XCTestCase {
         XCTAssertTrue(preferences.launchAtLogin)
         XCTAssertFalse(preferences.hasCompletedOnboarding)
         XCTAssertTrue(preferences.showRecordingHUD)
+        XCTAssertNil(preferences.audioInputDeviceUID)
     }
 
     func testCompletedOnboardingRoundTrips() throws {
@@ -51,5 +52,17 @@ final class AppLayerPreferencesTests: XCTestCase {
         )
 
         XCTAssertFalse(decoded.showRecordingHUD)
+    }
+
+    func testSelectedAudioInputDeviceRoundTrips() throws {
+        var expected = VoicePreferences()
+        expected.audioInputDeviceUID = "BuiltInMicrophoneDevice"
+
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONEncoder().encode(expected)
+        )
+
+        XCTAssertEqual(decoded, expected)
     }
 }
