@@ -3,8 +3,11 @@ import SwiftUI
 
 @MainActor
 final class SettingsWindowController: NSWindowController {
+    private let model: AppSettingsModel
+
     init(session: VoiceSession) {
         let model = AppSettingsModel(session: session)
+        self.model = model
         let hostingController = NSHostingController(
             rootView: AppSettingsView(model: model)
         )
@@ -30,10 +33,15 @@ final class SettingsWindowController: NSWindowController {
 
     func show() {
         guard let window else { return }
+        model.refresh()
         if !window.setFrameUsingName("AutohandVoiceSettings") {
             window.center()
         }
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+    }
+
+    func restoreAfterLifecycleChange() {
+        model.restoreAfterLifecycleChange()
     }
 }

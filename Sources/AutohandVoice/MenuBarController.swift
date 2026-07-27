@@ -17,6 +17,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private var fileTranscriptionWindowController:
         FileTranscriptionWindowController?
     private var workspaceObservers: [NSObjectProtocol] = []
+    private var lastRuntimeRestoreAt: TimeInterval = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -54,12 +55,33 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        session.prepareForConfirmedTermination()
         hotKeyMonitor?.stop()
         fileTranscriptionWindowController?.cancel()
         for observer in workspaceObservers {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
         }
         workspaceObservers.removeAll()
+    }
+
+    func applicationShouldTerminate(
+        _ sender: NSApplication
+    ) -> NSApplication.TerminateReply {
+        guard session.requiresTerminationConfirmation else {
+            return .terminateNow
+        }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Quit during an active recording?"
+        alert.informativeText =
+            "The current recording will be discarded and no transcript will be inserted."
+        alert.addButton(withTitle: "Keep Recording")
+        alert.addButton(withTitle: "Quit and Discard")
+        guard alert.runModal() == .alertSecondButtonReturn else {
+            return .terminateCancel
+        }
+        session.prepareForConfirmedTermination()
+        return .terminateNow
     }
 
     private func rebuildMenu() {
@@ -412,6 +434,17 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
     private func observeWorkspaceLifecycle() {
         let center = NSWorkspace.shared.notificationCenter
+        workspaceObservers.append(
+            center.addObserver(
+                forName: NSWorkspace.willSleepNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.session.handleSleepInterruption()
+                }
+            }
+        )
         for name in [
             NSWorkspace.didWakeNotification,
             NSWorkspace.sessionDidBecomeActiveNotification,
@@ -423,7 +456,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
                     queue: .main
                 ) { [weak self] _ in
                     Task { @MainActor [weak self] in
-                        self?.hotKeyMonitor?.reregisterAfterLifecycleChange()
+                        self?.restoreRuntimeAfterWake()
                     }
                 }
             )
@@ -439,5 +472,14 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
                 }
             }
         )
+    }
+
+    private func restoreRuntimeAfterWake() {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastRuntimeRestoreAt > 1 else { return }
+        lastRuntimeRestoreAt = now
+        hotKeyMonitor?.reregisterAfterLifecycleChange()
+        settingsWindowController?.restoreAfterLifecycleChange()
+        session.refreshActiveProfile()
     }
 }

@@ -54,6 +54,11 @@ decoder and labels all changing text as provisional. Preview text never leaves
 the HUD or reaches the target app; stopping runs one final transcription.
 Settings also provides a remembered microphone picker, system-default tracking,
 hot-plug recovery, bounded signal diagnostics, and a local microphone test.
+Launch at Login uses macOS Service Management and reports when approval is
+required in System Settings. After sleep or session unlock, the app restores
+one hot-key registration and recreates its Core Audio device observation.
+Sleep-interrupted captured audio remains available in memory for local retry;
+quitting during capture requires explicit discard confirmation.
 
 The menu supports:
 

@@ -24,11 +24,21 @@ final class AppSettingsModel {
         appProfiles = AppProfileSettingsModel(session: session)
         systemCheck = SystemCheck()
         refresh()
+        installAudioInputDeviceMonitor()
+    }
+
+    private func installAudioInputDeviceMonitor() {
         audioInputDeviceMonitor = AudioInputDeviceMonitor { [weak self] in
             Task { @MainActor [weak self] in
                 self?.refreshAudioInputDevices()
             }
         }
+    }
+
+    func restoreAfterLifecycleChange() {
+        audioInputDeviceMonitor = nil
+        installAudioInputDeviceMonitor()
+        refresh()
     }
 
     func refresh() {
@@ -42,7 +52,8 @@ final class AppSettingsModel {
         case .requiresApproval:
             launchAtLoginAvailable = true
             launchAtLoginEnabled = false
-            launchAtLoginStatus = "Approval required in System Settings"
+            launchAtLoginStatus =
+                "Approval required or disabled in System Settings"
         case .notRegistered:
             launchAtLoginAvailable = true
             launchAtLoginEnabled = false

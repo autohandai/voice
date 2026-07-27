@@ -135,6 +135,22 @@ final class VoiceSession {
         state == .starting || state == .recording
     }
 
+    var lifecycleActivity: DictationActivity {
+        switch state {
+        case .starting: .starting
+        case .recording: .recording
+        case .processing: .processing
+        case .ready, .failed: .ready
+        }
+    }
+
+    var requiresTerminationConfirmation: Bool {
+        VoiceLifecyclePolicy.action(
+            for: .termination,
+            activity: lifecycleActivity
+        ) == .confirmDiscard
+    }
+
     @ObservationIgnored private let store: PreferencesStore
     @ObservationIgnored private let capture = AudioCapture()
     @ObservationIgnored private let inserter = TextInserter()
@@ -142,6 +158,7 @@ final class VoiceSession {
     @ObservationIgnored private var recognizerModelVersion: String
     @ObservationIgnored private var stopWhenStarted = false
     @ObservationIgnored private var cancelWhenStarted = false
+    @ObservationIgnored private var pendingLifecycleInterruption: String?
     @ObservationIgnored private var shortcutFailureActive = false
     @ObservationIgnored private var audioHealthMonitor = AudioHealthMonitor()
     @ObservationIgnored private var microphoneTestID: UUID?
@@ -253,6 +270,7 @@ final class VoiceSession {
         state = .starting
         stopWhenStarted = false
         cancelWhenStarted = false
+        pendingLifecycleInterruption = nil
         Task {
             do {
                 if configuration.livePreviewEnabled
@@ -286,7 +304,12 @@ final class VoiceSession {
                     audioHealthMonitor.reset()
                     audioInputHealth = .idle
                     insertionTarget = nil
-                    state = .ready
+                    if let pendingLifecycleInterruption {
+                        self.pendingLifecycleInterruption = nil
+                        state = .failed(pendingLifecycleInterruption)
+                    } else {
+                        state = .ready
+                    }
                 } else if stopWhenStarted {
                     stopWhenStarted = false
                     finishStartedRecording()
@@ -306,7 +329,15 @@ final class VoiceSession {
                 Self.logger.error(
                     "Audio capture failed: \(error.localizedDescription)"
                 )
-                state = .failed(error.localizedDescription)
+                if let pendingLifecycleInterruption {
+                    self.pendingLifecycleInterruption = nil
+                    state = .failed(
+                        "\(pendingLifecycleInterruption) "
+                            + error.localizedDescription
+                    )
+                } else {
+                    state = .failed(error.localizedDescription)
+                }
             }
         }
     }
@@ -334,6 +365,53 @@ final class VoiceSession {
         audioHealthMonitor.reset()
         audioInputHealth = .idle
         state = .ready
+    }
+
+    func handleSleepInterruption() {
+        let message = "Recording stopped because this Mac went to sleep."
+        switch VoiceLifecyclePolicy.action(
+            for: .sleep,
+            activity: lifecycleActivity
+        ) {
+        case .cancelAndReport:
+            stopWhenStarted = false
+            cancelWhenStarted = true
+            pendingLifecycleInterruption =
+                "\(message) No transcript was inserted."
+        case .retainAudioAndReport:
+            do {
+                let samples = try capture.stop()
+                retainAudioRecovery(samples)
+                Task { await stopProvisionalPreview() }
+                insertionTarget = nil
+                audioLevel = 0
+                audioHealthMonitor.reset()
+                audioInputHealth = .idle
+                state = .failed(
+                    "\(message) Captured audio is available for local retry."
+                )
+            } catch {
+                capture.cancel()
+                Task { await stopProvisionalPreview() }
+                insertionTarget = nil
+                audioLevel = 0
+                state = .failed(
+                    "\(message) No recoverable audio was available: "
+                        + error.localizedDescription
+                )
+            }
+        case .none, .restoreRuntimeHandlers, .confirmDiscard:
+            break
+        }
+    }
+
+    func prepareForConfirmedTermination() {
+        guard isRecordingOrStarting else { return }
+        capture.cancel()
+        previewAudioContinuation?.finish()
+        previewAudioTask?.cancel()
+        insertionTarget = nil
+        clearProvisionalPreview()
     }
 
     func refreshActiveProfile() {

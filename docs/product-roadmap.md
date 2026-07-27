@@ -453,6 +453,11 @@ Acceptance:
 
 Priority: P1
 
+Status: implemented with `SMAppService.mainApp` status-driven controls,
+debounced wake restoration for one Carbon hot-key registration, recreated Core
+Audio device observation, in-memory recovery for sleep-interrupted capture, and
+explicit confirmation before quitting during a recording.
+
 Wire the existing `launchAtLogin` preference through
 `SMAppService.mainApp`. Restore hot-key registration and audio-device
 observation after sleep/wake, and make termination during recording explicit.
