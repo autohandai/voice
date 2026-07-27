@@ -116,6 +116,14 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
                 )
             )
         }
+        if session.lastUnformattedTranscript != nil {
+            menu.addItem(
+                item(
+                    "Copy Last Before Formatting",
+                    action: #selector(copyLastUnformattedTranscript)
+                )
+            )
+        }
 
         if session.pendingTranscript != nil {
             menu.addItem(.separator())
@@ -286,6 +294,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     @objc private func stopRecording() { session.finishRecording() }
     @objc private func cancelRecording() { session.cancelRecording() }
     @objc private func copyLastTranscript() { session.copyLastTranscript() }
+    @objc private func copyLastUnformattedTranscript() {
+        session.copyLastUnformattedTranscript()
+    }
     @objc private func retryPendingTranscript() {
         session.retryPendingTranscriptHere()
     }

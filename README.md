@@ -90,6 +90,12 @@ paragraph,” “command comma,” “command period,” “command question mar
 The prefix prevents ordinary phrases such as “a new line of products” from
 being altered.
 
+Smart Formatting is also opt-in. It uses only the captured selection and at
+most one adjacent character on either side to add deterministic spacing,
+capitalization, and optional terminal punctuation. The Formatting pane previews
+the exact result, and the menu keeps the most recent pre-formatting text
+available to copy in memory.
+
 ## Configuration
 
 Preferences are stored at:
@@ -139,6 +145,8 @@ does not read legacy upstream environment variables.
 - Dictation commands modify only the current uncommitted final transcript.
   Cancel commits nothing, and disabling commands preserves every phrase
   literally.
+- Smart Formatting does not read surrounding paragraphs or call a cleanup
+  service. Unknown cursor context remains literal.
 
 ## Development
 

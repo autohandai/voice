@@ -18,9 +18,14 @@ enum PasteInsertionResult {
 @MainActor
 public final class TextInsertionTarget {
     let storage: AnyObject
+    public let context: TextInsertionContext
 
-    init(storage: AnyObject) {
+    init(
+        storage: AnyObject,
+        context: TextInsertionContext = .unknown
+    ) {
         self.storage = storage
+        self.context = context
     }
 }
 
@@ -134,6 +139,11 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
         )
         return TextInsertionTarget(
             storage: SystemInsertionTarget(
+                element: element,
+                processID: processID,
+                selectedRange: selectedRange
+            ),
+            context: insertionContext(
                 element: element,
                 processID: processID,
                 selectedRange: selectedRange
@@ -251,6 +261,83 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
             return nil
         }
         return value
+    }
+
+    private func insertionContext(
+        element: AXUIElement,
+        processID: pid_t,
+        selectedRange: CFTypeRef?
+    ) -> TextInsertionContext {
+        guard
+            let selectedRange,
+            CFGetTypeID(selectedRange) == AXValueGetTypeID(),
+            AXValueGetType(selectedRange as! AXValue) == .cfRange
+        else {
+            return .init(
+                appBundleIdentifier: NSRunningApplication(
+                    processIdentifier: processID
+                )?.bundleIdentifier
+            )
+        }
+        var range = CFRange()
+        guard AXValueGetValue(
+            selectedRange as! AXValue,
+            .cfRange,
+            &range
+        ) else {
+            return .unknown
+        }
+        let count = (
+            attribute(element, name: kAXNumberOfCharactersAttribute)
+                as? NSNumber
+        )?.intValue
+        return TextInsertionContext(
+            precedingCharacter: range.location > 0
+                ? character(
+                    in: element,
+                    range: CFRange(location: range.location - 1, length: 1)
+                )
+                : nil,
+            followingCharacter: count.map {
+                range.location + range.length < $0
+                    ? character(
+                        in: element,
+                        range: CFRange(
+                            location: range.location + range.length,
+                            length: 1
+                        )
+                    )
+                    : nil
+            } ?? nil,
+            hasSelection: range.length > 0,
+            isAtDocumentStart: range.location == 0,
+            isAtDocumentEnd: count.map {
+                range.location + range.length >= $0
+            } ?? false,
+            appBundleIdentifier: NSRunningApplication(
+                processIdentifier: processID
+            )?.bundleIdentifier
+        )
+    }
+
+    private func character(
+        in element: AXUIElement,
+        range: CFRange
+    ) -> Character? {
+        var mutableRange = range
+        guard let value = AXValueCreate(.cfRange, &mutableRange) else {
+            return nil
+        }
+        var result: CFTypeRef?
+        guard AXUIElementCopyParameterizedAttributeValue(
+            element,
+            kAXStringForRangeParameterizedAttribute as CFString,
+            value,
+            &result
+        ) == .success else {
+            return nil
+        }
+        return (result as? String)?.first
     }
 
     private func equal(_ lhs: CFTypeRef?, _ rhs: CFTypeRef?) -> Bool {

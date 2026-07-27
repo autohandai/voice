@@ -18,6 +18,23 @@ final class AppLayerPreferencesTests: XCTestCase {
         XCTAssertFalse(decoded.dictationCommandsEnabled)
     }
 
+    func testSmartFormattingDefaultsOffForExistingPreferences() throws {
+        let data = try JSONEncoder().encode(VoicePreferences())
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        object.removeValue(forKey: "smartFormattingEnabled")
+        object.removeValue(forKey: "automaticTerminalPunctuation")
+
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertFalse(decoded.smartFormattingEnabled)
+        XCTAssertTrue(decoded.automaticTerminalPunctuation)
+    }
+
     func testExistingPreferencesDecodeWithOnboardingIncomplete() throws {
         let json = """
         {

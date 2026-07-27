@@ -54,6 +54,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var historyRetentionDays: Int
     public var historyMaximumItems: Int
     public var dictationCommandsEnabled: Bool
+    public var smartFormattingEnabled: Bool
+    public var automaticTerminalPunctuation: Bool
 
     public init(
         engine: SpeechEngine = .coreML,
@@ -70,7 +72,9 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         historyEnabled: Bool = false,
         historyRetentionDays: Int = 30,
         historyMaximumItems: Int = 500,
-        dictationCommandsEnabled: Bool = false
+        dictationCommandsEnabled: Bool = false,
+        smartFormattingEnabled: Bool = false,
+        automaticTerminalPunctuation: Bool = true
     ) {
         self.engine = engine
         self.outputMode = outputMode
@@ -87,6 +91,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         self.historyRetentionDays = historyRetentionDays
         self.historyMaximumItems = historyMaximumItems
         self.dictationCommandsEnabled = dictationCommandsEnabled
+        self.smartFormattingEnabled = smartFormattingEnabled
+        self.automaticTerminalPunctuation = automaticTerminalPunctuation
     }
 
     public var allowsRemoteServices: Bool { false }
@@ -107,6 +113,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         case historyRetentionDays
         case historyMaximumItems
         case dictationCommandsEnabled
+        case smartFormattingEnabled
+        case automaticTerminalPunctuation
     }
 
     public init(from decoder: Decoder) throws {
@@ -162,6 +170,14 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
             Bool.self,
             forKey: .dictationCommandsEnabled
         ) ?? false
+        smartFormattingEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .smartFormattingEnabled
+        ) ?? false
+        automaticTerminalPunctuation = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .automaticTerminalPunctuation
+        ) ?? true
     }
 }
 

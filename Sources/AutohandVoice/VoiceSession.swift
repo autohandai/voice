@@ -76,6 +76,9 @@ final class VoiceSession {
     private(set) var modelLastValidated: Date?
     private(set) var modelFailureKind: ModelFailureKind?
     private(set) var lastTranscript: String? { didSet { onChange?() } }
+    private(set) var lastUnformattedTranscript: String? {
+        didSet { onChange?() }
+    }
     private(set) var pendingTranscript: String? { didSet { onChange?() } }
     private(set) var hasRecoverableAudio = false { didSet { onChange?() } }
     private(set) var recoverableAudioDuration: TimeInterval = 0
@@ -348,6 +351,15 @@ final class VoiceSession {
         NSPasteboard.general.setString(lastTranscript, forType: .string)
     }
 
+    func copyLastUnformattedTranscript() {
+        guard let lastUnformattedTranscript else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(
+            lastUnformattedTranscript,
+            forType: .string
+        )
+    }
+
     func retryPendingTranscriptHere() {
         guard let pendingTranscript else { return }
         do {
@@ -592,6 +604,16 @@ final class VoiceSession {
         persist()
     }
 
+    func setSmartFormattingEnabled(_ value: Bool) {
+        preferences.smartFormattingEnabled = value
+        persist()
+    }
+
+    func setAutomaticTerminalPunctuation(_ value: Bool) {
+        preferences.automaticTerminalPunctuation = value
+        persist()
+    }
+
     func deleteAllHistory() {
         do {
             try historyStore.deleteAll()
@@ -752,20 +774,30 @@ final class VoiceSession {
         guard commandResult.text.contains(where: { !$0.isWhitespace }) else {
             throw VoiceError.emptyTranscript
         }
-        let finalText: String
+        let replacementText: String
         do {
-            finalText = VocabularyProcessor.apply(
+            replacementText = VocabularyProcessor.apply(
                 to: commandResult.text,
                 rules: try vocabularyStore.load()
             )
             vocabularyError = nil
         } catch {
-            finalText = commandResult.text
+            replacementText = commandResult.text
             vocabularyError = "Replacements could not be loaded: \(error.localizedDescription)"
             Self.logger.error(
                 "Vocabulary load failed; preserving recognized text: \(error.localizedDescription)"
             )
         }
+        let finalText = SmartTextFormatter.format(
+            replacementText,
+            context: target?.context ?? .unknown,
+            enabled: preferences.smartFormattingEnabled,
+            addsTerminalPunctuation:
+                preferences.automaticTerminalPunctuation
+        )
+        lastUnformattedTranscript = finalText == replacementText
+            ? nil
+            : replacementText
         pendingTranscript = finalText
         discardAudioRecovery()
         recordHistory(text: finalText, outcome: .insertionFailed)

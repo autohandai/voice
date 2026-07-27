@@ -41,3 +41,6 @@
   import and export.
 - Added opt-in English dictation commands with an explicit ambiguity-safe
   prefix, literal mode, scratch-current-buffer, and cancel-without-commit.
+- Added opt-in cursor-aware smart spacing, sentence and paragraph
+  capitalization, terminal punctuation, before/after preview, and an
+  in-memory copy of the latest unformatted transcript.

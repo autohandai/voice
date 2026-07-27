@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 private enum SettingsPane: String, CaseIterable, Identifiable {
     case gettingStarted
     case general
+    case formatting
     case vocabulary
     case permissions
     case privacy
@@ -18,6 +19,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .gettingStarted: "Getting Started"
         case .general: "General"
+        case .formatting: "Formatting"
         case .vocabulary: "Vocabulary"
         case .permissions: "Permissions"
         case .privacy: "Privacy & Diagnostics"
@@ -28,6 +30,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .gettingStarted: "checklist"
         case .general: "gearshape"
+        case .formatting: "textformat"
         case .vocabulary: "text.book.closed"
         case .permissions: "hand.raised"
         case .privacy: "lock.shield"
@@ -78,6 +81,8 @@ struct AppSettingsView: View {
             }
         case .general:
             GeneralSettingsView(model: model)
+        case .formatting:
+            FormattingSettingsView(model: model)
         case .vocabulary:
             VocabularySettingsView(model: model.vocabulary)
         case .permissions:
@@ -85,6 +90,98 @@ struct AppSettingsView: View {
         case .privacy:
             PrivacyDiagnosticsView(model: model)
         }
+    }
+}
+
+private enum FormattingPreviewPosition: String, CaseIterable, Identifiable {
+    case start = "Document Start"
+    case middle = "Between Words"
+    case end = "Document End"
+
+    var id: Self { self }
+
+    var context: TextInsertionContext {
+        switch self {
+        case .start:
+            .init(isAtDocumentStart: true)
+        case .middle:
+            .init(precedingCharacter: "x", followingCharacter: "y")
+        case .end:
+            .init(precedingCharacter: ".", isAtDocumentEnd: true)
+        }
+    }
+}
+
+private struct FormattingSettingsView: View {
+    @Bindable var model: AppSettingsModel
+    @State private var previewText = "hello from autohand voice"
+    @State private var previewPosition = FormattingPreviewPosition.start
+
+    var body: some View {
+        SettingsPage(
+            "Formatting",
+            subtitle: "Apply deterministic local spacing and punctuation at the cursor."
+        ) {
+            Form {
+                Section("Smart Formatting") {
+                    Toggle(
+                        "Enable Smart Formatting",
+                        isOn: Binding(
+                            get: {
+                                model.session.preferences.smartFormattingEnabled
+                            },
+                            set: {
+                                model.session.setSmartFormattingEnabled($0)
+                            }
+                        )
+                    )
+                    Toggle(
+                        "Add Terminal Punctuation",
+                        isOn: Binding(
+                            get: {
+                                model.session.preferences
+                                    .automaticTerminalPunctuation
+                            },
+                            set: {
+                                model.session
+                                    .setAutomaticTerminalPunctuation($0)
+                            }
+                        )
+                    )
+                    .disabled(!model.session.preferences.smartFormattingEnabled)
+                }
+
+                Section("Preview") {
+                    TextField("Recognized text", text: $previewText)
+                    Picker("Cursor Position", selection: $previewPosition) {
+                        ForEach(FormattingPreviewPosition.allCases) {
+                            Text($0.rawValue).tag($0)
+                        }
+                    }
+                    LabeledContent("Inserted Text") {
+                        Text(preview)
+                            .textSelection(.enabled)
+                    }
+                }
+            }
+            .formStyle(.grouped)
+
+            Text(
+                "When cursor context is available, Autohand Voice reads at most one adjacent character on each side. Unknown context is left unchanged. Turn this off for literal output."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private var preview: String {
+        SmartTextFormatter.format(
+            previewText,
+            context: previewPosition.context,
+            enabled: model.session.preferences.smartFormattingEnabled,
+            addsTerminalPunctuation:
+                model.session.preferences.automaticTerminalPunctuation
+        )
     }
 }
 

@@ -347,6 +347,10 @@ Acceptance:
 
 Priority: P1
 
+Status: implemented as opt-in deterministic formatting using only the captured
+selection and at most one adjacent character per side, with a native preview,
+literal fallback for unknown context, and in-memory access to the prior text.
+
 Add deterministic local formatting for mid-sentence insertion, leading/trailing
 spaces, capitalization, terminal punctuation, and paragraph breaks. Avoid an
 LLM cleanup dependency.
