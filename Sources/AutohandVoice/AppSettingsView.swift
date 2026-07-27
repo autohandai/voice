@@ -3,10 +3,12 @@ import AutohandVoiceCore
 import Carbon
 import Observation
 import SwiftUI
+import UniformTypeIdentifiers
 
 private enum SettingsPane: String, CaseIterable, Identifiable {
     case gettingStarted
     case general
+    case vocabulary
     case permissions
     case privacy
 
@@ -16,6 +18,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .gettingStarted: "Getting Started"
         case .general: "General"
+        case .vocabulary: "Vocabulary"
         case .permissions: "Permissions"
         case .privacy: "Privacy & Diagnostics"
         }
@@ -25,6 +28,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .gettingStarted: "checklist"
         case .general: "gearshape"
+        case .vocabulary: "text.book.closed"
         case .permissions: "hand.raised"
         case .privacy: "lock.shield"
         }
@@ -74,10 +78,132 @@ struct AppSettingsView: View {
             }
         case .general:
             GeneralSettingsView(model: model)
+        case .vocabulary:
+            VocabularySettingsView(model: model.vocabulary)
         case .permissions:
             PermissionCenterView(model: model)
         case .privacy:
             PrivacyDiagnosticsView(model: model)
+        }
+    }
+}
+
+private struct VocabularySettingsView: View {
+    @Bindable var model: VocabularySettingsModel
+    @State private var importsFile = false
+    @State private var exportsFile = false
+    @State private var exportType: UTType = .json
+
+    var body: some View {
+        SettingsPage(
+            "Vocabulary",
+            subtitle: "Replace recognized words and phrases locally before insertion."
+        ) {
+            Form {
+                Section("Add Replacement") {
+                    TextField("Spoken phrase", text: $model.source)
+                    TextField("Insert instead", text: $model.replacement)
+                    HStack {
+                        Spacer()
+                        Button("Add Replacement") {
+                            model.add()
+                        }
+                        .disabled(!model.canAdd)
+                    }
+                }
+
+                Section("Replacements") {
+                    if model.rules.isEmpty {
+                        ContentUnavailableView(
+                            "No Replacements",
+                            systemImage: "text.book.closed",
+                            description: Text(
+                                "Add a phrase above or import a JSON or CSV vocabulary."
+                            )
+                        )
+                    } else {
+                        List {
+                            ForEach(model.rules) { rule in
+                                LabeledContent(rule.source) {
+                                    Text(rule.replacement)
+                                        .textSelection(.enabled)
+                                }
+                                .accessibilityElement(children: .combine)
+                                .accessibilityLabel(
+                                    "\(rule.source), replaced with \(rule.replacement)"
+                                )
+                            }
+                            .onDelete(perform: model.delete)
+                        }
+                        .frame(minHeight: 150)
+                    }
+
+                    HStack {
+                        Button("Import…") {
+                            importsFile = true
+                        }
+                        Button("Export JSON…") {
+                            exportType = .json
+                            exportsFile = true
+                        }
+                        .disabled(model.rules.isEmpty)
+                        Button("Export CSV…") {
+                            exportType = .commaSeparatedText
+                            exportsFile = true
+                        }
+                        .disabled(model.rules.isEmpty)
+                        Spacer()
+                        Text("\(model.rules.count) replacement\(model.rules.count == 1 ? "" : "s")")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section("Test") {
+                    TextField("Try a sentence", text: $model.testInput)
+                    LabeledContent("Result") {
+                        Text(
+                            model.testOutput.isEmpty
+                                ? "Enter text to preview"
+                                : model.testOutput
+                        )
+                        .foregroundStyle(
+                            model.testOutput.isEmpty ? .secondary : .primary
+                        )
+                        .textSelection(.enabled)
+                    }
+                }
+            }
+            .formStyle(.grouped)
+
+            Text(
+                "Matching is case-insensitive, uses whole words, and applies the longest phrase first. Replacements never call a remote service."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            ActionMessage(message: model.message)
+        }
+        .fileImporter(
+            isPresented: $importsFile,
+            allowedContentTypes: [.json, .commaSeparatedText],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case let .success(urls):
+                if let url = urls.first {
+                    model.importFile(url)
+                }
+            case let .failure(error):
+                model.reportImportError(error)
+            }
+        }
+        .fileExporter(
+            isPresented: $exportsFile,
+            document: model.exportDocument(),
+            contentType: exportType,
+            defaultFilename: "autohand-voice-vocabulary"
+        ) { result in
+            model.reportExport(result)
         }
     }
 }

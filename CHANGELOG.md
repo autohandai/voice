@@ -36,3 +36,6 @@
   cancellation, targeted repair, and actionable failure classification.
 - Added opt-in owner-only text history with search, copy, retention controls,
   outcome status, JSON export, and confirmed deletion.
+- Added owner-only local vocabulary with deterministic whole-word
+  replacements, case preservation, before/after preview, and CSV/JSON
+  import and export.

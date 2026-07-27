@@ -72,6 +72,19 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         )
         status.isEnabled = false
         menu.addItem(status)
+        if let vocabularyError = session.vocabularyError {
+            let warning = NSMenuItem(
+                title: vocabularyError,
+                action: nil,
+                keyEquivalent: ""
+            )
+            warning.image = NSImage(
+                systemSymbolName: "exclamationmark.triangle",
+                accessibilityDescription: "Vocabulary warning"
+            )
+            warning.isEnabled = false
+            menu.addItem(warning)
+        }
         menu.addItem(.separator())
 
         if session.state == .recording || session.state == .starting {

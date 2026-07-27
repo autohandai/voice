@@ -22,4 +22,8 @@ public enum Brand {
     public static var historyURL: URL {
         applicationSupportDirectory.appendingPathComponent("history.json")
     }
+
+    public static var vocabularyURL: URL {
+        applicationSupportDirectory.appendingPathComponent("vocabulary.json")
+    }
 }

@@ -80,6 +80,7 @@ final class VoiceSession {
     private(set) var hasRecoverableAudio = false { didSet { onChange?() } }
     private(set) var recoverableAudioDuration: TimeInterval = 0
     private(set) var historyError: String?
+    private(set) var vocabularyError: String? { didSet { onChange?() } }
     private(set) var isEnabled = true { didSet { onChange?() } }
     private(set) var preferences: VoicePreferences
 
@@ -128,6 +129,7 @@ final class VoiceSession {
     @ObservationIgnored private var modelTask: Task<Void, Never>?
     @ObservationIgnored private var modelOperationID: UUID?
     @ObservationIgnored private let historyStore = HistoryStore()
+    @ObservationIgnored private let vocabularyStore = VocabularyStore()
     @ObservationIgnored private var historyEntryID: UUID?
 
     init(store: PreferencesStore = PreferencesStore()) {
@@ -724,7 +726,22 @@ final class VoiceSession {
     ) async throws {
         try await prepareModelForUse()
         let transcript = try await recognizer.transcribe(samples: samples)
-        let finalText = try transcript.finalText()
+        let recognizedText = try transcript.finalText()
+        let finalText: String
+        do {
+            finalText = VocabularyProcessor.apply(
+                to: recognizedText,
+                rules: try vocabularyStore.load()
+            )
+            vocabularyError = nil
+        } catch {
+            finalText = recognizedText
+            vocabularyError = "Replacements could not be loaded: \(error.localizedDescription)"
+            Self.logger.error(
+                "Vocabulary load failed; preserving recognized text: \(error.localizedDescription)"
+            )
+        }
+        let finalTranscript = Transcript(text: finalText, phase: .final)
         pendingTranscript = finalText
         discardAudioRecovery()
         recordHistory(text: finalText, outcome: .insertionFailed)
@@ -732,7 +749,7 @@ final class VoiceSession {
             "Final local transcript produced with \(finalText.count) characters"
         )
         try inserter.commit(
-            transcript,
+            finalTranscript,
             mode: preferences.outputMode,
             target: target
         )

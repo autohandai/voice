@@ -77,6 +77,12 @@ language coverage, and the last successful validation. It supports Parakeet v2
 for English and v3 for multilingual dictation. Repair replaces only the
 selected model cache.
 
+The Vocabulary pane supports local whole-word replacements for names, brands,
+technical terms, and acronyms. It previews the deterministic result before
+dictation, imports and exports JSON or CSV, and stores rules owner-only. Rules
+are applied only to final transcripts before insertion. Rule count and import
+size are bounded.
+
 ## Configuration
 
 Preferences are stored at:
@@ -121,6 +127,8 @@ does not read legacy upstream environment variables.
   the user's clipboard.
 - Text history is off by default. When enabled, it stores only final transcript
   text, timestamps, and insertion outcomes in an owner-only bounded JSON file.
+- Vocabulary replacements are deterministic and local. A malformed vocabulary
+  never discards recognized text or triggers a remote fallback.
 
 ## Development
 

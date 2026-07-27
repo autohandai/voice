@@ -307,6 +307,10 @@ Acceptance:
 
 Priority: P1
 
+Status: implemented with deterministic longest-match replacement,
+case preservation, final-transcript-only application, owner-only storage,
+before/after testing, duplicate protection, and CSV/JSON import and export.
+
 Add named vocabulary entries and deterministic word replacements for names,
 brands, technical terms, and acronyms. Support CSV/JSON import and export.
 Apply replacements to the final transcript before insertion and show the
