@@ -126,6 +126,12 @@ accessible summary and data table. Estimated time saved assumes 40 words per
 minute and subtracts recording plus local processing time; all statistics can
 be reset.
 
+The native app ships an English String Catalog and treats VoiceOver, Full
+Keyboard Access, Dynamic Type, Reduce Motion, increased contrast, and long
+localized strings as release requirements. Setup, microphone testing,
+transcript recovery, and destructive history controls expose explicit labels
+and state instead of relying on color, motion, or sound.
+
 ## Configuration
 
 Preferences are stored at:

@@ -114,67 +114,86 @@ struct UsageInsightsView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Private Usage Insights")
-                    .font(.title)
-                Text("Optional aggregate metrics stored only on this Mac.")
-                    .foregroundStyle(.secondary)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top) {
+                insightsHeading
+                Spacer()
+                insightsControls
             }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 8) {
-                Toggle(
-                    "Collect Insights",
-                    isOn: Binding(
-                        get: {
-                            model.session.preferences.usageInsightsEnabled
-                        },
-                        set: { model.setEnabled($0) }
-                    )
-                )
-                .toggleStyle(.switch)
-                Button("Reset All…", role: .destructive) {
-                    confirmsReset = true
-                }
-                .disabled(model.days.isEmpty)
+            VStack(alignment: .leading, spacing: 12) {
+                insightsHeading
+                insightsControls
             }
         }
     }
 
     private var summary: some View {
-        Grid(alignment: .leading, horizontalSpacing: 28, verticalSpacing: 8) {
-            GridRow {
-                summaryItem(
-                    "Dictations",
-                    model.summary.dictationCount.formatted()
+        LazyVGrid(
+            columns: [
+                GridItem(
+                    .adaptive(minimum: 150),
+                    alignment: .leading
+                ),
+            ],
+            alignment: .leading,
+            spacing: 10
+        ) {
+            summaryItem(
+                "Dictations",
+                model.summary.dictationCount.formatted()
+            )
+            summaryItem(
+                "Words",
+                model.summary.wordCount.formatted()
+            )
+            summaryItem(
+                "Recording time",
+                duration(model.summary.recordingDuration)
+            )
+            summaryItem(
+                "Average processing",
+                duration(model.summary.averageProcessingLatency)
+            )
+            summaryItem(
+                "Insertion success",
+                model.summary.insertionSuccessRate.formatted(
+                    .percent.precision(.fractionLength(0))
                 )
-                summaryItem(
-                    "Words",
-                    model.summary.wordCount.formatted()
-                )
-                summaryItem(
-                    "Recording time",
-                    duration(model.summary.recordingDuration)
-                )
-            }
-            GridRow {
-                summaryItem(
-                    "Average processing",
-                    duration(model.summary.averageProcessingLatency)
-                )
-                summaryItem(
-                    "Insertion success",
-                    model.summary.insertionSuccessRate.formatted(
-                        .percent.precision(.fractionLength(0))
-                    )
-                )
-                summaryItem(
-                    "Estimated time saved",
-                    duration(model.summary.estimatedTypingTimeSaved)
-                )
-            }
+            )
+            summaryItem(
+                "Estimated time saved",
+                duration(model.summary.estimatedTypingTimeSaved)
+            )
         }
         .accessibilityElement(children: .contain)
+    }
+
+    private var insightsHeading: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Private Usage Insights")
+                .font(.title)
+            Text("Optional aggregate metrics stored only on this Mac.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var insightsControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(
+                "Collect Insights",
+                isOn: Binding(
+                    get: {
+                        model.session.preferences.usageInsightsEnabled
+                    },
+                    set: { model.setEnabled($0) }
+                )
+            )
+            .toggleStyle(.switch)
+            Button("Reset All…", role: .destructive) {
+                confirmsReset = true
+            }
+            .disabled(model.days.isEmpty)
+        }
     }
 
     private func summaryItem(

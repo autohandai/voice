@@ -274,34 +274,20 @@ struct FileTranscriptionView: View {
     }
 
     private var fileControls: some View {
-        HStack(spacing: 12) {
-            Button("Choose Audio…") {
-                importsFile = true
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                chooseFileButton
+                selectedFileName
+                Spacer()
+                transcriptionButton
             }
-            .disabled(
-                model.state == .transcribing
-                    || model.state == .cancelling
-            )
-
-            Text(model.selectedName)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .foregroundStyle(
-                    model.selectedURL == nil ? .secondary : .primary
-                )
-
-            Spacer()
-
-            if model.state == .transcribing {
-                Button("Cancel", role: .cancel) {
-                    model.cancel()
+            VStack(alignment: .leading, spacing: 10) {
+                selectedFileName
+                HStack {
+                    chooseFileButton
+                    Spacer()
+                    transcriptionButton
                 }
-            } else {
-                Button("Transcribe") {
-                    model.transcribe()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!model.canTranscribe)
             }
         }
     }
@@ -333,33 +319,80 @@ struct FileTranscriptionView: View {
     }
 
     private var resultActions: some View {
-        HStack {
-            Button("Copy") {
-                model.copyTranscript()
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                copyButton
+                Spacer()
+                exportButtons
             }
-            .disabled(model.transcript.isEmpty)
-
-            Spacer()
-
-            Button("Export Text…") {
-                exportType = .plainText
-                exportDocument = TranscriptExportDocument(
-                    text: model.transcript,
-                    markdown: false
-                )
-                exportsFile = true
+            VStack(alignment: .leading, spacing: 10) {
+                copyButton
+                exportButtons
             }
-            .disabled(model.transcript.isEmpty)
-
-            Button("Export Markdown…") {
-                exportType = markdownType
-                exportDocument = TranscriptExportDocument(
-                    text: model.transcript,
-                    markdown: true
-                )
-                exportsFile = true
-            }
-            .disabled(model.transcript.isEmpty)
         }
+    }
+
+    private var chooseFileButton: some View {
+        Button("Choose Audio…") {
+            importsFile = true
+        }
+        .disabled(
+            model.state == .transcribing
+                || model.state == .cancelling
+        )
+    }
+
+    private var selectedFileName: some View {
+        Text(verbatim: model.selectedName)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .foregroundStyle(
+                model.selectedURL == nil ? .secondary : .primary
+            )
+            .accessibilityLabel("Selected audio file")
+            .accessibilityValue(model.selectedName)
+    }
+
+    @ViewBuilder
+    private var transcriptionButton: some View {
+        if model.state == .transcribing {
+            Button("Cancel", role: .cancel) {
+                model.cancel()
+            }
+        } else {
+            Button("Transcribe") {
+                model.transcribe()
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!model.canTranscribe)
+        }
+    }
+
+    private var copyButton: some View {
+        Button("Copy") {
+            model.copyTranscript()
+        }
+        .disabled(model.transcript.isEmpty)
+    }
+
+    private var exportButtons: some View {
+        HStack {
+            Button("Export Text…") {
+                prepareExport(markdown: false)
+            }
+            Button("Export Markdown…") {
+                prepareExport(markdown: true)
+            }
+        }
+        .disabled(model.transcript.isEmpty)
+    }
+
+    private func prepareExport(markdown: Bool) {
+        exportType = markdown ? markdownType : .plainText
+        exportDocument = TranscriptExportDocument(
+            text: model.transcript,
+            markdown: markdown
+        )
+        exportsFile = true
     }
 }

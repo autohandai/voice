@@ -499,6 +499,11 @@ Acceptance:
 
 Priority: P0 and continuous
 
+Status: implemented with an English String Catalog compiled into the app,
+semantic SwiftUI controls, explicit state labels and hints, Reduce Motion-safe
+HUD behavior, and adaptive layouts for long localized strings. Required
+VoiceOver workflows use labeled controls and confirmation dialogs.
+
 Treat VoiceOver, Full Keyboard Access, Dynamic Type, Reduce Motion, increased
 contrast, and localization as release requirements for every app-layer feature.
 Create an English String Catalog now so future localization does not require a

@@ -17,7 +17,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
 
     var id: Self { self }
 
-    var title: String {
+    var title: LocalizedStringKey {
         switch self {
         case .gettingStarted: "Getting Started"
         case .general: "General"
@@ -337,7 +337,7 @@ private struct AppProfilesSettingsView: View {
             )
         ) {
             ForEach(ProfileBooleanOverride.allCases) {
-                Text($0.rawValue).tag($0)
+                Text(LocalizedStringKey($0.rawValue)).tag($0)
             }
         }
     }
@@ -405,7 +405,7 @@ private struct FormattingSettingsView: View {
                     TextField("Recognized text", text: $previewText)
                     Picker("Cursor Position", selection: $previewPosition) {
                         ForEach(FormattingPreviewPosition.allCases) {
-                            Text($0.rawValue).tag($0)
+                            Text(LocalizedStringKey($0.rawValue)).tag($0)
                         }
                     }
                     LabeledContent("Inserted Text") {
@@ -560,13 +560,13 @@ private struct VocabularySettingsView: View {
 }
 
 private struct SettingsPage<Content: View>: View {
-    let title: String
-    let subtitle: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
     @ViewBuilder let content: Content
 
     init(
-        _ title: String,
-        subtitle: String,
+        _ title: LocalizedStringKey,
+        subtitle: LocalizedStringKey,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
@@ -659,8 +659,8 @@ private struct GettingStartedView: View {
 
 private struct SetupStep: View {
     let number: Int
-    let title: String
-    let detail: String
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
     let isComplete: Bool
     let action: () -> Void
 
@@ -683,9 +683,16 @@ private struct SetupStep: View {
             if isComplete {
                 Text("Ready")
                     .foregroundStyle(.secondary)
-                    .accessibilityLabel("\(title): ready")
+                    .accessibilityLabel(title)
+                    .accessibilityValue("Ready")
             } else {
-                Button(number == 3 ? "Prepare" : "Allow", action: action)
+                Button(action: action) {
+                    if number == 3 {
+                        Text("Prepare")
+                    } else {
+                        Text("Allow")
+                    }
+                }
             }
         }
         .accessibilityElement(children: .contain)
@@ -734,7 +741,7 @@ private struct GeneralSettingsView: View {
                         )
                     ) {
                         ForEach(RecordingMode.allCases, id: \.self) { mode in
-                            Text(mode.displayName).tag(mode)
+                            Text(LocalizedStringKey(mode.displayName)).tag(mode)
                         }
                     }
 
@@ -838,17 +845,24 @@ private struct GeneralSettingsView: View {
                         )
 
                     HStack {
-                        Button(
-                            model.session.isTestingMicrophone
-                                ? "Stop Test"
-                                : "Test Microphone"
-                        ) {
+                        Button {
                             if model.session.isTestingMicrophone {
                                 model.session.stopMicrophoneTest()
                             } else {
                                 model.session.startMicrophoneTest()
                             }
+                        } label: {
+                            if model.session.isTestingMicrophone {
+                                Text("Stop Test")
+                            } else {
+                                Text("Test Microphone")
+                            }
                         }
+                        .accessibilityHint(
+                            model.session.isTestingMicrophone
+                                ? "Stops the microphone level test."
+                                : "Starts a local microphone level test."
+                        )
                         Button("Refresh Devices") {
                             model.refreshAudioInputDevices()
                         }
@@ -877,7 +891,7 @@ private struct GeneralSettingsView: View {
         }
     }
 
-    private var recordingModeHelp: String {
+    private var recordingModeHelp: LocalizedStringKey {
         switch model.session.preferences.recordingMode {
         case .pressAndHold:
             "Hold the shortcut while speaking, then release to transcribe."
@@ -897,13 +911,24 @@ private struct ShortcutRecorderButton: View {
     @State private var eventMonitor: Any?
 
     var body: some View {
-        Button(isRecording ? "Type Shortcut…" : shortcut.displayName) {
+        Button {
             isRecording ? stopRecording() : startRecording()
+        } label: {
+            if isRecording {
+                Text("Type Shortcut…")
+            } else {
+                Text(verbatim: shortcut.displayName)
+            }
         }
         .accessibilityLabel(
             isRecording
                 ? "Type a new keyboard shortcut"
                 : "Shortcut: \(shortcut.accessibilityName)"
+        )
+        .accessibilityHint(
+            isRecording
+                ? "Press the desired key combination, or Escape to cancel."
+                : "Starts recording a new global shortcut."
         )
         .onDisappear {
             stopRecording()
@@ -1012,8 +1037,8 @@ private struct PermissionCenterView: View {
 }
 
 private struct PermissionRow: View {
-    let title: String
-    let detail: String
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
     let isAuthorized: Bool
     let status: String
     let action: () -> Void
@@ -1030,7 +1055,7 @@ private struct PermissionRow: View {
                     .font(.headline)
                 Text(detail)
                     .foregroundStyle(.secondary)
-                Text(status.capitalized)
+                Text(verbatim: status.capitalized)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1038,13 +1063,20 @@ private struct PermissionRow: View {
             Spacer()
 
             if !isAuthorized {
-                Button(
-                    status == "not-determined" ? "Allow" : "Open Settings",
-                    action: action
-                )
+                Button(action: action) {
+                    if status == "not-determined" {
+                        Text("Allow")
+                    } else {
+                        Text("Open Settings")
+                    }
+                }
             }
         }
         .accessibilityElement(children: .contain)
+        .accessibilityLabel(title)
+        .accessibilityValue(
+            isAuthorized ? "Authorized" : status.capitalized
+        )
     }
 }
 

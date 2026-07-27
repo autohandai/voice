@@ -163,82 +163,31 @@ struct HistoryView: View {
     }
 
     private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Dictation History")
-                    .font(.title)
-                Text("Optional, text-only, and stored on this Mac.")
-                    .foregroundStyle(.secondary)
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                historyHeading
+                Spacer()
+                historyToggle
             }
-            Spacer()
-            Toggle(
-                "Save History",
-                isOn: Binding(
-                    get: { model.session.preferences.historyEnabled },
-                    set: { enabled in
-                        if enabled {
-                            model.session.setHistoryEnabled(true)
-                        } else {
-                            confirmsDisable = true
-                        }
-                    }
-                )
-            )
-            .toggleStyle(.switch)
+            VStack(alignment: .leading, spacing: 12) {
+                historyHeading
+                historyToggle
+            }
         }
     }
 
     private var historyContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Picker(
-                    "Retention",
-                    selection: Binding(
-                        get: {
-                            model.session.preferences.historyRetentionDays
-                        },
-                        set: {
-                            model.session.setHistoryRetentionDays($0)
-                        }
-                    )
-                ) {
-                    Text("7 days").tag(7)
-                    Text("30 days").tag(30)
-                    Text("90 days").tag(90)
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    historyFilters
+                    Spacer()
+                    historyActions
                 }
-                .frame(width: 180)
-
-                Picker(
-                    "Maximum",
-                    selection: Binding(
-                        get: {
-                            model.session.preferences.historyMaximumItems
-                        },
-                        set: {
-                            model.session.setHistoryMaximumItems($0)
-                        }
-                    )
-                ) {
-                    Text("100 entries").tag(100)
-                    Text("500 entries").tag(500)
-                    Text("1,000 entries").tag(1_000)
+                VStack(alignment: .leading, spacing: 10) {
+                    historyFilters
+                    historyActions
                 }
-                .frame(width: 200)
-
-                Spacer()
-
-                Button("Export…") {
-                    exportDocument = HistoryExportDocument(
-                        entries: model.entries
-                    )
-                    exportsHistory = true
-                }
-                .disabled(model.entries.isEmpty)
-
-                Button("Delete All", role: .destructive) {
-                    confirmsDeleteAll = true
-                }
-                .disabled(model.entries.isEmpty)
             }
 
             if model.filteredEntries.isEmpty {
@@ -269,5 +218,110 @@ struct HistoryView: View {
                 .listStyle(.inset)
             }
         }
+    }
+
+    private var historyHeading: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Dictation History")
+                .font(.title)
+            Text("Optional, text-only, and stored on this Mac.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var historyToggle: some View {
+        Toggle(
+            "Save History",
+            isOn: Binding(
+                get: { model.session.preferences.historyEnabled },
+                set: { enabled in
+                    if enabled {
+                        model.session.setHistoryEnabled(true)
+                    } else {
+                        confirmsDisable = true
+                    }
+                }
+            )
+        )
+        .toggleStyle(.switch)
+    }
+
+    private var historyFilters: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                retentionPicker
+                maximumPicker
+            }
+            VStack(alignment: .leading) {
+                retentionPicker
+                maximumPicker
+            }
+        }
+    }
+
+    private var retentionPicker: some View {
+        Picker(
+            "Retention",
+            selection: Binding(
+                get: {
+                    model.session.preferences.historyRetentionDays
+                },
+                set: {
+                    model.session.setHistoryRetentionDays($0)
+                }
+            )
+        ) {
+            Text("7 days").tag(7)
+            Text("30 days").tag(30)
+            Text("90 days").tag(90)
+        }
+    }
+
+    private var maximumPicker: some View {
+        Picker(
+            "Maximum",
+            selection: Binding(
+                get: {
+                    model.session.preferences.historyMaximumItems
+                },
+                set: {
+                    model.session.setHistoryMaximumItems($0)
+                }
+            )
+        ) {
+            Text("100 entries").tag(100)
+            Text("500 entries").tag(500)
+            Text("1,000 entries").tag(1_000)
+        }
+    }
+
+    private var historyActions: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                exportButton
+                deleteAllButton
+            }
+            VStack(alignment: .leading) {
+                exportButton
+                deleteAllButton
+            }
+        }
+    }
+
+    private var exportButton: some View {
+        Button("Export…") {
+            exportDocument = HistoryExportDocument(
+                entries: model.entries
+            )
+            exportsHistory = true
+        }
+        .disabled(model.entries.isEmpty)
+    }
+
+    private var deleteAllButton: some View {
+        Button("Delete All", role: .destructive) {
+            confirmsDeleteAll = true
+        }
+        .disabled(model.entries.isEmpty)
     }
 }

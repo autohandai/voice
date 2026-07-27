@@ -17,6 +17,9 @@ mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 cp "$BIN_PATH/autohand-voice" "$CONTENTS/MacOS/autohand-voice"
 cp "$BIN_PATH/autohand-voice-stt" "$CONTENTS/MacOS/autohand-voice-stt"
 cp "$REPO_ROOT/Resources/Info.plist" "$CONTENTS/Info.plist"
+xcrun xcstringstool compile \
+    "$REPO_ROOT/Resources/Localizable.xcstrings" \
+    --output-directory "$CONTENTS/Resources"
 
 for bundle in "$BIN_PATH"/*.bundle; do
     if [[ -d "$bundle" ]]; then
