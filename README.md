@@ -83,6 +83,13 @@ dictation, imports and exports JSON or CSV, and stores rules owner-only. Rules
 are applied only to final transcripts before insertion. Rule count and import
 size are bounded.
 
+Optional English dictation commands are off by default. Enable them in General,
+then use the explicit `command` prefix: “command new line,” “command new
+paragraph,” “command comma,” “command period,” “command question mark,”
+“command scratch that,” “command literal mode,” or “command cancel dictation.”
+The prefix prevents ordinary phrases such as “a new line of products” from
+being altered.
+
 ## Configuration
 
 Preferences are stored at:
@@ -129,6 +136,9 @@ does not read legacy upstream environment variables.
   text, timestamps, and insertion outcomes in an owner-only bounded JSON file.
 - Vocabulary replacements are deterministic and local. A malformed vocabulary
   never discards recognized text or triggers a remote fallback.
+- Dictation commands modify only the current uncommitted final transcript.
+  Cancel commits nothing, and disabling commands preserves every phrase
+  literally.
 
 ## Development
 

@@ -63,7 +63,21 @@ public struct TextInserter {
         mode: OutputMode,
         target: TextInsertionTarget? = nil
     ) throws {
-        let text = try transcript.finalText()
+        try commitVerifiedFinalText(
+            transcript.finalText(),
+            mode: mode,
+            target: target
+        )
+    }
+
+    public func commitVerifiedFinalText(
+        _ text: String,
+        mode: OutputMode,
+        target: TextInsertionTarget? = nil
+    ) throws {
+        guard text.contains(where: { !$0.isWhitespace }) else {
+            throw VoiceError.emptyTranscript
+        }
         switch mode {
         case .clipboard:
             NSPasteboard.general.clearContents()

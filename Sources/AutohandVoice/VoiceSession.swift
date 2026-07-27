@@ -357,8 +357,11 @@ final class VoiceSession {
             guard let target = inserter.captureTarget() else {
                 throw VoiceError.noFocusedTextField
             }
-            let transcript = Transcript(text: pendingTranscript, phase: .final)
-            try inserter.commit(transcript, mode: .type, target: target)
+            try inserter.commitVerifiedFinalText(
+                pendingTranscript,
+                mode: .type,
+                target: target
+            )
             lastTranscript = pendingTranscript
             updateHistoryOutcome(.inserted)
             self.pendingTranscript = nil
@@ -371,8 +374,8 @@ final class VoiceSession {
     func copyPendingTranscript() {
         guard let pendingTranscript else { return }
         do {
-            try inserter.commit(
-                Transcript(text: pendingTranscript, phase: .final),
+            try inserter.commitVerifiedFinalText(
+                pendingTranscript,
                 mode: .clipboard
             )
             lastTranscript = pendingTranscript
@@ -584,6 +587,11 @@ final class VoiceSession {
         pruneHistory()
     }
 
+    func setDictationCommandsEnabled(_ value: Bool) {
+        preferences.dictationCommandsEnabled = value
+        persist()
+    }
+
     func deleteAllHistory() {
         do {
             try historyStore.deleteAll()
@@ -727,29 +735,45 @@ final class VoiceSession {
         try await prepareModelForUse()
         let transcript = try await recognizer.transcribe(samples: samples)
         let recognizedText = try transcript.finalText()
+        let commandResult = DictationCommandProcessor.process(
+            recognizedText,
+            enabled: preferences.dictationCommandsEnabled
+        )
+        if commandResult.shouldCancel {
+            discardAudioRecovery()
+            pendingTranscript = nil
+            insertionTarget = nil
+            state = .ready
+            Self.logger.notice(
+                "Dictation cancelled by explicit local voice command"
+            )
+            return
+        }
+        guard commandResult.text.contains(where: { !$0.isWhitespace }) else {
+            throw VoiceError.emptyTranscript
+        }
         let finalText: String
         do {
             finalText = VocabularyProcessor.apply(
-                to: recognizedText,
+                to: commandResult.text,
                 rules: try vocabularyStore.load()
             )
             vocabularyError = nil
         } catch {
-            finalText = recognizedText
+            finalText = commandResult.text
             vocabularyError = "Replacements could not be loaded: \(error.localizedDescription)"
             Self.logger.error(
                 "Vocabulary load failed; preserving recognized text: \(error.localizedDescription)"
             )
         }
-        let finalTranscript = Transcript(text: finalText, phase: .final)
         pendingTranscript = finalText
         discardAudioRecovery()
         recordHistory(text: finalText, outcome: .insertionFailed)
         Self.logger.notice(
             "Final local transcript produced with \(finalText.count) characters"
         )
-        try inserter.commit(
-            finalTranscript,
+        try inserter.commitVerifiedFinalText(
+            finalText,
             mode: preferences.outputMode,
             target: target
         )

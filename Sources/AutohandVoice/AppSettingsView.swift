@@ -406,6 +406,27 @@ private struct GeneralSettingsView: View {
                             set: { model.session.setShowRecordingHUD($0) }
                         )
                     )
+
+                    Toggle(
+                        "Enable Dictation Commands",
+                        isOn: Binding(
+                            get: {
+                                model.session.preferences
+                                    .dictationCommandsEnabled
+                            },
+                            set: {
+                                model.session.setDictationCommandsEnabled($0)
+                            }
+                        )
+                    )
+
+                    if model.session.preferences.dictationCommandsEnabled {
+                        Text(
+                            "Say “command new line,” “command new paragraph,” “command comma,” “command period,” “command question mark,” “command scratch that,” “command literal mode,” or “command cancel dictation.” English only."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section("Audio Input") {

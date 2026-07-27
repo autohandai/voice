@@ -78,6 +78,23 @@ final class TextInsertionTests: XCTestCase {
         )
         XCTAssertEqual(driver.pasteInsertions, ["do not misdirect"])
     }
+
+    func testVerifiedFinalTextPreservesCommandLineBreaks() throws {
+        let driver = TestTextInsertionDriver(
+            directResult: .inserted,
+            pasteResult: true
+        )
+        let inserter = TextInserter(driver: driver)
+        let target = try XCTUnwrap(inserter.captureTarget())
+
+        try inserter.commitVerifiedFinalText(
+            "first\nsecond\n",
+            mode: .type,
+            target: target
+        )
+
+        XCTAssertEqual(driver.directInsertions, ["first\nsecond\n"])
+    }
 }
 
 @MainActor

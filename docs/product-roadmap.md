@@ -327,6 +327,10 @@ Acceptance:
 
 Priority: P1
 
+Status: implemented as an opt-in English grammar with an explicit `command`
+prefix, punctuation and paragraph controls, literal mode, current-buffer
+scratch, cancel-without-commit, and locale-specific fixtures.
+
 Support a small explicit command grammar: new line, new paragraph, comma,
 period, question mark, literal mode, scratch that, and cancel dictation.
 Interpret commands in the provisional session buffer and commit only the final

@@ -3,6 +3,21 @@ import XCTest
 @testable import AutohandVoiceCore
 
 final class AppLayerPreferencesTests: XCTestCase {
+    func testDictationCommandsDefaultOffForExistingPreferences() throws {
+        let data = try JSONEncoder().encode(VoicePreferences())
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        object.removeValue(forKey: "dictationCommandsEnabled")
+
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertFalse(decoded.dictationCommandsEnabled)
+    }
+
     func testExistingPreferencesDecodeWithOnboardingIncomplete() throws {
         let json = """
         {

@@ -39,3 +39,5 @@
 - Added owner-only local vocabulary with deterministic whole-word
   replacements, case preservation, before/after preview, and CSV/JSON
   import and export.
+- Added opt-in English dictation commands with an explicit ambiguity-safe
+  prefix, literal mode, scratch-current-buffer, and cancel-without-commit.

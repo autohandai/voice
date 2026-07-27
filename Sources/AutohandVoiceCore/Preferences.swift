@@ -53,6 +53,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var historyEnabled: Bool
     public var historyRetentionDays: Int
     public var historyMaximumItems: Int
+    public var dictationCommandsEnabled: Bool
 
     public init(
         engine: SpeechEngine = .coreML,
@@ -68,7 +69,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         recordingMode: RecordingMode = .pressAndHold,
         historyEnabled: Bool = false,
         historyRetentionDays: Int = 30,
-        historyMaximumItems: Int = 500
+        historyMaximumItems: Int = 500,
+        dictationCommandsEnabled: Bool = false
     ) {
         self.engine = engine
         self.outputMode = outputMode
@@ -84,6 +86,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         self.historyEnabled = historyEnabled
         self.historyRetentionDays = historyRetentionDays
         self.historyMaximumItems = historyMaximumItems
+        self.dictationCommandsEnabled = dictationCommandsEnabled
     }
 
     public var allowsRemoteServices: Bool { false }
@@ -103,6 +106,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         case historyEnabled
         case historyRetentionDays
         case historyMaximumItems
+        case dictationCommandsEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -154,6 +158,10 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
                 forKey: .historyMaximumItems
             ) ?? 500
         )
+        dictationCommandsEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .dictationCommandsEnabled
+        ) ?? false
     }
 }
 
