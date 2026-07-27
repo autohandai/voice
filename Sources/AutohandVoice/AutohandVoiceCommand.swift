@@ -168,7 +168,8 @@ struct AutohandVoiceCommand {
                     modelVersion: preferences.modelVersion
                 )
                 let transcript = try await recognizer.transcribe(
-                    file: URL(fileURLWithPath: path)
+                    file: URL(fileURLWithPath: path),
+                    languageCode: preferences.dictationLanguageCode
                 )
                 try printJSON(["text": try transcript.finalText()])
             case "check", "doctor":

@@ -97,6 +97,8 @@ public actor LocalSpeechRecognizer {
                 language: Language(rawValue: languageCode)
             )
             return Transcript(text: result.text, phase: .final)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw VoiceError.modelUnavailable(error.localizedDescription)
         }
@@ -104,7 +106,8 @@ public actor LocalSpeechRecognizer {
 
     public func transcribe(
         file: URL,
-        languageCode: String = SupportedDictationLanguage.english.code
+        languageCode: String = SupportedDictationLanguage.english.code,
+        onProgress: (@Sendable (Double) -> Void)? = nil
     ) async throws -> Transcript {
         guard FileManager.default.fileExists(atPath: file.path) else {
             throw CocoaError(.fileNoSuchFile)
@@ -116,6 +119,21 @@ public actor LocalSpeechRecognizer {
         var decoderState = TdtDecoderState.make(
             decoderLayers: await manager.decoderLayerCount
         )
+        let progressTask: Task<Void, Never>?
+        if let onProgress {
+            let stream = await manager.transcriptionProgressStream
+            progressTask = Task {
+                do {
+                    for try await progress in stream {
+                        guard !Task.isCancelled else { return }
+                        onProgress(progress)
+                    }
+                } catch {}
+            }
+        } else {
+            progressTask = nil
+        }
+        defer { progressTask?.cancel() }
         do {
             let result = try await manager.transcribe(
                 file,
@@ -123,6 +141,8 @@ public actor LocalSpeechRecognizer {
                 language: Language(rawValue: languageCode)
             )
             return Transcript(text: result.text, phase: .final)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw VoiceError.modelUnavailable(error.localizedDescription)
         }

@@ -14,6 +14,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
     private var recordingHUDController: RecordingHUDController?
     private var historyWindowController: HistoryWindowController?
+    private var fileTranscriptionWindowController:
+        FileTranscriptionWindowController?
     private var workspaceObservers: [NSObjectProtocol] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -25,6 +27,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         }
         settingsWindowController = SettingsWindowController(session: session)
         historyWindowController = HistoryWindowController(session: session)
+        fileTranscriptionWindowController =
+            FileTranscriptionWindowController(session: session)
         recordingHUDController = RecordingHUDController(session: session)
         hotKeyMonitor = HotKeyMonitor(session: session)
         session.onShortcutRegistration = { [weak self] shortcut in
@@ -51,6 +55,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         hotKeyMonitor?.stop()
+        fileTranscriptionWindowController?.cancel()
         for observer in workspaceObservers {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
         }
@@ -213,6 +218,12 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             item("Dictation History…", action: #selector(showHistory))
         )
         menu.addItem(
+            item(
+                "Transcribe Audio File…",
+                action: #selector(showFileTranscription)
+            )
+        )
+        menu.addItem(
             item("Quit Autohand Voice", action: #selector(quit), key: "q")
         )
         statusItem.menu = menu
@@ -367,6 +378,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     }
     @objc private func showHistory() {
         historyWindowController?.show()
+    }
+    @objc private func showFileTranscription() {
+        fileTranscriptionWindowController?.show()
     }
 
     @objc private func selectOutputMode(_ sender: NSMenuItem) {

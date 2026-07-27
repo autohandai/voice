@@ -96,6 +96,9 @@ final class VoiceSession {
     private(set) var historyError: String?
     private(set) var vocabularyError: String? { didSet { onChange?() } }
     private(set) var profileError: String? { didSet { onChange?() } }
+    private(set) var isFileTranscriptionActive = false {
+        didSet { onChange?() }
+    }
     private(set) var appProfiles: [AppProfile] = []
     private(set) var activeConfiguration: ResolvedAppProfile
     private(set) var isEnabled = true { didSet { onChange?() } }
@@ -125,6 +128,7 @@ final class VoiceSession {
     var canStartRecording: Bool {
         isEnabled && state == .ready && modelState == .ready
             && !isTestingMicrophone && !hasRecoverableAudio
+            && !isFileTranscriptionActive
     }
 
     var isRecordingOrStarting: Bool {
@@ -207,6 +211,21 @@ final class VoiceSession {
             state = .ready
         }
         isEnabled = value
+    }
+
+    func beginFileTranscription() -> Bool {
+        guard
+            !isFileTranscriptionActive,
+            !isRecordingOrStarting,
+            state != .processing,
+            !isTestingMicrophone
+        else { return false }
+        isFileTranscriptionActive = true
+        return true
+    }
+
+    func endFileTranscription() {
+        isFileTranscriptionActive = false
     }
 
     func beginRecording() {

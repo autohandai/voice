@@ -433,6 +433,10 @@ Acceptance:
 
 Priority: P1
 
+Status: implemented with a SwiftUI file importer, preflight audio validation,
+explicit security-scoped access ownership, local progress and cancellation,
+editable final text, copy, and plain-text or Markdown export.
+
 Bring the existing CLI file transcription into the app with `fileImporter`,
 progress, cancellation, editable final text, Copy, and plain-text/Markdown
 export. Keep the scope to transcription; meeting capture, system audio,

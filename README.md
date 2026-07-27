@@ -67,6 +67,7 @@ The menu supports:
 - copying the most recent final transcript;
 - opening optional local dictation history with search, export, and deletion;
 - opening native Settings with Command + comma.
+- transcribing a supported local audio file into editable final text.
 
 On first launch, Settings guides you through Microphone and Accessibility
 permission and prepares the pinned local model before your first real
@@ -106,6 +107,12 @@ dictation commands, smart formatting, HUD visibility, provisional preview, and
 sound feedback for an exact application bundle identifier. Unset values use
 the global settings. Profiles never inspect window titles, document names, or
 application content.
+
+Transcribe Audio File opens a native importer for AAC, AIFF, CAF, FLAC, M4A,
+MP3, and WAV audio. The selected file is validated before model work, its
+security-scoped access is released on completion or cancellation, and the final
+text can be edited, copied, or exported as plain text or Markdown. File audio
+and generated text are never uploaded.
 
 ## Configuration
 
