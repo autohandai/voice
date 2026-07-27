@@ -1,4 +1,6 @@
+import AppKit
 import AutohandVoiceCore
+import Carbon
 import Observation
 import SwiftUI
 
@@ -234,10 +236,34 @@ private struct GeneralSettingsView: View {
                         Text("Copy to Clipboard").tag(OutputMode.clipboard)
                     }
 
-                    LabeledContent(
-                        "Push-to-Talk",
-                        value: model.session.preferences.pushToTalkKey.displayName
-                    )
+                    LabeledContent("Shortcut") {
+                        HStack {
+                            ShortcutRecorderButton(
+                                shortcut: model.session.preferences.shortcut,
+                                onRecord: model.setShortcut,
+                                onError: model.reportShortcutError
+                            )
+                            Button("Reset") {
+                                model.setShortcut(.controlOptionSpace)
+                            }
+                        }
+                    }
+
+                    Picker(
+                        "Recording Mode",
+                        selection: Binding(
+                            get: { model.session.preferences.recordingMode },
+                            set: { model.session.setRecordingMode($0) }
+                        )
+                    ) {
+                        ForEach(RecordingMode.allCases, id: \.self) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+
+                    Text(recordingModeHelp)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
                     Toggle(
                         "Sound Feedback",
@@ -331,6 +357,87 @@ private struct GeneralSettingsView: View {
 
             ActionMessage(message: model.actionMessage)
         }
+    }
+
+    private var recordingModeHelp: String {
+        switch model.session.preferences.recordingMode {
+        case .pressAndHold:
+            "Hold the shortcut while speaking, then release to transcribe."
+        case .toggle:
+            "Press once to start and again to finish."
+        case .handsFree:
+            "Press once to start. Press again to finish, or Escape to cancel."
+        }
+    }
+}
+
+private struct ShortcutRecorderButton: View {
+    let shortcut: RegisteredShortcut
+    let onRecord: (RegisteredShortcut) -> Void
+    let onError: (Error) -> Void
+    @State private var isRecording = false
+    @State private var eventMonitor: Any?
+
+    var body: some View {
+        Button(isRecording ? "Type Shortcut…" : shortcut.displayName) {
+            isRecording ? stopRecording() : startRecording()
+        }
+        .accessibilityLabel(
+            isRecording
+                ? "Type a new keyboard shortcut"
+                : "Shortcut: \(shortcut.accessibilityName)"
+        )
+        .onDisappear {
+            stopRecording()
+        }
+    }
+
+    private func startRecording() {
+        guard eventMonitor == nil else { return }
+        isRecording = true
+        eventMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: .keyDown
+        ) { event in
+            guard !event.isARepeat else { return nil }
+            if event.keyCode == UInt16(kVK_Escape) {
+                Task { @MainActor in stopRecording() }
+                return nil
+            }
+
+            let modifiers = ShortcutModifiers(event.modifierFlags)
+            do {
+                let recorded = try RegisteredShortcut(
+                    validatingKeyCode: UInt32(event.keyCode),
+                    modifiers: modifiers
+                )
+                Task { @MainActor in
+                    onRecord(recorded)
+                    stopRecording()
+                }
+            } catch {
+                Task { @MainActor in onError(error) }
+            }
+            return nil
+        }
+    }
+
+    private func stopRecording() {
+        if let eventMonitor {
+            NSEvent.removeMonitor(eventMonitor)
+            self.eventMonitor = nil
+        }
+        isRecording = false
+    }
+}
+
+private extension ShortcutModifiers {
+    init(_ flags: NSEvent.ModifierFlags) {
+        var value: ShortcutModifiers = []
+        if flags.contains(.control) { value.insert(.control) }
+        if flags.contains(.option) { value.insert(.option) }
+        if flags.contains(.shift) { value.insert(.shift) }
+        if flags.contains(.command) { value.insert(.command) }
+        self = value
     }
 }
 

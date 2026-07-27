@@ -41,10 +41,11 @@ swift run autohand-voice-stt check
 
 ## Use
 
-Launch the app, hold Control + Option + Space, speak, then release. The menu bar
-icon shows recording and local processing state. A final transcript is inserted
-into the focused editable control. Provisional text is never committed. The
-registered native shortcut does not require Input Monitoring permission.
+Launch the app and use Control + Option + Space, the default shortcut, to
+dictate. The menu bar icon shows recording and local processing state. A final
+transcript is inserted into the focused editable control. Provisional text is
+never committed. The registered native shortcut does not require Input
+Monitoring permission.
 A nonactivating recording HUD shows starting, input level, local processing,
 and failure state without taking focus from the target app; it can be disabled
 in Settings.
@@ -55,7 +56,8 @@ The menu supports:
 
 - pausing and resuming dictation;
 - choosing direct cursor insertion or explicit clipboard output;
-- changing the push-to-talk key;
+- recording with press-and-hold, toggle, or hands-free behavior;
+- changing the registered shortcut without requiring Input Monitoring;
 - disabling sound feedback;
 - showing or hiding the recording HUD;
 - copying the most recent final transcript;
@@ -83,6 +85,9 @@ autohand-voice config show
 autohand-voice config set output type
 autohand-voice config set output clipboard
 autohand-voice config set ptt_key control_option_space
+autohand-voice config set recording_mode press_and_hold
+autohand-voice config set recording_mode toggle
+autohand-voice config set recording_mode hands_free
 autohand-voice config set sounds off
 autohand-voice config reset
 ```

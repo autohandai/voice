@@ -57,6 +57,8 @@ final class VoiceSession {
     }
 
     @ObservationIgnored var onChange: (() -> Void)?
+    @ObservationIgnored var onShortcutRegistration:
+        ((RegisteredShortcut) -> OSStatus)?
     private(set) var state: State = .ready { didSet { onChange?() } }
     private(set) var audioLevel: Float = 0
     private(set) var audioInputHealth: AudioInputHealth = .idle
@@ -88,11 +90,17 @@ final class VoiceSession {
             && !isTestingMicrophone
     }
 
+    var isRecordingOrStarting: Bool {
+        state == .starting || state == .recording
+    }
+
     @ObservationIgnored private let store: PreferencesStore
     @ObservationIgnored private let capture = AudioCapture()
     @ObservationIgnored private let inserter = TextInserter()
     @ObservationIgnored private var recognizer: LocalSpeechRecognizer
     @ObservationIgnored private var stopWhenStarted = false
+    @ObservationIgnored private var cancelWhenStarted = false
+    @ObservationIgnored private var shortcutFailureActive = false
     @ObservationIgnored private var audioHealthMonitor = AudioHealthMonitor()
     @ObservationIgnored private var microphoneTestID: UUID?
 
@@ -120,6 +128,7 @@ final class VoiceSession {
         Self.logger.notice("Push-to-talk pressed; starting audio capture")
         state = .starting
         stopWhenStarted = false
+        cancelWhenStarted = false
         Task {
             do {
                 try await capture.start(
@@ -130,7 +139,14 @@ final class VoiceSession {
                     }
                 }
                 Self.logger.notice("Audio capture started")
-                if stopWhenStarted {
+                if cancelWhenStarted {
+                    cancelWhenStarted = false
+                    capture.cancel()
+                    audioLevel = 0
+                    audioHealthMonitor.reset()
+                    audioInputHealth = .idle
+                    state = .ready
+                } else if stopWhenStarted {
                     stopWhenStarted = false
                     finishStartedRecording()
                 } else {
@@ -159,6 +175,20 @@ final class VoiceSession {
         }
         guard state == .recording else { return }
         finishStartedRecording()
+    }
+
+    func cancelRecording() {
+        if state == .starting {
+            stopWhenStarted = false
+            cancelWhenStarted = true
+            return
+        }
+        guard state == .recording else { return }
+        capture.cancel()
+        audioLevel = 0
+        audioHealthMonitor.reset()
+        audioInputHealth = .idle
+        state = .ready
     }
 
     func requestMicrophonePermission() {
@@ -308,6 +338,38 @@ final class VoiceSession {
 
     func setPushToTalkKey(_ key: PushToTalkKey) {
         preferences.pushToTalkKey = key
+        persist()
+    }
+
+    @discardableResult
+    func setShortcut(_ shortcut: RegisteredShortcut) -> Bool {
+        guard shortcut.isValid else {
+            shortcutFailureActive = true
+            state = .failed("Choose a valid shortcut with at least one modifier.")
+            return false
+        }
+        let status = onShortcutRegistration?(shortcut) ?? noErr
+        guard status == noErr else {
+            shortcutFailureActive = true
+            state = .failed(
+                "That shortcut is unavailable (registration error \(status))."
+            )
+            return false
+        }
+        preferences.shortcut = shortcut
+        if shortcutFailureActive {
+            shortcutFailureActive = false
+            state = .ready
+        }
+        persist()
+        return true
+    }
+
+    func setRecordingMode(_ mode: RecordingMode) {
+        if isRecordingOrStarting {
+            cancelRecording()
+        }
+        preferences.recordingMode = mode
         persist()
     }
 

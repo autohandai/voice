@@ -13,22 +13,30 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private var hotKeyMonitor: HotKeyMonitor?
     private var settingsWindowController: SettingsWindowController?
     private var recordingHUDController: RecordingHUDController?
+    private var workspaceObservers: [NSObjectProtocol] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         session.onChange = { [weak self] in
             self?.rebuildMenu()
             self?.recordingHUDController?.update()
+            self?.hotKeyMonitor?.synchronizeCancellationHotKey()
         }
         settingsWindowController = SettingsWindowController(session: session)
         recordingHUDController = RecordingHUDController(session: session)
         hotKeyMonitor = HotKeyMonitor(session: session)
+        session.onShortcutRegistration = { [weak self] shortcut in
+            self?.hotKeyMonitor?.updateShortcut(shortcut)
+                ?? OSStatus(eventNotHandledErr)
+        }
         let hotKeyStatus = hotKeyMonitor?.start() ?? OSStatus(eventNotHandledErr)
         if hotKeyStatus != noErr {
             session.reportFailure(
-                "Control + Option + Space could not be registered (\(hotKeyStatus))."
+                "\(session.preferences.shortcut.accessibilityName) "
+                    + "could not be registered (\(hotKeyStatus))."
             )
         }
+        observeWorkspaceLifecycle()
         rebuildMenu()
         recordingHUDController?.update()
         session.prepareLocalModel()
@@ -41,6 +49,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         hotKeyMonitor?.stop()
+        for observer in workspaceObservers {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+        }
+        workspaceObservers.removeAll()
     }
 
     private func rebuildMenu() {
@@ -64,6 +76,14 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             menu.addItem(
                 item("Stop Recording", action: #selector(stopRecording))
             )
+            if session.preferences.recordingMode == .handsFree {
+                menu.addItem(
+                    item(
+                        "Cancel Recording",
+                        action: #selector(cancelRecording)
+                    )
+                )
+            }
         } else {
             let record = item(
                 "Start Recording",
@@ -85,7 +105,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         addPermissionItems(to: menu)
         menu.addItem(outputMenu())
-        menu.addItem(pushToTalkMenu())
+        menu.addItem(shortcutMenu())
+        menu.addItem(recordingModeMenu())
 
         let sounds = item("Sound Feedback", action: #selector(toggleSounds))
         sounds.state = session.preferences.playSounds ? .on : .off
@@ -149,17 +170,41 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         return parent
     }
 
-    private func pushToTalkMenu() -> NSMenuItem {
+    private func shortcutMenu() -> NSMenuItem {
         let parent = NSMenuItem(
-            title: "Push-to-Talk Key",
+            title: "Shortcut",
             action: nil,
             keyEquivalent: ""
         )
         let menu = NSMenu()
-        for key in PushToTalkKey.allCases {
-            let child = item(key.displayName, action: #selector(selectHotKey))
-            child.representedObject = key.rawValue
-            child.state = session.preferences.pushToTalkKey == key ? .on : .off
+        let current = NSMenuItem(
+            title: session.preferences.shortcut.accessibilityName,
+            action: nil,
+            keyEquivalent: ""
+        )
+        current.isEnabled = false
+        menu.addItem(current)
+        menu.addItem(
+            item("Change in Settings…", action: #selector(showSettings))
+        )
+        parent.submenu = menu
+        return parent
+    }
+
+    private func recordingModeMenu() -> NSMenuItem {
+        let parent = NSMenuItem(
+            title: "Recording Mode",
+            action: nil,
+            keyEquivalent: ""
+        )
+        let menu = NSMenu()
+        for mode in RecordingMode.allCases {
+            let child = item(
+                mode.displayName,
+                action: #selector(selectRecordingMode)
+            )
+            child.representedObject = mode.rawValue
+            child.state = session.preferences.recordingMode == mode ? .on : .off
             menu.addItem(child)
         }
         parent.submenu = menu
@@ -182,6 +227,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
     @objc private func startRecording() { session.beginRecording() }
     @objc private func stopRecording() { session.finishRecording() }
+    @objc private func cancelRecording() { session.cancelRecording() }
     @objc private func copyLastTranscript() { session.copyLastTranscript() }
     @objc private func toggleEnabled() { session.setEnabled(!session.isEnabled) }
     @objc private func toggleSounds() {
@@ -206,12 +252,12 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         session.setOutputMode(mode)
     }
 
-    @objc private func selectHotKey(_ sender: NSMenuItem) {
+    @objc private func selectRecordingMode(_ sender: NSMenuItem) {
         guard
             let raw = sender.representedObject as? String,
-            let key = PushToTalkKey(rawValue: raw)
+            let mode = RecordingMode(rawValue: raw)
         else { return }
-        session.setPushToTalkKey(key)
+        session.setRecordingMode(mode)
     }
 
     @objc private func quit() {
@@ -223,5 +269,25 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)"
         ) else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    private func observeWorkspaceLifecycle() {
+        let center = NSWorkspace.shared.notificationCenter
+        for name in [
+            NSWorkspace.didWakeNotification,
+            NSWorkspace.sessionDidBecomeActiveNotification,
+        ] {
+            workspaceObservers.append(
+                center.addObserver(
+                    forName: name,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        self?.hotKeyMonitor?.reregisterAfterLifecycleChange()
+                    }
+                }
+            )
+        }
     }
 }

@@ -165,6 +165,9 @@ Acceptance:
 
 Priority: P0
 
+Status: implemented with local key capture, Carbon conflict rollback,
+lifecycle re-registration, and hold, toggle, and hands-free modes.
+
 Support user-defined registered shortcuts plus press-and-hold, toggle, and
 hands-free modes. Detect registration conflicts and provide a safe reset. Keep
 the current Control-Option-Space shortcut as the default.

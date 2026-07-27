@@ -26,3 +26,5 @@
   level, processing/failure state, and accessible Stop and Dismiss actions.
 - Added stable microphone selection, system-default and hot-plug tracking,
   bounded signal health diagnostics, and an eight-second local microphone test.
+- Added conflict-checked custom registered shortcuts plus press-and-hold,
+  toggle, and Escape-cancellable hands-free recording modes.

@@ -23,7 +23,8 @@ private func printUsage() {
       autohand-voice config [show|path|reset|set <key> <value>]
       autohand-voice --version
 
-    Run without a command to open the menu bar app. Hold Control + Option + Space to speak.
+    Run without a command to open the menu bar app.
+    The default shortcut is Control + Option + Space.
     Speech recognition stays on-device; no remote fallback is available.
     """)
 }
@@ -70,6 +71,14 @@ private func runConfig(_ arguments: ArraySlice<String>) throws {
                 )
             }
             value.pushToTalkKey = hotKey
+            value.shortcut = .controlOptionSpace
+        case "recording_mode":
+            guard let mode = RecordingMode(rawValue: raw) else {
+                throw CommandError.invalidArguments(
+                    "recording_mode must be press_and_hold, toggle, or hands_free"
+                )
+            }
+            value.recordingMode = mode
         case "sounds":
             guard ["on", "off"].contains(raw) else {
                 throw CommandError.invalidArguments(

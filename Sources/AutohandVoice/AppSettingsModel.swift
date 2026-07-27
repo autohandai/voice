@@ -96,6 +96,18 @@ final class AppSettingsModel {
         } ?? "No input device is available."
     }
 
+    func setShortcut(_ shortcut: RegisteredShortcut) {
+        if session.setShortcut(shortcut) {
+            actionMessage = "Shortcut set to \(shortcut.accessibilityName)."
+        } else {
+            actionMessage = "That shortcut is already used by another app."
+        }
+    }
+
+    func reportShortcutError(_ error: Error) {
+        actionMessage = error.localizedDescription
+    }
+
     func requestMicrophonePermission() async {
         let granted = await session.requestMicrophonePermissionResult()
         actionMessage = granted

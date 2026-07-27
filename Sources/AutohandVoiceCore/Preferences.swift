@@ -48,6 +48,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var hasCompletedOnboarding: Bool
     public var showRecordingHUD: Bool
     public var audioInputDeviceUID: String?
+    public var shortcut: RegisteredShortcut
+    public var recordingMode: RecordingMode
 
     public init(
         engine: SpeechEngine = .coreML,
@@ -58,7 +60,9 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         modelVersion: String = "v3",
         hasCompletedOnboarding: Bool = false,
         showRecordingHUD: Bool = true,
-        audioInputDeviceUID: String? = nil
+        audioInputDeviceUID: String? = nil,
+        shortcut: RegisteredShortcut = .controlOptionSpace,
+        recordingMode: RecordingMode = .pressAndHold
     ) {
         self.engine = engine
         self.outputMode = outputMode
@@ -69,6 +73,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.showRecordingHUD = showRecordingHUD
         self.audioInputDeviceUID = audioInputDeviceUID
+        self.shortcut = shortcut
+        self.recordingMode = recordingMode
     }
 
     public var allowsRemoteServices: Bool { false }
@@ -83,6 +89,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         case hasCompletedOnboarding
         case showRecordingHUD
         case audioInputDeviceUID
+        case shortcut
+        case recordingMode
     }
 
     public init(from decoder: Decoder) throws {
@@ -108,6 +116,14 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
             String.self,
             forKey: .audioInputDeviceUID
         )
+        shortcut = try container.decodeIfPresent(
+            RegisteredShortcut.self,
+            forKey: .shortcut
+        ) ?? .controlOptionSpace
+        recordingMode = try container.decodeIfPresent(
+            RecordingMode.self,
+            forKey: .recordingMode
+        ) ?? .pressAndHold
     }
 }
 

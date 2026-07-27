@@ -24,7 +24,7 @@ public struct DiagnosticReport: Codable, Equatable, Sendable {
         macOSVersion = check.macOSVersion
         microphonePermission = check.microphonePermission
         accessibilityPermission = check.accessibilityPermission
-        shortcut = preferences.pushToTalkKey.displayName
+        shortcut = preferences.shortcut.accessibilityName
         speechEngine = preferences.engine.rawValue
         modelVersion = preferences.modelVersion
         remoteFallbackEnabled = check.remoteFallbackEnabled

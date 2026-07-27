@@ -9,6 +9,8 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(preferences.engine, .coreML)
         XCTAssertEqual(preferences.outputMode, .type)
         XCTAssertEqual(preferences.pushToTalkKey, .controlOptionSpace)
+        XCTAssertEqual(preferences.shortcut, .controlOptionSpace)
+        XCTAssertEqual(preferences.recordingMode, .pressAndHold)
         XCTAssertFalse(preferences.allowsRemoteServices)
     }
 
@@ -30,6 +32,112 @@ final class PreferencesTests: XCTestCase {
         )
 
         XCTAssertEqual(decoded.pushToTalkKey, .controlOptionSpace)
+        XCTAssertEqual(decoded.shortcut, .controlOptionSpace)
+        XCTAssertEqual(decoded.recordingMode, .pressAndHold)
+    }
+
+    func testExistingPreferencesGainShortcutAndRecordingModeDefaults() throws {
+        let json = """
+        {
+          "engine": "coreml",
+          "outputMode": "type",
+          "pushToTalkKey": "control_option_space",
+          "playSounds": true,
+          "launchAtLogin": false,
+          "modelVersion": "v3"
+        }
+        """
+
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: Data(json.utf8)
+        )
+
+        XCTAssertEqual(decoded.shortcut, .controlOptionSpace)
+        XCTAssertEqual(decoded.recordingMode, .pressAndHold)
+    }
+
+    func testRegisteredShortcutRequiresAModifierAndKnownKey() {
+        XCTAssertThrowsError(
+            try RegisteredShortcut(validatingKeyCode: 49, modifiers: [])
+        )
+        XCTAssertThrowsError(
+            try RegisteredShortcut(
+                validatingKeyCode: UInt32.max,
+                modifiers: [.control]
+            )
+        )
+        XCTAssertNoThrow(
+            try RegisteredShortcut(
+                validatingKeyCode: 49,
+                modifiers: [.control, .option]
+            )
+        )
+    }
+
+    func testRegisteredShortcutDisplayNameUsesMacModifierOrder() {
+        let shortcut = RegisteredShortcut(
+            keyCode: 0,
+            modifiers: [.command, .shift]
+        )
+
+        XCTAssertEqual(shortcut.displayName, "⇧⌘A")
+        XCTAssertEqual(shortcut.accessibilityName, "Shift + Command + A")
+    }
+
+    func testShortcutAndRecordingModeRoundTrip() throws {
+        var expected = VoicePreferences()
+        expected.shortcut = RegisteredShortcut(
+            keyCode: 1,
+            modifiers: [.control, .shift]
+        )
+        expected.recordingMode = .handsFree
+
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONEncoder().encode(expected)
+        )
+
+        XCTAssertEqual(decoded, expected)
+    }
+
+    func testPressAndHoldUsesReleaseToFinish() {
+        XCTAssertEqual(
+            RecordingMode.pressAndHold.action(
+                for: .pressed,
+                isRecording: false
+            ),
+            .start
+        )
+        XCTAssertEqual(
+            RecordingMode.pressAndHold.action(
+                for: .released,
+                isRecording: true
+            ),
+            .finish
+        )
+    }
+
+    func testToggleIgnoresReleaseAndSecondPressFinishes() {
+        XCTAssertEqual(
+            RecordingMode.toggle.action(for: .released, isRecording: true),
+            .none
+        )
+        XCTAssertEqual(
+            RecordingMode.toggle.action(for: .pressed, isRecording: true),
+            .finish
+        )
+    }
+
+    func testHandsFreeSupportsExplicitCancellation() {
+        XCTAssertEqual(
+            RecordingMode.handsFree.action(for: .cancel, isRecording: true),
+            .cancel
+        )
+        XCTAssertEqual(
+            RecordingMode.handsFree.action(for: .cancel, isRecording: false),
+            .none
+        )
     }
 
     func testInvalidPreferencesFallBackWithoutThrowing() throws {
