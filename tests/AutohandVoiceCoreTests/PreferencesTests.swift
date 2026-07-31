@@ -3,6 +3,29 @@ import XCTest
 @testable import AutohandVoiceCore
 
 final class PreferencesTests: XCTestCase {
+    func testPointerMonitoringDefaultsOffWithKeyboardBindingIntact() {
+        let preferences = VoicePreferences()
+
+        XCTAssertFalse(preferences.pointerMonitoringEnabled)
+        XCTAssertTrue(
+            preferences.functionKeyLongPressEnabled,
+            "Long-press Fn should be the canonical default activation"
+        )
+        XCTAssertEqual(
+            preferences.inputBindings,
+            [
+                InputBinding(
+                    action: .startStop,
+                    trigger: .keyboard(.controlOptionSpace)
+                ),
+            ]
+        )
+        XCTAssertEqual(
+            preferences.primaryActivationMethod,
+            .functionKeyLongPress
+        )
+    }
+
     func testDefaultsArePrivateAndLocal() {
         let preferences = VoicePreferences()
 
@@ -34,6 +57,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(decoded.pushToTalkKey, .controlOptionSpace)
         XCTAssertEqual(decoded.shortcut, .controlOptionSpace)
         XCTAssertEqual(decoded.recordingMode, .pressAndHold)
+        XCTAssertTrue(decoded.functionKeyLongPressEnabled)
     }
 
     func testExistingPreferencesGainShortcutAndRecordingModeDefaults() throws {
@@ -92,6 +116,7 @@ final class PreferencesTests: XCTestCase {
             modifiers: [.control, .shift]
         )
         expected.recordingMode = .handsFree
+        expected.functionKeyLongPressEnabled = true
 
         let decoded = try JSONDecoder().decode(
             VoicePreferences.self,

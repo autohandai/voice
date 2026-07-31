@@ -39,6 +39,18 @@ final class AppProfileSettingsModel {
         session?.activeProfileLabel ?? "Global"
     }
 
+    var localTransformsEnabled: Bool {
+        session?.localTransformsEnabled ?? false
+    }
+
+    var minimalContextCapabilityEnabled: Bool {
+        session?.minimalContextCapabilityEnabled ?? false
+    }
+
+    var dictationStyles: [DictationStylePreset] {
+        session?.dictationStyles ?? []
+    }
+
     func refreshRunningApps() {
         var seen: Set<String> = []
         runningApps = NSWorkspace.shared.runningApplications.compactMap { app in
@@ -110,7 +122,7 @@ final class AppProfileSettingsModel {
         }
     }
 
-    private func reload() {
+    func reload() {
         do {
             profiles = try store.load()
             selectedID = profiles.first?.id

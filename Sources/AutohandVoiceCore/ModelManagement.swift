@@ -41,7 +41,7 @@ public enum SupportedDictationLanguage: String, CaseIterable, Codable, Sendable 
     }
 
     public var displayName: String {
-        Locale(identifier: "en").localizedString(
+        Locale.current.localizedString(
             forLanguageCode: rawValue
         ) ?? rawValue
     }

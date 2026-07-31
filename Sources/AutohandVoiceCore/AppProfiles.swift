@@ -10,6 +10,10 @@ public struct AppProfile: Codable, Equatable, Identifiable, Sendable {
     public var dictationLanguageCode: String?
     public var dictationCommandsEnabled: Bool?
     public var smartFormattingEnabled: Bool?
+    public var cleanupLevel: CleanupLevel?
+    public var styleID: UUID?
+    public var contextAccess: AppContextAccess?
+    public var isSensitive: Bool?
     public var automaticTerminalPunctuation: Bool?
     public var showRecordingHUD: Bool?
     public var livePreviewEnabled: Bool?
@@ -25,6 +29,10 @@ public struct AppProfile: Codable, Equatable, Identifiable, Sendable {
         dictationLanguageCode: String? = nil,
         dictationCommandsEnabled: Bool? = nil,
         smartFormattingEnabled: Bool? = nil,
+        cleanupLevel: CleanupLevel? = nil,
+        styleID: UUID? = nil,
+        contextAccess: AppContextAccess? = nil,
+        isSensitive: Bool? = nil,
         automaticTerminalPunctuation: Bool? = nil,
         showRecordingHUD: Bool? = nil,
         livePreviewEnabled: Bool? = nil,
@@ -40,6 +48,10 @@ public struct AppProfile: Codable, Equatable, Identifiable, Sendable {
         self.dictationLanguageCode = dictationLanguageCode
         self.dictationCommandsEnabled = dictationCommandsEnabled
         self.smartFormattingEnabled = smartFormattingEnabled
+        self.cleanupLevel = cleanupLevel
+        self.styleID = styleID
+        self.contextAccess = contextAccess
+        self.isSensitive = isSensitive
         self.automaticTerminalPunctuation = automaticTerminalPunctuation
         self.showRecordingHUD = showRecordingHUD
         self.livePreviewEnabled = livePreviewEnabled
@@ -80,6 +92,13 @@ public struct ResolvedAppProfile: Equatable, Sendable {
     public let dictationLanguageCode: String
     public let dictationCommandsEnabled: Bool
     public let smartFormattingEnabled: Bool
+    public let cleanupLevel: CleanupLevel
+    public let styleID: UUID?
+    public let styleName: String?
+    public let styleSource: DictationStyleSource
+    public let vocabularyEnabled: Bool
+    public let contextAccess: AppContextAccess
+    public let isSensitive: Bool
     public let automaticTerminalPunctuation: Bool
     public let showRecordingHUD: Bool
     public let livePreviewEnabled: Bool
@@ -90,7 +109,9 @@ public enum AppProfileResolver {
     public static func resolve(
         preferences: VoicePreferences,
         profiles: [AppProfile],
-        bundleIdentifier: String?
+        bundleIdentifier: String?,
+        styles: [DictationStylePreset] = [],
+        temporaryStyleID: UUID? = nil
     ) -> ResolvedAppProfile {
         let profile = bundleIdentifier.flatMap { identifier in
             profiles.first { $0.bundleIdentifier == identifier }
@@ -103,6 +124,33 @@ public enum AppProfileResolver {
         let resolvedModel = requestedModel.supports(
             languageCode: languageCode
         ) ? requestedModel : .v3
+        let styleByID = Dictionary(
+            uniqueKeysWithValues: styles.map { ($0.id, $0) }
+        )
+        let selectedStyle: DictationStylePreset?
+        let styleSource: DictationStyleSource
+        if let temporaryStyleID,
+           let temporary = styleByID[temporaryStyleID] {
+            selectedStyle = temporary
+            styleSource = .temporary
+        } else if let profileStyleID = profile?.styleID,
+                  let appStyle = styleByID[profileStyleID] {
+            selectedStyle = appStyle
+            styleSource = .appProfile
+        } else if let defaultStyleID = preferences.defaultStyleID,
+                  let globalStyle = styleByID[defaultStyleID] {
+            selectedStyle = globalStyle
+            styleSource = .global
+        } else {
+            selectedStyle = nil
+            styleSource = .global
+        }
+        let cleanupLevel = selectedStyle?.cleanupLevel
+            ?? profile?.cleanupLevel
+            ?? profile?.smartFormattingEnabled.map {
+                $0 ? CleanupLevel.medium : .literal
+            }
+            ?? preferences.cleanupLevel
         return ResolvedAppProfile(
             profileID: profile?.id,
             profileName: profile?.name,
@@ -112,10 +160,17 @@ public enum AppProfileResolver {
             dictationLanguageCode: languageCode,
             dictationCommandsEnabled: profile?.dictationCommandsEnabled
                 ?? preferences.dictationCommandsEnabled,
-            smartFormattingEnabled: profile?.smartFormattingEnabled
-                ?? preferences.smartFormattingEnabled,
+            smartFormattingEnabled: cleanupLevel != .literal,
+            cleanupLevel: cleanupLevel,
+            styleID: selectedStyle?.id,
+            styleName: selectedStyle?.name,
+            styleSource: styleSource,
+            vocabularyEnabled: selectedStyle?.vocabularyEnabled ?? true,
+            contextAccess: profile?.contextAccess ?? .inherit,
+            isSensitive: profile?.isSensitive ?? false,
             automaticTerminalPunctuation:
-                profile?.automaticTerminalPunctuation
+                selectedStyle?.automaticTerminalPunctuation
+                ?? profile?.automaticTerminalPunctuation
                 ?? preferences.automaticTerminalPunctuation,
             showRecordingHUD: profile?.showRecordingHUD
                 ?? preferences.showRecordingHUD,

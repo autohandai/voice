@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/autohandai/voice/docs/evaluation/evaluation-report.schema.json",
+  "title": "Autohand Voice redacted local evaluation report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "manifestSHA256",
+    "appVersion",
+    "platform",
+    "offlineProof",
+    "totals",
+    "recognition",
+    "refinement",
+    "latencyBuckets",
+    "failures",
+    "marketComparisonClaim"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "manifestSHA256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "appVersion": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9.+_-]{1,32}$"
+    },
+    "platform": {
+      "const": "macos_apple_silicon"
+    },
+    "offlineProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "networkDisabled",
+        "remoteFallbackEnabled",
+        "executionDevice"
+      ],
+      "properties": {
+        "networkDisabled": {
+          "const": true
+        },
+        "remoteFallbackEnabled": {
+          "const": false
+        },
+        "executionDevice": {
+          "const": "apple_neural_engine"
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "samples",
+        "recognized",
+        "failed"
+      ],
+      "properties": {
+        "samples": {
+          "$ref": "#/$defs/count"
+        },
+        "recognized": {
+          "$ref": "#/$defs/count"
+        },
+        "failed": {
+          "$ref": "#/$defs/count"
+        }
+      }
+    },
+    "recognition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "referenceWords",
+        "substitutions",
+        "deletions",
+        "insertions",
+        "wordErrorRate"
+      ],
+      "properties": {
+        "referenceWords": {
+          "$ref": "#/$defs/count"
+        },
+        "substitutions": {
+          "$ref": "#/$defs/count"
+        },
+        "deletions": {
+          "$ref": "#/$defs/count"
+        },
+        "insertions": {
+          "$ref": "#/$defs/count"
+        },
+        "wordErrorRate": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "refinement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evaluated",
+        "exactMatches",
+        "literalPreservationFailures",
+        "courseCorrectionFailures"
+      ],
+      "properties": {
+        "evaluated": {
+          "$ref": "#/$defs/count"
+        },
+        "exactMatches": {
+          "$ref": "#/$defs/count"
+        },
+        "literalPreservationFailures": {
+          "$ref": "#/$defs/count"
+        },
+        "courseCorrectionFailures": {
+          "$ref": "#/$defs/count"
+        }
+      }
+    },
+    "latencyBuckets": {
+      "type": "array",
+      "maxItems": 21,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "metric",
+          "bucket",
+          "count"
+        ],
+        "properties": {
+          "metric": {
+            "enum": [
+              "recording_start",
+              "stop_to_final",
+              "insertion"
+            ]
+          },
+          "bucket": {
+            "enum": [
+              "under_100_ms",
+              "under_250_ms",
+              "under_500_ms",
+              "under_1_s",
+              "under_2_s",
+              "under_5_s",
+              "over_5_s"
+            ]
+          },
+          "count": {
+            "$ref": "#/$defs/count"
+          }
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "maxItems": 17,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "family",
+          "count"
+        ],
+        "properties": {
+          "family": {
+            "enum": [
+              "unsupported_platform",
+              "permission",
+              "shortcut",
+              "pointer",
+              "microphone",
+              "audio_route",
+              "capture",
+              "model",
+              "recognition",
+              "revision",
+              "target",
+              "insertion",
+              "recovery",
+              "storage",
+              "notification",
+              "sync",
+              "account"
+            ]
+          },
+          "count": {
+            "$ref": "#/$defs/count"
+          }
+        }
+      }
+    },
+    "marketComparisonClaim": {
+      "const": false
+    }
+  },
+  "$defs": {
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000000
+    }
+  }
+}

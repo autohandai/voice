@@ -7,6 +7,9 @@ public struct TextInsertionContext: Equatable, Sendable {
     public let isAtDocumentStart: Bool
     public let isAtDocumentEnd: Bool
     public let appBundleIdentifier: String?
+    public let accessibilityRole: String?
+    public let accessibilitySubrole: String?
+    public let isProtectedContent: Bool
 
     public init(
         precedingCharacter: Character? = nil,
@@ -14,7 +17,10 @@ public struct TextInsertionContext: Equatable, Sendable {
         hasSelection: Bool = false,
         isAtDocumentStart: Bool = false,
         isAtDocumentEnd: Bool = false,
-        appBundleIdentifier: String? = nil
+        appBundleIdentifier: String? = nil,
+        accessibilityRole: String? = nil,
+        accessibilitySubrole: String? = nil,
+        isProtectedContent: Bool = false
     ) {
         self.precedingCharacter = precedingCharacter
         self.followingCharacter = followingCharacter
@@ -22,9 +28,21 @@ public struct TextInsertionContext: Equatable, Sendable {
         self.isAtDocumentStart = isAtDocumentStart
         self.isAtDocumentEnd = isAtDocumentEnd
         self.appBundleIdentifier = appBundleIdentifier
+        self.accessibilityRole = accessibilityRole
+        self.accessibilitySubrole = accessibilitySubrole
+        self.isProtectedContent = isProtectedContent
     }
 
     public static let unknown = TextInsertionContext()
+
+    public var targetDescriptor: TextTargetDescriptor {
+        TextTargetDescriptor(
+            bundleIdentifier: appBundleIdentifier,
+            accessibilityRole: accessibilityRole,
+            accessibilitySubrole: accessibilitySubrole,
+            isProtectedContent: isProtectedContent
+        )
+    }
 }
 
 public enum SmartTextFormatter {

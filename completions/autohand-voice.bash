@@ -5,7 +5,7 @@ _autohand_voice_completions() {
     previous="${COMP_WORDS[COMP_CWORD-1]}"
 
     if [[ "$COMP_CWORD" -eq 1 ]]; then
-        COMPREPLY=($(compgen -W "run transcribe check doctor config help version --help --version" -- "$current"))
+        COMPREPLY=($(compgen -W "run transcribe check doctor model-check reliability config help version --help --version" -- "$current"))
         return
     fi
 
@@ -16,16 +16,26 @@ _autohand_voice_completions() {
                 ;;
             3)
                 [[ "${COMP_WORDS[2]}" == "set" ]] &&
-                    COMPREPLY=($(compgen -W "output ptt_key sounds" -- "$current"))
+                    COMPREPLY=($(compgen -W "output ptt_key recording_mode function_key_long_press model language sounds live_preview" -- "$current"))
                 ;;
             4)
                 case "${COMP_WORDS[3]}" in
                     output) COMPREPLY=($(compgen -W "type clipboard" -- "$current")) ;;
                     ptt_key) COMPREPLY=($(compgen -W "control_option_space" -- "$current")) ;;
+                    recording_mode) COMPREPLY=($(compgen -W "press_and_hold toggle hands_free" -- "$current")) ;;
+                    function_key_long_press) COMPREPLY=($(compgen -W "on off" -- "$current")) ;;
+                    model) COMPREPLY=($(compgen -W "v2 v3" -- "$current")) ;;
                     sounds) COMPREPLY=($(compgen -W "on off" -- "$current")) ;;
+                    live_preview) COMPREPLY=($(compgen -W "on off" -- "$current")) ;;
                 esac
                 ;;
         esac
+    elif [[ "${COMP_WORDS[1]}" == "reliability" ]]; then
+        if [[ "$COMP_CWORD" -eq 2 ]]; then
+            COMPREPLY=($(compgen -W "show path reset export --json" -- "$current"))
+        elif [[ "${COMP_WORDS[2]}" == "export" && "$COMP_CWORD" -eq 3 ]]; then
+            COMPREPLY=($(compgen -f -- "$current"))
+        fi
     elif [[ "$previous" == "transcribe" ]]; then
         COMPREPLY=($(compgen -f -- "$current"))
     fi

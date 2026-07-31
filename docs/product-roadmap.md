@@ -23,6 +23,9 @@ product contract:
 
 Autohand Voice already has a strong privacy and runtime foundation:
 
+- required first-run onboarding with Autohand identity, workflow and privacy
+  education, permission/model recovery, and a successful end-to-end dictation
+  test before completion;
 - native Swift and CoreML transcription with pinned FluidAudio;
 - final-transcript-only insertion through Accessibility APIs;
 - direct insertion that does not replace the clipboard;
@@ -347,9 +350,12 @@ Acceptance:
 
 Priority: P1
 
-Status: implemented as opt-in deterministic formatting using only the captured
-selection and at most one adjacent character per side, with a native preview,
-literal fallback for unknown context, and in-memory access to the prior text.
+Status: implemented as opt-in deterministic refinement and formatting. It
+removes high-confidence speech fillers and accidental repetition, applies the
+local Vocabulary for names, then uses only the captured selection and at most
+one adjacent character per side for spacing and punctuation. It includes a
+native preview, literal fallback for unknown context, and in-memory access to
+the prior raw text.
 
 Add deterministic local formatting for mid-sentence insertion, leading/trailing
 spaces, capitalization, terminal punctuation, and paragraph breaks. Avoid an

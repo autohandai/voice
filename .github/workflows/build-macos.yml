@@ -1,0 +1,64 @@
+name: Build macOS
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and package (Apple Silicon)
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    env:
+      AUTOHAND_VOICE_BUILD_NUMBER: ${{ github.run_number }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Verify Apple Silicon runner
+        run: test "$(uname -m)" = "arm64"
+
+      - name: Run Swift tests
+        run: swift test
+
+      - name: Build release executables
+        run: swift build -c release
+
+      - name: Verify local-only system contract
+        run: ./.build/release/autohand-voice check --json
+
+      - name: Build app bundle
+        run: ./scripts/build-app.sh
+
+      - name: Build installable disk image
+        env:
+          AUTOHAND_VOICE_SKIP_APP_BUILD: "1"
+        run: ./scripts/build-installer.sh
+
+      - name: Verify app signature and architecture
+        run: |
+          codesign --verify --deep --strict --verbose=2 "dist/Autohand Voice.app"
+          test "$(lipo -archs "dist/Autohand Voice.app/Contents/MacOS/autohand-voice")" = "arm64"
+          test "$(lipo -archs "dist/Autohand Voice.app/Contents/MacOS/autohand-voice-stt")" = "arm64"
+
+      - name: Upload installable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Autohand-Voice-${{ github.sha }}-arm64
+          if-no-files-found: error
+          path: |
+            dist/*.dmg
+            dist/*.sha256
+            dist/THIRD-PARTY-NOTICES.txt

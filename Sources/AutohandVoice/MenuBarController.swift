@@ -11,6 +11,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     )
     private let session = VoiceSession()
     private var hotKeyMonitor: HotKeyMonitor?
+    private var functionKeyLongPressMonitor: FunctionKeyLongPressMonitor?
+    private var pointerInputMonitor: PointerInputMonitor?
     private var settingsWindowController: SettingsWindowController?
     private var recordingHUDController: RecordingHUDController?
     private var historyWindowController: HistoryWindowController?
@@ -18,6 +20,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         FileTranscriptionWindowController?
     private var usageInsightsWindowController:
         UsageInsightsWindowController?
+    private var aboutWindowController: AboutWindowController?
+    private var scratchpadWindowController: ScratchpadWindowController?
+    private var scratchpadStartupError: String?
+    private var systemNotificationBridge: SystemNotificationBridge?
     private var workspaceObservers: [NSObjectProtocol] = []
     private var lastRuntimeRestoreAt: TimeInterval = 0
 
@@ -34,14 +40,141 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             FileTranscriptionWindowController(session: session)
         usageInsightsWindowController =
             UsageInsightsWindowController(session: session)
+        aboutWindowController = AboutWindowController()
+        session.onOpenSettings = { [weak self] in
+            self?.settingsWindowController?.show()
+        }
+        session.onOpenHistory = { [weak self] in
+            self?.historyWindowController?.show()
+        }
+        session.onPrepareLocalDataReset = { [weak self] in
+            guard let self else { return }
+            fileTranscriptionWindowController?.cancel()
+            historyWindowController?.close()
+            usageInsightsWindowController?.close()
+            if let scratchpadWindowController {
+                await scratchpadWindowController
+                    .prepareForLocalDataReset()
+                self.scratchpadWindowController = nil
+            }
+            session.onOpenScratchpad = nil
+            session.onQuickDictation = nil
+        }
+        if session.notificationCapabilityEnabled {
+            let bridge = SystemNotificationBridge()
+            bridge.onAction = { [weak session] id, action, deepLink in
+                session?.handleSystemNotificationAction(
+                    notificationID: id,
+                    action: action,
+                    deepLink: deepLink
+                )
+            }
+            bridge.onOpen = { [weak session] deepLink in
+                session?.handleSystemNotificationOpen(
+                    deepLink: deepLink
+                )
+            }
+            systemNotificationBridge = bridge
+            session.onSystemNotification = { [weak bridge] notification in
+                bridge?.deliver(notification)
+            }
+            session.onNotificationPermissionRequest = { [weak bridge] in
+                await bridge?.requestAuthorization() ?? false
+            }
+        }
+        if session.scratchpadEnabled {
+            do {
+                let workspace = try LocalWorkspace()
+                let controller = ScratchpadWindowController(
+                    workspace: workspace
+                ) { [weak session] in
+                    session?.beginQuickDictationToScratchpad()
+                }
+                scratchpadWindowController = controller
+                session.onOpenScratchpad = { [weak controller] in
+                    controller?.show()
+                }
+                session.onQuickDictation = {
+                    [weak model = controller.model] text in
+                    guard let model else {
+                        throw LocalWorkspaceError.unavailable
+                    }
+                    try await model.appendDictation(text)
+                }
+            } catch {
+                scratchpadStartupError = error.localizedDescription
+            }
+        }
         recordingHUDController = RecordingHUDController(session: session)
         hotKeyMonitor = HotKeyMonitor(session: session)
+        let functionKeyMonitor = FunctionKeyLongPressMonitor()
+        functionKeyMonitor.onIntent = { [weak session] intent in
+            session?.handleFunctionKeyInputIntent(intent)
+        }
+        functionKeyLongPressMonitor = functionKeyMonitor
+        session.onFunctionKeyMonitoringChange = {
+            [weak functionKeyMonitor] enabled, requestPermission in
+            guard let functionKeyMonitor else { return .unavailable }
+            if enabled {
+                return functionKeyMonitor.start(
+                    requestPermission: requestPermission
+                )
+            }
+            functionKeyMonitor.stop()
+            return .started
+        }
+        if session.pointerInputCapabilityEnabled {
+            let pointerMonitor = PointerInputMonitor()
+            pointerMonitor.onObservedCompatibleButton = {
+                [weak session] button in
+                session?.observeCompatiblePointerButton(button)
+            }
+            pointerMonitor.onEvent = {
+                [weak session] button, event in
+                session?.handlePointerInput(
+                    button: button,
+                    event: event
+                )
+            }
+            pointerMonitor.onDeviceAvailability = {
+                [weak session] available in
+                session?.reportExtraPointerDeviceAvailability(
+                    available
+                )
+            }
+            pointerInputMonitor = pointerMonitor
+            session.onPointerMonitoringChange = {
+                [weak pointerMonitor] enabled, requestPermission in
+                guard let pointerMonitor else { return .unavailable }
+                if enabled {
+                    return pointerMonitor.start(
+                        requestPermission: requestPermission
+                    )
+                }
+                pointerMonitor.stop()
+                return .started
+            }
+        }
         session.onShortcutRegistration = { [weak self] shortcut in
             self?.hotKeyMonitor?.updateShortcut(shortcut)
                 ?? OSStatus(eventNotHandledErr)
         }
+        session.onScratchpadShortcutRegistration = {
+            [weak self] shortcut in
+            self?.hotKeyMonitor?.updateScratchpadShortcut(shortcut)
+                ?? OSStatus(eventNotHandledErr)
+        }
+        session.onInputBindingsRegistration = {
+            [weak self] bindings in
+            self?.hotKeyMonitor?.updateInputBindings(bindings)
+                ?? OSStatus(eventNotHandledErr)
+        }
         let hotKeyStatus = hotKeyMonitor?.start() ?? OSStatus(eventNotHandledErr)
         session.reportShortcutRegistration(succeeded: hotKeyStatus == noErr)
+        session.restoreFunctionKeyMonitoringAfterLifecycleChange(
+            requestPermission: true
+        )
+        session.restorePointerMonitoringAfterLifecycleChange()
         if hotKeyStatus != noErr {
             session.reportFailure(
                 "\(session.preferences.shortcut.accessibilityName) "
@@ -52,6 +185,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         observeWorkspaceLifecycle()
         rebuildMenu()
         recordingHUDController?.update()
+        session.refreshPersistentRecovery()
         session.prepareLocalModel()
         if !session.preferences.hasCompletedOnboarding {
             DispatchQueue.main.async { [weak self] in
@@ -63,6 +197,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         session.prepareForConfirmedTermination()
         hotKeyMonitor?.stop()
+        functionKeyLongPressMonitor?.stop()
+        pointerInputMonitor?.stop()
         fileTranscriptionWindowController?.cancel()
         for observer in workspaceObservers {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
@@ -204,7 +340,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             menu.addItem(.separator())
             menu.addItem(
                 item(
-                    "Retry Local Transcription "
+                    (session.recoverableAudioWasCancelled
+                        ? "Undo Cancel and Retry Locally "
+                        : "Retry Local Transcription ")
                         + "(\(Int(ceil(session.recoverableAudioDuration)))s audio)",
                     action: #selector(retryRecoverableAudio)
                 )
@@ -217,10 +355,84 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             )
         }
 
+        if session.persistentRecoveryEnabled,
+           !session.persistentRecoverySummaries.isEmpty
+        {
+            menu.addItem(.separator())
+            let parent = NSMenuItem(
+                title: "Encrypted Recovery",
+                action: nil,
+                keyEquivalent: ""
+            )
+            let recoveryMenu = NSMenu()
+            for summary in session.persistentRecoverySummaries {
+                let title: String
+                switch summary.state {
+                case .ready:
+                    title = "Recover \(summary.createdAt.formatted(date: .abbreviated, time: .shortened))"
+                case .corrupt:
+                    title = "Corrupt recovery artifact"
+                case .keyUnavailable:
+                    title = "Recovery key unavailable"
+                }
+                let recover = item(
+                    title,
+                    action: #selector(retryPersistentRecovery)
+                )
+                recover.representedObject = summary.id.uuidString
+                recover.isEnabled = summary.state == .ready
+                recoveryMenu.addItem(recover)
+
+                let copy = item(
+                    "Recover to Clipboard",
+                    action: #selector(copyPersistentRecovery)
+                )
+                copy.representedObject = summary.id.uuidString
+                copy.isEnabled = summary.state == .ready
+                recoveryMenu.addItem(copy)
+
+                let discard = item(
+                    "Discard \(summary.createdAt.formatted(date: .abbreviated, time: .shortened))",
+                    action: #selector(discardPersistentRecovery)
+                )
+                discard.representedObject = summary.id.uuidString
+                recoveryMenu.addItem(discard)
+            }
+            parent.submenu = recoveryMenu
+            menu.addItem(parent)
+        }
+
+        if let recoveryError = session.persistentRecoveryError {
+            let warning = NSMenuItem(
+                title: "Recovery: \(recoveryError)",
+                action: nil,
+                keyEquivalent: ""
+            )
+            warning.isEnabled = false
+            menu.addItem(warning)
+        }
+
+        if let notification = session.inAppNotificationMessage {
+            menu.addItem(.separator())
+            let message = NSMenuItem(
+                title: notification,
+                action: nil,
+                keyEquivalent: ""
+            )
+            message.isEnabled = false
+            menu.addItem(message)
+            menu.addItem(
+                item(
+                    "Acknowledge",
+                    action: #selector(dismissInAppNotification)
+                )
+            )
+        }
+
         menu.addItem(.separator())
         addPermissionItems(to: menu)
         menu.addItem(outputMenu())
-        menu.addItem(shortcutMenu())
+        menu.addItem(activationMenu())
         menu.addItem(recordingModeMenu())
 
         let sounds = item("Sound Feedback", action: #selector(toggleSounds))
@@ -245,6 +457,30 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         menu.addItem(
             item("Dictation History…", action: #selector(showHistory))
         )
+        if session.scratchpadEnabled {
+            menu.addItem(
+                item(
+                    "Scratchpad…",
+                    action: #selector(showScratchpad)
+                )
+            )
+            let quick = item(
+                "Quick Dictation to Scratchpad",
+                action: #selector(quickDictationToScratchpad)
+            )
+            quick.isEnabled = scratchpadWindowController != nil
+                && session.canStartRecording
+            menu.addItem(quick)
+        }
+        if let scratchpadStartupError {
+            let warning = NSMenuItem(
+                title: "Scratchpad: \(scratchpadStartupError)",
+                action: nil,
+                keyEquivalent: ""
+            )
+            warning.isEnabled = false
+            menu.addItem(warning)
+        }
         menu.addItem(
             item(
                 "Transcribe Audio File…",
@@ -253,6 +489,13 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         )
         menu.addItem(
             item("Private Usage Insights…", action: #selector(showInsights))
+        )
+        menu.addItem(.separator())
+        menu.addItem(
+            item(
+                "About Autohand Voice",
+                action: #selector(showAbout)
+            )
         )
         menu.addItem(
             item("Quit Autohand Voice", action: #selector(quit), key: "q")
@@ -308,20 +551,42 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         return parent
     }
 
-    private func shortcutMenu() -> NSMenuItem {
+    private func activationMenu() -> NSMenuItem {
         let parent = NSMenuItem(
-            title: "Shortcut",
+            title: "Activation",
             action: nil,
             keyEquivalent: ""
         )
         let menu = NSMenu()
-        let current = NSMenuItem(
-            title: session.preferences.shortcut.accessibilityName,
+        let primaryTitle = session.preferences
+            .functionKeyLongPressEnabled
+            ? "Primary: Long-press Fn"
+            : "Primary: "
+                + session.preferences.shortcut.accessibilityName
+        let primary = NSMenuItem(
+            title: primaryTitle,
             action: nil,
             keyEquivalent: ""
         )
-        current.isEnabled = false
-        menu.addItem(current)
+        primary.isEnabled = false
+        menu.addItem(primary)
+        if session.preferences.functionKeyLongPressEnabled {
+            let status = NSMenuItem(
+                title: session.functionKeyLongPressStatus,
+                action: nil,
+                keyEquivalent: ""
+            )
+            status.isEnabled = false
+            menu.addItem(status)
+            let fallback = NSMenuItem(
+                title: "Fallback: "
+                    + session.preferences.shortcut.accessibilityName,
+                action: nil,
+                keyEquivalent: ""
+            )
+            fallback.isEnabled = false
+            menu.addItem(fallback)
+        }
         menu.addItem(
             item("Change in Settings…", action: #selector(showSettings))
         )
@@ -371,7 +636,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         return value
     }
 
-    @objc private func startRecording() { session.beginRecording() }
+    @objc private func startRecording() {
+        session.beginRecording(origin: .menu)
+    }
     @objc private func stopRecording() { session.finishRecording() }
     @objc private func cancelRecording() { session.cancelRecording() }
     @objc private func copyLastTranscript() { session.copyLastTranscript() }
@@ -393,11 +660,35 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     @objc private func discardRecoverableAudio() {
         session.discardRecoverableAudio()
     }
+    @objc private func retryPersistentRecovery(_ sender: NSMenuItem) {
+        guard
+            let value = sender.representedObject as? String,
+            let id = UUID(uuidString: value)
+        else { return }
+        session.retryPersistentRecovery(id)
+    }
+    @objc private func copyPersistentRecovery(_ sender: NSMenuItem) {
+        guard
+            let value = sender.representedObject as? String,
+            let id = UUID(uuidString: value)
+        else { return }
+        session.copyPersistentRecovery(id)
+    }
+    @objc private func discardPersistentRecovery(_ sender: NSMenuItem) {
+        guard
+            let value = sender.representedObject as? String,
+            let id = UUID(uuidString: value)
+        else { return }
+        session.discardPersistentRecovery(id)
+    }
     @objc private func toggleEnabled() { session.setEnabled(!session.isEnabled) }
     @objc private func toggleSounds() {
         session.setPlaySounds(!session.preferences.playSounds)
     }
     @objc private func dismissError() { session.recover() }
+    @objc private func dismissInAppNotification() {
+        session.acknowledgeInAppNotification()
+    }
     @objc private func openMicrophoneSettings() {
         openPrivacySettings(anchor: "Privacy_Microphone")
     }
@@ -410,11 +701,21 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     @objc private func showHistory() {
         historyWindowController?.show()
     }
+    @objc private func showScratchpad() {
+        scratchpadWindowController?.show()
+    }
+    @objc private func quickDictationToScratchpad() {
+        scratchpadWindowController?.show()
+        session.beginQuickDictationToScratchpad()
+    }
     @objc private func showFileTranscription() {
         fileTranscriptionWindowController?.show()
     }
     @objc private func showInsights() {
         usageInsightsWindowController?.show()
+    }
+    @objc private func showAbout() {
+        aboutWindowController?.show()
     }
 
     @objc private func selectOutputMode(_ sender: NSMenuItem) {
@@ -491,6 +792,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         guard now - lastRuntimeRestoreAt > 1 else { return }
         lastRuntimeRestoreAt = now
         hotKeyMonitor?.reregisterAfterLifecycleChange()
+        functionKeyLongPressMonitor?.stop()
+        session.restoreFunctionKeyMonitoringAfterLifecycleChange()
+        pointerInputMonitor?.stop()
+        session.restorePointerMonitoringAfterLifecycleChange()
         settingsWindowController?.restoreAfterLifecycleChange()
         session.refreshActiveProfile()
     }

@@ -11,6 +11,9 @@ final class AppProfileTests: XCTestCase {
             recordingMode: .toggle,
             dictationCommandsEnabled: false,
             smartFormattingEnabled: false,
+            cleanupLevel: .light,
+            contextAccess: .disabled,
+            isSensitive: true,
             automaticTerminalPunctuation: false,
             showRecordingHUD: false,
             livePreviewEnabled: true,
@@ -33,7 +36,10 @@ final class AppProfileTests: XCTestCase {
         XCTAssertEqual(resolved.profileID, profile.id)
         XCTAssertEqual(resolved.outputMode, .clipboard)
         XCTAssertEqual(resolved.recordingMode, .toggle)
-        XCTAssertFalse(resolved.smartFormattingEnabled)
+        XCTAssertTrue(resolved.smartFormattingEnabled)
+        XCTAssertEqual(resolved.cleanupLevel, .light)
+        XCTAssertEqual(resolved.contextAccess, .disabled)
+        XCTAssertTrue(resolved.isSensitive)
         XCTAssertFalse(resolved.automaticTerminalPunctuation)
         XCTAssertFalse(resolved.showRecordingHUD)
         XCTAssertTrue(resolved.livePreviewEnabled)

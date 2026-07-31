@@ -1,7 +1,23 @@
+import AVFoundation
 import XCTest
 @testable import AutohandVoiceCore
 
 final class AudioCaptureTests: XCTestCase {
+    func testInputTapUsesHardwareNegotiatedFormat() {
+        let sourceFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: 48_000,
+            channels: 1,
+            interleaved: false
+        )
+
+        XCTAssertNotNil(sourceFormat)
+        XCTAssertNil(
+            AudioCapture.inputTapFormat(for: sourceFormat!),
+            "The input node must negotiate its own tap format. Passing its output format back to installTap can raise an uncaught AVAudioEngine exception."
+        )
+    }
+
     func testResamplingIsBoundedAndPreservesEndpoints() {
         let input: [Float] = [0, 0.25, 0.5, 0.75, 1]
         let output = AudioCapture.resample(input, from: 5, to: 3)
@@ -43,5 +59,45 @@ final class AudioCaptureTests: XCTestCase {
 
         XCTAssertEqual(Set(devices.map(\.id)).count, devices.count)
         XCTAssertTrue(devices.allSatisfy { !$0.id.isEmpty && !$0.name.isEmpty })
+    }
+
+    func testStreamingResamplerMatchesWholeBufferAcrossChunkBoundaries() {
+        let input: [Float] = stride(from: 0, through: 1, by: 0.05).map {
+            Float($0)
+        }
+        let expected = AudioCapture.resample(input, from: 20, to: 8)
+        var resampler = StreamingAudioResampler(
+            sourceRate: 20,
+            targetRate: 8
+        )
+        var actual: [Float] = []
+        actual += resampler.consume(Array(input[0..<3]))
+        actual += resampler.consume(Array(input[3..<11]))
+        actual += resampler.consume(Array(input[11...]))
+
+        XCTAssertEqual(actual.count, expected.count)
+        for (actualValue, expectedValue) in zip(actual, expected) {
+            XCTAssertEqual(actualValue, expectedValue, accuracy: 0.0001)
+        }
+    }
+
+    func testTwentyMinuteTargetRateBufferHasFixedUpperBound() {
+        XCTAssertEqual(
+            AudioCapture.maximumBufferedSampleCount(
+                duration: 20 * 60
+            ),
+            19_200_000
+        )
+        XCTAssertEqual(
+            AudioCapture.maximumBufferedBytes(duration: 20 * 60),
+            76_800_000
+        )
+        XCTAssertEqual(
+            AudioCapture.maximumBufferedSampleCount(
+                duration: 60 * 60
+            ),
+            19_200_000,
+            "Untrusted durations must clamp to the 20-minute product cap"
+        )
     }
 }

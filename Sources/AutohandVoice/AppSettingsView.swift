@@ -47,6 +47,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
 struct AppSettingsView: View {
     @Bindable var model: AppSettingsModel
     @State private var selection: SettingsPane
+    @State private var forceOnboarding = false
 
     init(model: AppSettingsModel) {
         self.model = model
@@ -58,6 +59,22 @@ struct AppSettingsView: View {
     }
 
     var body: some View {
+        if !model.session.preferences.hasCompletedOnboarding
+            || forceOnboarding
+        {
+            OnboardingView(model: model) {
+                if !model.session.preferences.hasCompletedOnboarding {
+                    model.completeOnboarding()
+                }
+                forceOnboarding = false
+                selection = .general
+            }
+        } else {
+            settings
+        }
+    }
+
+    private var settings: some View {
         NavigationSplitView {
             List(SettingsPane.allCases, selection: $selection) { pane in
                 Label(pane.title, systemImage: pane.symbol)
@@ -82,8 +99,7 @@ struct AppSettingsView: View {
         switch selection {
         case .gettingStarted:
             GettingStartedView(model: model) {
-                model.completeOnboarding()
-                selection = .general
+                forceOnboarding = true
             }
         case .general:
             GeneralSettingsView(model: model)
@@ -288,14 +304,68 @@ private struct AppProfilesSettingsView: View {
                 $0.dictationCommandsEnabled = value
             }
         }
-        booleanOverride(
-            "Smart Formatting",
-            value: profile.smartFormattingEnabled
-        ) { value in
-            model.updateSelected {
-                $0.smartFormattingEnabled = value
+        if model.minimalContextCapabilityEnabled {
+            Picker(
+                "Context Access",
+                selection: Binding<AppContextAccess?>(
+                    get: { profile.contextAccess },
+                    set: { value in
+                        model.updateSelected { $0.contextAccess = value }
+                    }
+                )
+            ) {
+                Text("Use Global").tag(AppContextAccess?.none)
+                Text("Allow Minimum Context")
+                    .tag(Optional(AppContextAccess.enabled))
+                Text("No Context")
+                    .tag(Optional(AppContextAccess.disabled))
             }
         }
+        booleanOverride(
+            "Sensitive App",
+            value: profile.isSensitive
+        ) { value in
+            model.updateSelected {
+                $0.isSensitive = value
+            }
+        }
+        Picker(
+            "Dictation Style",
+            selection: Binding<UUID?>(
+                get: { profile.styleID },
+                set: { value in
+                    model.updateSelected { $0.styleID = value }
+                }
+            )
+        ) {
+            Text("Use Global").tag(UUID?.none)
+            ForEach(model.dictationStyles) { style in
+                Text(style.name).tag(Optional(style.id))
+            }
+        }
+        Picker(
+            "Cleanup Level",
+            selection: Binding<CleanupLevel?>(
+                get: { profile.cleanupLevel },
+                set: { value in
+                    model.updateSelected {
+                        $0.cleanupLevel = value
+                        $0.smartFormattingEnabled = value.map {
+                            $0 != .literal
+                        }
+                    }
+                }
+            )
+        ) {
+            Text("Use Global").tag(CleanupLevel?.none)
+            Text("Literal").tag(Optional(CleanupLevel.literal))
+            Text("Light").tag(Optional(CleanupLevel.light))
+            Text("Medium").tag(Optional(CleanupLevel.medium))
+            if model.localTransformsEnabled {
+                Text("High").tag(Optional(CleanupLevel.high))
+            }
+        }
+        .disabled(profile.styleID != nil)
         booleanOverride(
             "Terminal Punctuation",
             value: profile.automaticTerminalPunctuation
@@ -366,25 +436,136 @@ private struct FormattingSettingsView: View {
     @Bindable var model: AppSettingsModel
     @State private var previewText = "hello from autohand voice"
     @State private var previewPosition = FormattingPreviewPosition.start
+    @State private var styleName = ""
+    @State private var styleCleanupLevel = CleanupLevel.medium
+    @State private var stylePunctuation = true
+    @State private var styleVocabulary = true
 
     var body: some View {
         SettingsPage(
             "Formatting",
-            subtitle: "Apply deterministic local spacing and punctuation at the cursor."
+            subtitle: "Clean up spoken text locally before it reaches the cursor."
         ) {
             Form {
-                Section("Smart Formatting") {
-                    Toggle(
-                        "Enable Smart Formatting",
-                        isOn: Binding(
+                Section("Dictation Styles") {
+                    Picker(
+                        "Default Style",
+                        selection: Binding<UUID?>(
                             get: {
-                                model.session.preferences.smartFormattingEnabled
+                                model.session.preferences.defaultStyleID
                             },
                             set: {
-                                model.session.setSmartFormattingEnabled($0)
+                                model.session.setDefaultDictationStyle($0)
                             }
                         )
+                    ) {
+                        Text("Manual Settings").tag(UUID?.none)
+                        ForEach(model.session.dictationStyles) { style in
+                            Text(style.name).tag(Optional(style.id))
+                        }
+                    }
+
+                    Picker(
+                        "Temporary Override",
+                        selection: Binding<UUID?>(
+                            get: {
+                                model.session.temporaryStyleOverrideID
+                            },
+                            set: {
+                                model.session
+                                    .setTemporaryDictationStyle($0)
+                            }
+                        )
+                    ) {
+                        Text("None").tag(UUID?.none)
+                        ForEach(model.session.dictationStyles) { style in
+                            Text(style.name).tag(Optional(style.id))
+                        }
+                    }
+
+                    LabeledContent(
+                        "Active",
+                        value: "\(model.session.activeStyleLabel) · \(model.session.activeStyleSource.rawValue.replacingOccurrences(of: "_", with: " "))"
                     )
+
+                    TextField("New style name", text: $styleName)
+                    Picker(
+                        "New Style Cleanup",
+                        selection: $styleCleanupLevel
+                    ) {
+                        Text("Literal").tag(CleanupLevel.literal)
+                        Text("Light").tag(CleanupLevel.light)
+                        Text("Medium").tag(CleanupLevel.medium)
+                        if model.session.localTransformsEnabled {
+                            Text("High").tag(CleanupLevel.high)
+                        }
+                    }
+                    Toggle(
+                        "New Style Adds Terminal Punctuation",
+                        isOn: $stylePunctuation
+                    )
+                    Toggle(
+                        "New Style Uses Vocabulary",
+                        isOn: $styleVocabulary
+                    )
+                    HStack {
+                        Button("Add Style") {
+                            addStyle()
+                        }
+                        .disabled(
+                            styleName.trimmingCharacters(
+                                in: .whitespacesAndNewlines
+                            ).isEmpty
+                        )
+                        Spacer()
+                    }
+
+                    ForEach(model.session.customDictationStyles) { style in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(style.name)
+                                Text(style.cleanupLevel.rawValue.capitalized)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("Delete", role: .destructive) {
+                                deleteStyle(style)
+                            }
+                        }
+                    }
+
+                    Text(
+                        "Temporary overrides expire after 15 minutes without dictation and never change the stored default."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+
+                Section("Local Refinement") {
+                    Picker(
+                        "Cleanup Level",
+                        selection: Binding(
+                            get: {
+                                model.session.preferences.cleanupLevel
+                            },
+                            set: {
+                                model.session.setCleanupLevel($0)
+                            }
+                        )
+                    ) {
+                        Text("Literal").tag(CleanupLevel.literal)
+                        Text("Light").tag(CleanupLevel.light)
+                        Text("Medium").tag(CleanupLevel.medium)
+                        if model.session.localTransformsEnabled {
+                            Text("High").tag(CleanupLevel.high)
+                        }
+                    }
+
+                    Text(cleanupLevelHelp)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
                     Toggle(
                         "Add Terminal Punctuation",
                         isOn: Binding(
@@ -398,7 +579,9 @@ private struct FormattingSettingsView: View {
                             }
                         )
                     )
-                    .disabled(!model.session.preferences.smartFormattingEnabled)
+                    .disabled(
+                        model.session.preferences.cleanupLevel != .medium
+                    )
                 }
 
                 Section("Preview") {
@@ -417,24 +600,72 @@ private struct FormattingSettingsView: View {
             .formStyle(.grouped)
 
             Text(
-                "When cursor context is available, Autohand Voice reads at most one adjacent character on each side. Unknown context is left unchanged. Turn this off for literal output."
+                "Cleanup is deterministic and local. The immutable raw final remains available for revision recovery; High stays unavailable until its separate signed local CoreML model passes release review."
             )
             .font(.caption)
             .foregroundStyle(.secondary)
         }
     }
 
+    private var cleanupLevelHelp: LocalizedStringKey {
+        switch model.session.preferences.cleanupLevel {
+        case .literal:
+            "Preserves the final transcript except for explicit vocabulary replacements."
+        case .light:
+            "Removes high-confidence fillers and accidental repetition, then applies vocabulary."
+        case .medium:
+            "Adds local spacing, capitalization, and punctuation to Light cleanup."
+        case .high:
+            "Uses the optional local Transform model. No remote fallback is allowed."
+        }
+    }
+
     private var preview: String {
-        SmartTextFormatter.format(
+        let cleanupLevel = model.session.preferences.cleanupLevel
+        guard cleanupLevel != .literal else { return previewText }
+        let refined = SpeechTextRefiner.refine(
             previewText,
+            enabled: true,
+            locale: Locale(
+                identifier:
+                    model.session.preferences.dictationLanguageCode
+            )
+        )
+        guard cleanupLevel == .medium else { return refined }
+        return SmartTextFormatter.format(
+            refined,
             context: previewPosition.context,
-            enabled: model.session.preferences.smartFormattingEnabled,
+            enabled: true,
             addsTerminalPunctuation:
                 model.session.preferences.automaticTerminalPunctuation,
             locale: Locale(
                 identifier:
                     model.session.preferences.dictationLanguageCode
             )
+        )
+    }
+
+    private func addStyle() {
+        var styles = model.session.customDictationStyles
+        styles.append(
+            DictationStylePreset(
+                name: styleName,
+                cleanupLevel: styleCleanupLevel,
+                automaticTerminalPunctuation: stylePunctuation,
+                vocabularyEnabled: styleVocabulary
+            )
+        )
+        model.session.saveCustomDictationStyles(styles)
+        if model.session.styleError == nil {
+            styleName = ""
+        }
+    }
+
+    private func deleteStyle(_ style: DictationStylePreset) {
+        model.session.saveCustomDictationStyles(
+            model.session.customDictationStyles.filter {
+                $0.id != style.id
+            }
         )
     }
 }
@@ -463,6 +694,62 @@ private struct VocabularySettingsView: View {
                     }
                 }
 
+                Section("Local Suggestion Review") {
+                    Toggle(
+                        "Learn from Explicit Corrections",
+                        isOn: Binding(
+                            get: { model.suggestionsEnabled },
+                            set: { model.setSuggestionsEnabled($0) }
+                        )
+                    )
+                    Text(
+                        "When enabled, a correction you explicitly submit from History becomes a pending local suggestion. It never becomes an active replacement until you confirm it here."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    if model.suggestionsEnabled {
+                        if model.suggestions.isEmpty {
+                            Text("No suggestions waiting for review.")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(model.suggestions) { suggestion in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text(suggestion.source)
+                                            .lineLimit(2)
+                                        Image(systemName: "arrow.right")
+                                            .foregroundStyle(.secondary)
+                                        Text(suggestion.replacement)
+                                            .lineLimit(2)
+                                    }
+                                    Text(
+                                        "Observed \(suggestion.observationCount) time\(suggestion.observationCount == 1 ? "" : "s")"
+                                    )
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    HStack {
+                                        Button("Confirm") {
+                                            model.acceptSuggestion(
+                                                suggestion
+                                            )
+                                        }
+                                        Button(
+                                            "Dismiss",
+                                            role: .destructive
+                                        ) {
+                                            model.dismissSuggestion(
+                                                suggestion
+                                            )
+                                        }
+                                    }
+                                }
+                                .padding(.vertical, 3)
+                            }
+                        }
+                    }
+                }
+
                 Section("Replacements") {
                     if model.rules.isEmpty {
                         ContentUnavailableView(
@@ -475,14 +762,51 @@ private struct VocabularySettingsView: View {
                     } else {
                         List {
                             ForEach(model.rules) { rule in
-                                LabeledContent(rule.source) {
+                                HStack(alignment: .firstTextBaseline) {
+                                    Button {
+                                        model.toggleStar(rule)
+                                    } label: {
+                                        Image(
+                                            systemName: rule.isStarred
+                                                ? "star.fill"
+                                                : "star"
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help(
+                                        rule.isStarred
+                                            ? "Unstar Replacement"
+                                            : "Star Replacement"
+                                    )
+                                    .accessibilityLabel(
+                                        rule.isStarred
+                                            ? "Unstar \(rule.source)"
+                                            : "Star \(rule.source)"
+                                    )
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(rule.source)
+                                        Text(
+                                            "\(rule.usageCount) use\(rule.usageCount == 1 ? "" : "s")"
+                                        )
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        if let lastUsedAt =
+                                            rule.lastUsedAt
+                                        {
+                                            Text(
+                                                "Last used \(lastUsedAt.formatted(date: .abbreviated, time: .shortened))"
+                                            )
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        }
+                                    }
+
+                                    Spacer()
+
                                     Text(rule.replacement)
                                         .textSelection(.enabled)
                                 }
-                                .accessibilityElement(children: .combine)
-                                .accessibilityLabel(
-                                    "\(rule.source), replaced with \(rule.replacement)"
-                                )
                             }
                             .onDelete(perform: model.delete)
                         }
@@ -594,7 +918,7 @@ private struct SettingsPage<Content: View>: View {
 
 private struct GettingStartedView: View {
     @Bindable var model: AppSettingsModel
-    let onContinue: () -> Void
+    let onOpenGuide: () -> Void
 
     var body: some View {
         SettingsPage(
@@ -638,11 +962,10 @@ private struct GettingStartedView: View {
 
                     Spacer()
 
-                    Button("Continue") {
-                        onContinue()
+                    Button("Run Guided Setup Again") {
+                        onOpenGuide()
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(!requiredSetupIsComplete)
                 }
 
                 ActionMessage(message: model.actionMessage)
@@ -650,11 +973,6 @@ private struct GettingStartedView: View {
         }
     }
 
-    private var requiredSetupIsComplete: Bool {
-        model.systemCheck.microphonePermission == "authorized"
-            && model.systemCheck.accessibilityPermission
-            && model.session.modelState == .ready
-    }
 }
 
 private struct SetupStep: View {
@@ -701,6 +1019,7 @@ private struct SetupStep: View {
 
 private struct GeneralSettingsView: View {
     @Bindable var model: AppSettingsModel
+    @State private var confirmsPointerMonitoring = false
 
     var body: some View {
         SettingsPage(
@@ -720,7 +1039,40 @@ private struct GeneralSettingsView: View {
                         Text("Copy to Clipboard").tag(OutputMode.clipboard)
                     }
 
-                    LabeledContent("Shortcut") {
+                    LabeledContent("Primary Activation") {
+                        primaryActivationLabel
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Toggle(
+                        "Use Long-press Fn",
+                        isOn: Binding(
+                            get: {
+                                model.session.preferences
+                                    .functionKeyLongPressEnabled
+                            },
+                            set: {
+                                model.session
+                                    .setFunctionKeyLongPressEnabled($0)
+                            }
+                        )
+                    )
+
+                    Text(
+                        "Hold Fn for 0.4 seconds to start, then release to finish. Short presses keep their normal macOS behavior."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    if model.session.preferences
+                        .functionKeyLongPressEnabled
+                    {
+                        Text(model.session.functionKeyLongPressStatus)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    LabeledContent("Fallback Shortcut") {
                         HStack {
                             ShortcutRecorderButton(
                                 shortcut: model.session.preferences.shortcut,
@@ -731,6 +1083,161 @@ private struct GeneralSettingsView: View {
                                 model.setShortcut(.controlOptionSpace)
                             }
                         }
+                    }
+
+                    LabeledContent("Cancel Shortcut") {
+                        HStack {
+                            ShortcutRecorderButton(
+                                shortcut: model.session.keyboardBinding(
+                                    for: .cancel
+                                ),
+                                onRecord: {
+                                    _ = model.session.setKeyboardBinding(
+                                        $0,
+                                        for: .cancel
+                                    )
+                                },
+                                onError: model.reportShortcutError
+                            )
+                            if model.session.keyboardBinding(
+                                for: .cancel
+                            ) != nil {
+                                Button("Remove") {
+                                    _ = model.session.setKeyboardBinding(
+                                        nil,
+                                        for: .cancel
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    LabeledContent("Commit Shortcut") {
+                        HStack {
+                            ShortcutRecorderButton(
+                                shortcut: model.session.keyboardBinding(
+                                    for: .commit
+                                ),
+                                onRecord: {
+                                    _ = model.session.setKeyboardBinding(
+                                        $0,
+                                        for: .commit
+                                    )
+                                },
+                                onError: model.reportShortcutError
+                            )
+                            if model.session.keyboardBinding(
+                                for: .commit
+                            ) != nil {
+                                Button("Remove") {
+                                    _ = model.session.setKeyboardBinding(
+                                        nil,
+                                        for: .commit
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Text(
+                        "Escape still cancels Hands-Free recording. A Commit shortcut sends Enter only during the brief verified window after a successful typed insertion."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    if model.session.scratchpadEnabled {
+                        LabeledContent("Scratchpad Shortcut") {
+                            HStack {
+                                ShortcutRecorderButton(
+                                    shortcut: model.session.preferences
+                                        .scratchpadShortcut,
+                                    onRecord:
+                                        model.setScratchpadShortcut,
+                                    onError: model.reportShortcutError
+                                )
+                                Button("Reset") {
+                                    model.setScratchpadShortcut(.optionS)
+                                }
+                            }
+                        }
+                        if let error =
+                            model.session.scratchpadShortcutError {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+
+                    if model.session.pointerInputCapabilityEnabled {
+                        Toggle(
+                            "Extra Mouse Button Control",
+                            isOn: Binding(
+                                get: {
+                                    model.session.preferences
+                                        .pointerMonitoringEnabled
+                                },
+                                set: { enabled in
+                                    if enabled {
+                                        confirmsPointerMonitoring = true
+                                    } else {
+                                        model.session
+                                            .setPointerMonitoringEnabled(
+                                                false
+                                            )
+                                    }
+                                }
+                            )
+                        )
+                        Text(model.session.pointerInputStatus)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if let button =
+                            model.session.observedPointerButton
+                        {
+                            Picker(
+                                "Mouse Button \(button + 1)",
+                                selection: Binding(
+                                    get: {
+                                        model.session.preferences
+                                            .inputBindings
+                                            .first {
+                                                $0.trigger == .pointer(
+                                                    button: button
+                                                )
+                                            }?.action ?? .startStop
+                                    },
+                                    set: {
+                                        model.session
+                                            .bindObservedPointerButton(
+                                                to: $0
+                                            )
+                                    }
+                                )
+                            ) {
+                                ForEach(
+                                    InputBindingAction.allCases,
+                                    id: \.self
+                                ) { action in
+                                    Text(action.displayName).tag(action)
+                                }
+                            }
+                            Button(
+                                "Remove Mouse Binding",
+                                role: .destructive
+                            ) {
+                                model.session.removePointerBinding(
+                                    button
+                                )
+                            }
+                        }
+
+                    }
+
+                    if let error = model.session.inputBindingError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
                     }
 
                     Picker(
@@ -764,6 +1271,78 @@ private struct GeneralSettingsView: View {
                             set: { model.session.setShowRecordingHUD($0) }
                         )
                     )
+
+                    if model.session.hudCustomizationEnabled,
+                       model.session.preferences.showRecordingHUD
+                    {
+                        Picker(
+                            "HUD Style",
+                            selection: Binding(
+                                get: {
+                                    model.session.preferences.recordingHUDMode
+                                },
+                                set: {
+                                    model.session.setRecordingHUDMode($0)
+                                }
+                            )
+                        ) {
+                            Text("Automatic")
+                                .tag(RecordingHUDPresentationMode.automatic)
+                            Text("Compact")
+                                .tag(RecordingHUDPresentationMode.compact)
+                            Text("Dot")
+                                .tag(RecordingHUDPresentationMode.dot)
+                        }
+
+                        LabeledContent("HUD Opacity") {
+                            HStack {
+                                Slider(
+                                    value: Binding(
+                                        get: {
+                                            model.session.preferences
+                                                .recordingHUDOpacity
+                                        },
+                                        set: {
+                                            model.session
+                                                .setRecordingHUDOpacity($0)
+                                        }
+                                    ),
+                                    in: 0.2 ... 1
+                                )
+                                .frame(width: 140)
+
+                                Text(
+                                    "\(Int(model.session.preferences.recordingHUDOpacity * 100))%"
+                                )
+                                .monospacedDigit()
+                                .frame(width: 42, alignment: .trailing)
+                            }
+                        }
+
+                        Picker(
+                            "HUD Edge",
+                            selection: Binding(
+                                get: { currentHUDPlacement.anchor },
+                                set: { setHUDAnchor($0) }
+                            )
+                        ) {
+                            Text("Left").tag(RecordingHUDAnchor.left)
+                            Text("Bottom").tag(RecordingHUDAnchor.bottom)
+                            Text("Right").tag(RecordingHUDAnchor.right)
+                        }
+
+                        HStack {
+                            Text(
+                                "Drag the recording HUD to fine-tune its position on each display."
+                            )
+                            Spacer()
+                            Button("Reset Position") {
+                                setHUDAnchor(currentHUDPlacement.anchor)
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
 
                     Toggle(
                         "Live Provisional Preview",
@@ -829,6 +1408,85 @@ private struct GeneralSettingsView: View {
                         }
                     }
 
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Microphone Priority")
+                            .font(.headline)
+
+                        ForEach(
+                            model.audioInputPriority,
+                            id: \.self
+                        ) { identifier in
+                            let index = model.audioInputPriority
+                                .firstIndex(of: identifier) ?? 0
+                            HStack {
+                                Text("\(index + 1)")
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 18, alignment: .trailing)
+
+                                Text(
+                                    model.audioInputPriorityLabel(
+                                        identifier
+                                    )
+                                )
+                                .lineLimit(1)
+
+                                Spacer()
+
+                                Button {
+                                    model.moveAudioInputPriority(
+                                        identifier,
+                                        offset: -1
+                                    )
+                                } label: {
+                                    Image(systemName: "chevron.up")
+                                }
+                                .buttonStyle(.borderless)
+                                .disabled(index == 0)
+                                .accessibilityLabel(
+                                    "Move microphone earlier"
+                                )
+
+                                Button {
+                                    model.moveAudioInputPriority(
+                                        identifier,
+                                        offset: 1
+                                    )
+                                } label: {
+                                    Image(systemName: "chevron.down")
+                                }
+                                .buttonStyle(.borderless)
+                                .disabled(
+                                    index
+                                        == model.audioInputPriority.count - 1
+                                )
+                                .accessibilityLabel(
+                                    "Move microphone later"
+                                )
+                            }
+                        }
+                    }
+
+                    Toggle(
+                        "Automatic Microphone Handoff",
+                        isOn: Binding(
+                            get: {
+                                model.session.preferences
+                                    .automaticAudioHandoffEnabled
+                            },
+                            set: {
+                                model.session
+                                    .setAutomaticAudioHandoff($0)
+                            }
+                        )
+                    )
+
+                    Text(
+                        "At rest, the first available route wins. During recording, an enabled handoff creates a bounded audio segment without restarting recognition or discarding earlier samples."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                     Text(model.audioInputStatus)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -889,6 +1547,50 @@ private struct GeneralSettingsView: View {
 
             ActionMessage(message: model.actionMessage)
         }
+        .confirmationDialog(
+            "Enable extra mouse button control?",
+            isPresented: $confirmsPointerMonitoring
+        ) {
+            Button("Continue to Input Monitoring") {
+                model.session.setPointerMonitoringEnabled(true)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "Autohand Voice will ask macOS for Input Monitoring so it can observe only non-primary mouse-button down and up events. Primary and secondary click are never captured, and keyboard dictation keeps working if permission is denied."
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var primaryActivationLabel: some View {
+        switch model.session.preferences.primaryActivationMethod {
+        case .functionKeyLongPress:
+            Text("Long-press Fn")
+        case let .keyboard(shortcut):
+            Text(shortcut.accessibilityName)
+        }
+    }
+
+    private var currentHUDDisplayID: String {
+        guard let screen = NSScreen.main else { return "main" }
+        let key = NSDeviceDescriptionKey("NSScreenNumber")
+        return (screen.deviceDescription[key] as? NSNumber)?
+            .stringValue ?? screen.localizedName
+    }
+
+    private var currentHUDPlacement: RecordingHUDDisplayPreference {
+        model.session.recordingHUDPlacement(for: currentHUDDisplayID)
+    }
+
+    private func setHUDAnchor(_ anchor: RecordingHUDAnchor) {
+        model.session.setRecordingHUDPlacement(
+            RecordingHUDDisplayPreference(
+                displayID: currentHUDDisplayID,
+                anchor: anchor,
+                offset: .zero
+            )
+        )
     }
 
     private var recordingModeHelp: LocalizedStringKey {
@@ -904,7 +1606,7 @@ private struct GeneralSettingsView: View {
 }
 
 private struct ShortcutRecorderButton: View {
-    let shortcut: RegisteredShortcut
+    let shortcut: RegisteredShortcut?
     let onRecord: (RegisteredShortcut) -> Void
     let onError: (Error) -> Void
     @State private var isRecording = false
@@ -917,13 +1619,18 @@ private struct ShortcutRecorderButton: View {
             if isRecording {
                 Text("Type Shortcut…")
             } else {
-                Text(verbatim: shortcut.displayName)
+                Text(
+                    verbatim:
+                        shortcut?.displayName ?? "Set Shortcut…"
+                )
             }
         }
         .accessibilityLabel(
             isRecording
                 ? "Type a new keyboard shortcut"
-                : "Shortcut: \(shortcut.accessibilityName)"
+                : shortcut.map {
+                    "Shortcut: \($0.accessibilityName)"
+                } ?? "Set keyboard shortcut"
         )
         .accessibilityHint(
             isRecording
@@ -1021,11 +1728,29 @@ private struct PermissionCenterView: View {
 
                 Divider()
 
-                LabeledContent("Input Monitoring", value: "Not required")
+                if model.session.pointerInputCapabilityEnabled
+                    || model.session.preferences
+                        .functionKeyLongPressEnabled
+                {
+                    PermissionRow(
+                        title: "Fn Key Access",
+                        detail:
+                            "Uses Accessibility access when available, or optional Input Monitoring, to observe long-press Fn without reading typed text.",
+                        isAuthorized: inputMonitoringAuthorized,
+                        status: inputMonitoringStatus
+                    ) {
+                        model.openInputMonitoringSettings()
+                    }
+                } else {
+                    LabeledContent(
+                        "Input Monitoring",
+                        value: "Not required"
+                    )
+                }
 
                 HStack {
                     Button("Check Again") {
-                        model.refresh()
+                        model.recheckPermissions()
                     }
                     Spacer()
                 }
@@ -1033,6 +1758,27 @@ private struct PermissionCenterView: View {
                 ActionMessage(message: model.actionMessage)
             }
         }
+    }
+
+    private var inputMonitoringAuthorized: Bool {
+        let fnReady = !model.session.preferences
+            .functionKeyLongPressEnabled
+            || model.session.functionKeyLongPressStatus.hasPrefix("On")
+        let pointerReady = !model.session.preferences
+            .pointerMonitoringEnabled
+            || (
+                !model.session.pointerInputStatus.contains("denied")
+                    && !model.session.pointerInputStatus
+                        .contains("unavailable")
+            )
+        return fnReady && pointerReady
+    }
+
+    private var inputMonitoringStatus: String {
+        if model.session.preferences.functionKeyLongPressEnabled {
+            return model.session.functionKeyLongPressStatus
+        }
+        return model.session.pointerInputStatus
     }
 }
 
@@ -1092,6 +1838,34 @@ private struct LanguageModelSettingsView: View {
         ) {
             Form {
                 Section("Dictation Language") {
+                    if model.session.shouldRecommendCanadianEnglish {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label(
+                                "Use Canadian English spelling?",
+                                systemImage: "textformat.abc"
+                            )
+                            .font(.headline)
+
+                            Text(
+                                "Your Mac is set to English (Canada). Canadian spelling is a local cleanup policy, not a different speech model, and Literal output remains unchanged."
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                            HStack {
+                                Button("Use Canadian Spelling") {
+                                    model.session
+                                        .acceptCanadianEnglishRecommendation()
+                                }
+                                Button("Not Now") {
+                                    model.session
+                                        .dismissCanadianEnglishRecommendation()
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+
                     Picker(
                         "Language",
                         selection: Binding(
@@ -1114,6 +1888,33 @@ private struct LanguageModelSettingsView: View {
 
                     Text(
                         "Language guides this local profile. Autohand Voice transcribes speech; it does not translate it."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    Picker(
+                        "English Spelling",
+                        selection: Binding(
+                            get: {
+                                model.session.preferences
+                                    .englishSpellingPolicy
+                            },
+                            set: {
+                                model.session.setEnglishSpellingPolicy($0)
+                            }
+                        )
+                    ) {
+                        ForEach(EnglishSpellingPolicy.allCases, id: \.self) {
+                            Text(LocalizedStringKey($0.displayName)).tag($0)
+                        }
+                    }
+                    .disabled(
+                        model.session.isRecordingOrStarting
+                            || model.session.state == .processing
+                    )
+
+                    Text(
+                        "Canadian spelling applies only during Light or Medium local cleanup. Literal transcripts and non-English languages are never rewritten."
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -1251,6 +2052,9 @@ private struct LanguageModelSettingsView: View {
 private struct PrivacyDiagnosticsView: View {
     @Bindable var model: AppSettingsModel
     @State private var confirmsClearIssues = false
+    @State private var confirmsClearReliability = false
+    @State private var confirmsResetAllLocalData = false
+    @State private var sensitiveBundleIdentifier = ""
 
     var body: some View {
         SettingsPage(
@@ -1258,6 +2062,127 @@ private struct PrivacyDiagnosticsView: View {
             subtitle: "Verify the local runtime without exposing dictated text."
         ) {
             Form {
+                if model.session.notificationCapabilityEnabled {
+                    Section("Notifications") {
+                        Toggle(
+                            "Allow System Notifications",
+                            isOn: Binding(
+                                get: {
+                                    model.session.preferences
+                                        .notificationPreferences
+                                        .systemNotificationsEnabled
+                                },
+                                set: {
+                                    model.session
+                                        .setSystemNotificationsEnabled($0)
+                                }
+                            )
+                        )
+                        Text(
+                            "Permission is requested only after you enable this. Muting system notifications never hides active failures from the HUD or menu."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                        ForEach(
+                            VoiceNotificationCategory.allCases,
+                            id: \.self
+                        ) { category in
+                            Toggle(
+                                category.rawValue
+                                    .replacingOccurrences(
+                                        of: "_",
+                                        with: " "
+                                    )
+                                    .capitalized,
+                                isOn: Binding(
+                                    get: {
+                                        !model.session.preferences
+                                            .notificationPreferences
+                                            .mutedCategories
+                                            .contains(category)
+                                    },
+                                    set: { enabled in
+                                        model.session
+                                            .setNotificationCategory(
+                                                category,
+                                                muted: !enabled
+                                            )
+                                    }
+                                )
+                            )
+                        }
+                    }
+                }
+
+                Section("Sensitive Target Protection") {
+                    LabeledContent(
+                        "Built-in rules",
+                        value: SensitiveAppRuleset.builtIn.hasValidSignature
+                            ? "Signature verified"
+                            : "Signature invalid"
+                    )
+
+                    Text(
+                        "Password and secure text fields are always blocked before the microphone starts. Signed built-in rules and the exact bundle identifiers below add app-level protection without reading window titles, URLs, or field contents."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    HStack {
+                        TextField(
+                            "Bundle identifier",
+                            text: $sensitiveBundleIdentifier
+                        )
+                        Button("Add Sensitive App") {
+                            model.session.addSensitiveApp(
+                                sensitiveBundleIdentifier
+                            )
+                            sensitiveBundleIdentifier = ""
+                        }
+                        .disabled(
+                            !sensitiveBundleIdentifier.contains(".")
+                        )
+                    }
+
+                    ForEach(
+                        model.session.preferences.sensitiveAppDenylist,
+                        id: \.self
+                    ) { bundleIdentifier in
+                        HStack {
+                            Text(verbatim: bundleIdentifier)
+                                .textSelection(.enabled)
+                            Spacer()
+                            Button("Remove") {
+                                model.session.removeSensitiveApp(
+                                    bundleIdentifier
+                                )
+                            }
+                        }
+                    }
+
+                    if model.session.minimalContextCapabilityEnabled {
+                        Toggle(
+                            "Allow Minimum Context",
+                            isOn: Binding(
+                                get: {
+                                    model.session.preferences
+                                        .minimalContextEnabled
+                                },
+                                set: {
+                                    model.session
+                                        .setMinimalContextEnabled($0)
+                                }
+                            )
+                        )
+                        Text(
+                            "When enabled, Autohand Voice may read at most 64 adjacent Unicode scalars for local continuation. Context stays in memory and is cleared with the dictation session."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+
                 Section("Runtime Checks") {
                     ForEach(model.diagnosticSnapshot.checks) { check in
                         DiagnosticCheckRow(check: check) {
@@ -1268,6 +2193,41 @@ private struct PrivacyDiagnosticsView: View {
                             }
                         }
                     }
+                }
+
+                Section("Local Status") {
+                    LabeledContent(
+                        "Overall",
+                        value: model.session.localStatusSnapshot
+                            .overall.rawValue
+                            .replacingOccurrences(of: "_", with: " ")
+                            .capitalized
+                    )
+                    ForEach(model.session.localStatusSnapshot.items) {
+                        item in
+                        LabeledContent {
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(
+                                    item.state.rawValue
+                                        .replacingOccurrences(
+                                            of: "_",
+                                            with: " "
+                                        )
+                                        .capitalized
+                                )
+                                Text(item.detail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } label: {
+                            Text(item.domain.rawValue.capitalized)
+                        }
+                    }
+                    Text(
+                        "This status is derived only from local finite state. No incident page is shown for local-only capabilities."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
 
                 Section("Recent Operational Issues") {
@@ -1300,12 +2260,71 @@ private struct PrivacyDiagnosticsView: View {
                     }
                 }
 
+                Section("Reliability Aggregates") {
+                    LabeledContent("Local status") {
+                        Text(verbatim: model.reliabilityStatus)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(
+                        "The reliability ledger contains only finite outcome counts, bounded latency buckets, dates, app and model versions, and supported-platform state. It never stores dictated text or audio."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    HStack {
+                        Button("Copy Reliability Report") {
+                            model.copyReliabilityReport()
+                        }
+                        Spacer()
+                        Button(
+                            "Clear Reliability Aggregates…",
+                            role: .destructive
+                        ) {
+                            confirmsClearReliability = true
+                        }
+                    }
+                }
+
                 Section("Report Privacy") {
                     Text(
                         "The copied report contains only diagnostic states, aggregate issue categories and counts, dates, and model disk bytes. It excludes transcript text, audio, file paths, usernames, focused content, credentials, environment values, and microphone names."
                     )
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                }
+
+                Section("Reset All Local Data") {
+                    Text(
+                        "Deletes preferences, History, vocabulary, app profiles, styles, insights, diagnostics, Scratchpad notes and assets, transform templates, encrypted recovery artifacts, and the Keychain recovery key. Local model files are not user content and remain installed."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    Button(
+                        model.session.isResettingLocalData
+                            ? "Resetting…"
+                            : "Reset All Local Data…",
+                        role: .destructive
+                    ) {
+                        confirmsResetAllLocalData = true
+                    }
+                    .disabled(
+                        model.session.isResettingLocalData
+                            || model.session.state == .processing
+                    )
+
+                    if let message =
+                        model.session.localDataResetMessage
+                    {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(
+                                model.session.state == .ready
+                                    ? Color.secondary
+                                    : Color.red
+                            )
+                            .textSelection(.enabled)
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -1319,6 +2338,9 @@ private struct PrivacyDiagnosticsView: View {
                     model.copyDiagnosticReport()
                 }
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .parityGlassSurface()
 
             ActionMessage(message: model.actionMessage)
         }
@@ -1333,6 +2355,32 @@ private struct PrivacyDiagnosticsView: View {
         } message: {
             Text(
                 "This removes only bounded diagnostic categories and counts. It does not change settings or transcript history."
+            )
+        }
+        .confirmationDialog(
+            "Clear reliability aggregates?",
+            isPresented: $confirmsClearReliability
+        ) {
+            Button("Clear Aggregates", role: .destructive) {
+                model.clearReliabilityAggregates()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "This removes only redacted daily outcome counts and latency buckets. It does not change settings, models, or transcript history."
+            )
+        }
+        .confirmationDialog(
+            "Reset all local user data?",
+            isPresented: $confirmsResetAllLocalData
+        ) {
+            Button("Delete and Verify", role: .destructive) {
+                model.session.resetAllLocalData()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "This closes active local workspaces, deletes every owner-only data location in the reset ledger, and destroys the recovery encryption key. This cannot be undone."
             )
         }
     }

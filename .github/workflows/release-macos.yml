@@ -1,0 +1,129 @@
+name: Release macOS
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Sign, notarize, and release
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    env:
+      BUILD_CERTIFICATE_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION_P12_BASE64 }}
+      P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_APPLICATION_P12_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+      NOTARY_APPLE_ID: ${{ secrets.APPLE_ID }}
+      NOTARY_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Verify release version and secrets
+        run: |
+          test "$(uname -m)" = "arm64"
+          version="${GITHUB_REF_NAME#v}"
+          source_version="$(sed -n 's/.*static let version = "\\([^"]*\\)".*/\\1/p' Sources/AutohandVoiceCore/Brand.swift)"
+          plist_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
+          test "$version" = "$source_version"
+          test "$version" = "$plist_version"
+          for value in \
+            "$BUILD_CERTIFICATE_BASE64" \
+            "$P12_PASSWORD" \
+            "$KEYCHAIN_PASSWORD" \
+            "$NOTARY_APPLE_ID" \
+            "$NOTARY_PASSWORD" \
+            "$APPLE_TEAM_ID"
+          do
+            test -n "$value"
+          done
+          echo "AUTOHAND_VOICE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "AUTOHAND_VOICE_BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Install Developer ID certificate
+        run: |
+          certificate_path="$RUNNER_TEMP/developer-id-application.p12"
+          keychain_path="$RUNNER_TEMP/autohand-voice-build.keychain-db"
+          echo "AUTOHAND_VOICE_KEYCHAIN_PATH=$keychain_path" >> "$GITHUB_ENV"
+          printf "%s" "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$certificate_path"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$certificate_path" \
+            -P "$P12_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$keychain_path"
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          identity="$(security find-identity -v -p codesigning "$keychain_path" | sed -n 's/.*"\\(Developer ID Application[^"]*\\)".*/\\1/p' | head -1)"
+          test -n "$identity"
+          echo "AUTOHAND_VOICE_CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Run Swift tests
+        run: swift test
+
+      - name: Build release executables
+        run: swift build -c release
+
+      - name: Verify local-only system contract
+        run: ./.build/release/autohand-voice check --json
+
+      - name: Build signed app and disk image
+        run: |
+          ./scripts/build-app.sh
+          AUTOHAND_VOICE_SKIP_APP_BUILD=1 ./scripts/build-installer.sh
+
+      - name: Notarize and staple
+        run: |
+          dmg_path="$(find dist -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$dmg_path"
+          xcrun notarytool submit "$dmg_path" \
+            --apple-id "$NOTARY_APPLE_ID" \
+            --password "$NOTARY_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$dmg_path"
+          xcrun stapler validate "$dmg_path"
+          spctl \
+            --assess \
+            --type open \
+            --context context:primary-signature \
+            --verbose=2 \
+            "$dmg_path"
+          (
+            cd dist
+            shasum -a 256 "$(basename "$dmg_path")" \
+              > "$(basename "$dmg_path").sha256"
+          )
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/*.dmg \
+            dist/*.sha256 \
+            dist/THIRD-PARTY-NOTICES.txt \
+            --verify-tag \
+            --title "Autohand Voice $AUTOHAND_VOICE_VERSION" \
+            --generate-notes
+
+      - name: Remove temporary signing keychain
+        if: always()
+        run: |
+          if [[ -n "${AUTOHAND_VOICE_KEYCHAIN_PATH:-}" ]]; then
+            security delete-keychain "$AUTOHAND_VOICE_KEYCHAIN_PATH"
+          fi
+          rm -f "$RUNNER_TEMP/developer-id-application.p12"

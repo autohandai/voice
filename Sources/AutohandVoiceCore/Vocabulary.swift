@@ -25,16 +25,25 @@ public struct ReplacementRule: Codable, Equatable, Identifiable, Sendable {
     public let id: UUID
     public var source: String
     public var replacement: String
+    public var isStarred: Bool
+    public var usageCount: Int
+    public var lastUsedAt: Date?
 
     public init(
         id: UUID = UUID(),
         source: String,
-        replacement: String
+        replacement: String,
+        isStarred: Bool = false,
+        usageCount: Int = 0,
+        lastUsedAt: Date? = nil
     ) {
         self.id = id
         self.source = source.trimmingCharacters(in: .whitespacesAndNewlines)
         self.replacement = replacement
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        self.isStarred = isStarred
+        self.usageCount = min(max(usageCount, 0), 1_000_000_000)
+        self.lastUsedAt = lastUsedAt
     }
 
     public var isValid: Bool {
@@ -42,6 +51,291 @@ public struct ReplacementRule: Codable, Equatable, Identifiable, Sendable {
             && !replacement.isEmpty
             && source.count <= VocabularyLimits.maximumSourceCharacters
             && replacement.count <= VocabularyLimits.maximumReplacementCharacters
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case source
+        case replacement
+        case isStarred
+        case usageCount
+        case lastUsedAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try container.decode(UUID.self, forKey: .id),
+            source: try container.decode(String.self, forKey: .source),
+            replacement: try container.decode(
+                String.self,
+                forKey: .replacement
+            ),
+            isStarred: try container.decodeIfPresent(
+                Bool.self,
+                forKey: .isStarred
+            ) ?? false,
+            usageCount: try container.decodeIfPresent(
+                Int.self,
+                forKey: .usageCount
+            ) ?? 0,
+            lastUsedAt: try container.decodeIfPresent(
+                Date.self,
+                forKey: .lastUsedAt
+            )
+        )
+    }
+}
+
+public struct VocabularyApplicationResult: Equatable, Sendable {
+    public let text: String
+    public let matchedRuleIDs: [UUID]
+}
+
+public struct VocabularySuggestion:
+    Codable,
+    Equatable,
+    Identifiable,
+    Sendable
+{
+    public let id: UUID
+    public let source: String
+    public let replacement: String
+    public let createdAt: Date
+    public var observationCount: Int
+
+    public init(
+        id: UUID = UUID(),
+        source: String,
+        replacement: String,
+        createdAt: Date = Date(),
+        observationCount: Int = 1
+    ) {
+        self.id = id
+        self.source = source.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        self.replacement = replacement.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        self.createdAt = createdAt
+        self.observationCount = min(
+            max(observationCount, 1),
+            1_000_000
+        )
+    }
+
+    public var isValid: Bool {
+        let sourceKey = VocabularySuggestionPolicy.normalizedKey(source)
+        let replacementKey =
+            VocabularySuggestionPolicy.normalizedKey(replacement)
+        return !sourceKey.isEmpty
+            && sourceKey != replacementKey
+            && source.count <= VocabularyLimits.maximumSourceCharacters
+            && replacement.count
+                <= VocabularyLimits.maximumReplacementCharacters
+    }
+}
+
+public enum VocabularySuggestionPolicy {
+    public static let maximumSuggestions = 100
+    public static let maximumFileBytes = 256 * 1_024
+
+    public static func normalizedKey(_ value: String) -> String {
+        value
+            .precomposedStringWithCanonicalMapping
+            .replacingOccurrences(of: "’", with: "'")
+            .replacingOccurrences(of: "‘", with: "'")
+            .replacingOccurrences(of: "ʼ", with: "'")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(
+                options: [.caseInsensitive, .diacriticInsensitive],
+                locale: Locale(identifier: "en_US_POSIX")
+            )
+    }
+
+    public static func merge(
+        _ suggestion: VocabularySuggestion,
+        into existing: [VocabularySuggestion]
+    ) -> [VocabularySuggestion] {
+        guard suggestion.isValid else { return existing }
+        var result = existing.filter(\.isValid)
+        let sourceKey = normalizedKey(suggestion.source)
+        let replacementKey = normalizedKey(suggestion.replacement)
+        if let index = result.firstIndex(where: {
+            normalizedKey($0.source) == sourceKey
+                && normalizedKey($0.replacement) == replacementKey
+        }) {
+            result[index].observationCount = min(
+                1_000_000,
+                result[index].observationCount
+                    + suggestion.observationCount
+            )
+        } else {
+            result.append(suggestion)
+        }
+        return Array(
+            result.sorted {
+                if $0.observationCount != $1.observationCount {
+                    return $0.observationCount > $1.observationCount
+                }
+                if $0.createdAt != $1.createdAt {
+                    return $0.createdAt > $1.createdAt
+                }
+                return $0.id.uuidString < $1.id.uuidString
+            }
+            .prefix(maximumSuggestions)
+        )
+    }
+}
+
+public struct VocabularySuggestionStore: Sendable {
+    public let url: URL
+
+    public init(url: URL = Brand.vocabularySuggestionsURL) {
+        self.url = url
+    }
+
+    public func load() throws -> [VocabularySuggestion] {
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return []
+        }
+        let values = try url.resourceValues(forKeys: [.fileSizeKey])
+        guard (values.fileSize ?? 0)
+            <= VocabularySuggestionPolicy.maximumFileBytes
+        else {
+            throw VocabularyError.fileTooLarge
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(
+            [VocabularySuggestion].self,
+            from: Data(contentsOf: url)
+        )
+        return decoded.reduce(into: [VocabularySuggestion]()) {
+            $0 = VocabularySuggestionPolicy.merge($1, into: $0)
+        }
+    }
+
+    public func observeCorrection(
+        source: String,
+        replacement: String,
+        enabled: Bool,
+        at date: Date = Date()
+    ) throws {
+        guard enabled else { return }
+        let suggestion = VocabularySuggestion(
+            source: source,
+            replacement: replacement,
+            createdAt: date
+        )
+        guard suggestion.isValid else { return }
+        try save(
+            VocabularySuggestionPolicy.merge(
+                suggestion,
+                into: try load()
+            )
+        )
+    }
+
+    public func remove(_ id: UUID) throws {
+        try save(try load().filter { $0.id != id })
+    }
+
+    public func save(_ suggestions: [VocabularySuggestion]) throws {
+        let normalized = suggestions.reduce(
+            into: [VocabularySuggestion]()
+        ) {
+            $0 = VocabularySuggestionPolicy.merge($1, into: $0)
+        }
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(normalized)
+        guard data.count <= VocabularySuggestionPolicy.maximumFileBytes else {
+            throw VocabularyError.fileTooLarge
+        }
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700]
+        )
+        if normalized.isEmpty {
+            if FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.removeItem(at: url)
+            }
+            return
+        }
+        try data.write(to: url, options: [.atomic])
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o600],
+            ofItemAtPath: url.path
+        )
+    }
+}
+
+public enum VocabularyRanking {
+    public static func normalized(
+        _ rules: [ReplacementRule]
+    ) -> [ReplacementRule] {
+        var preferred: [String: ReplacementRule] = [:]
+        for rule in rules.prefix(VocabularyLimits.maximumRules)
+            where rule.isValid
+        {
+            let key = rule.source.folding(
+                options: [.caseInsensitive, .diacriticInsensitive],
+                locale: .current
+            )
+            guard let existing = preferred[key] else {
+                preferred[key] = rule
+                continue
+            }
+            if ranksBefore(rule, existing) {
+                preferred[key] = rule
+            }
+        }
+        return preferred.values.sorted(by: ranksBefore)
+    }
+
+    public static func recordUsage(
+        ruleIDs: [UUID],
+        in rules: [ReplacementRule],
+        at date: Date = Date()
+    ) -> [ReplacementRule] {
+        let counts = Dictionary(
+            grouping: ruleIDs,
+            by: { $0 }
+        ).mapValues(\.count)
+        return rules.map { rule in
+            guard let increment = counts[rule.id] else { return rule }
+            var updated = rule
+            updated.usageCount = min(
+                1_000_000_000,
+                updated.usageCount + increment
+            )
+            updated.lastUsedAt = date
+            return updated
+        }
+    }
+
+    public static func ranksBefore(
+        _ lhs: ReplacementRule,
+        _ rhs: ReplacementRule
+    ) -> Bool {
+        if lhs.isStarred != rhs.isStarred {
+            return lhs.isStarred && !rhs.isStarred
+        }
+        if lhs.usageCount != rhs.usageCount {
+            return lhs.usageCount > rhs.usageCount
+        }
+        if lhs.source.count != rhs.source.count {
+            return lhs.source.count > rhs.source.count
+        }
+        let comparison = lhs.source.localizedStandardCompare(rhs.source)
+        if comparison != .orderedSame {
+            return comparison == .orderedAscending
+        }
+        return lhs.id.uuidString < rhs.id.uuidString
     }
 }
 
@@ -51,20 +345,26 @@ public enum VocabularyProcessor {
         rules: [ReplacementRule],
         locale: Locale = .current
     ) -> String {
-        let ordered = rules
-            .prefix(VocabularyLimits.maximumRules)
-            .filter(\.isValid)
-            .sorted {
-                if $0.source.count != $1.source.count {
-                    return $0.source.count > $1.source.count
-                }
-                let comparison = $0.source.localizedStandardCompare($1.source)
-                if comparison != .orderedSame {
-                    return comparison == .orderedAscending
-                }
-                return $0.id.uuidString < $1.id.uuidString
+        applyWithUsage(to: text, rules: rules, locale: locale).text
+    }
+
+    public static func applyWithUsage(
+        to text: String,
+        rules: [ReplacementRule],
+        locale: Locale = .current
+    ) -> VocabularyApplicationResult {
+        let ordered = VocabularyRanking.normalized(rules).sorted {
+            if $0.source.count != $1.source.count {
+                return $0.source.count > $1.source.count
             }
-        guard !ordered.isEmpty else { return text }
+            return VocabularyRanking.ranksBefore($0, $1)
+        }
+        guard !ordered.isEmpty else {
+            return VocabularyApplicationResult(
+                text: text,
+                matchedRuleIDs: []
+            )
+        }
 
         let alternatives = ordered.map {
             NSRegularExpression.escapedPattern(for: $0.source)
@@ -76,7 +376,10 @@ public enum VocabularyProcessor {
             pattern: pattern,
             options: [.caseInsensitive]
         ) else {
-            return text
+            return VocabularyApplicationResult(
+                text: text,
+                matchedRuleIDs: []
+            )
         }
 
         let original = text as NSString
@@ -85,6 +388,7 @@ public enum VocabularyProcessor {
             range: NSRange(location: 0, length: original.length)
         )
         let output = NSMutableString(string: text)
+        var matchedRuleIDs: [UUID] = []
         for match in matches.reversed() {
             let matched = original.substring(with: match.range)
             guard let rule = ordered.first(where: {
@@ -95,6 +399,7 @@ public enum VocabularyProcessor {
                     locale: locale
                 ) == .orderedSame
             }) else { continue }
+            matchedRuleIDs.append(rule.id)
             output.replaceCharacters(
                 in: match.range,
                 with: preserveCase(
@@ -104,7 +409,10 @@ public enum VocabularyProcessor {
                 )
             )
         }
-        return output as String
+        return VocabularyApplicationResult(
+            text: output as String,
+            matchedRuleIDs: Array(matchedRuleIDs.reversed())
+        )
     }
 
     private static func preserveCase(
@@ -305,7 +613,7 @@ public struct VocabularyStore: Sendable {
         guard rules.count <= VocabularyLimits.maximumRules else {
             throw VocabularyError.tooManyRules
         }
-        return rules.filter(\.isValid)
+        return VocabularyRanking.normalized(rules)
     }
 
     public func save(_ rules: [ReplacementRule]) throws {
@@ -322,7 +630,7 @@ public struct VocabularyStore: Sendable {
             [.posixPermissions: 0o700],
             ofItemAtPath: directory.path
         )
-        try VocabularyExporter.json(rules)
+        try VocabularyExporter.json(VocabularyRanking.normalized(rules))
             .write(to: url, options: [.atomic])
         try FileManager.default.setAttributes(
             [.posixPermissions: 0o600],

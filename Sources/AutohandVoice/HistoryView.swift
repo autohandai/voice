@@ -11,8 +11,10 @@ final class HistoryModel {
     var entries: [HistoryEntry] = []
     var query = ""
     var errorMessage: String?
+    var copiedEntryID: UUID?
 
     private let store = HistoryStore()
+    private let suggestionStore = VocabularySuggestionStore()
 
     init(session: VoiceSession) {
         self.session = session
@@ -43,7 +45,14 @@ final class HistoryModel {
         pasteboard.clearContents()
         if !pasteboard.setString(entry.text, forType: .string) {
             errorMessage = "Could not copy this transcript."
+        } else {
+            copiedEntryID = entry.id
         }
+    }
+
+    func retry(_ entry: HistoryEntry) {
+        session.retryHistoryEntryHere(entry)
+        refresh()
     }
 
     func delete(_ entry: HistoryEntry) {
@@ -64,6 +73,25 @@ final class HistoryModel {
         session.setHistoryEnabled(false)
         if deleteExisting {
             deleteAll()
+        }
+    }
+
+    func suggestCorrection(
+        for entry: HistoryEntry,
+        correctedText: String
+    ) {
+        do {
+            try suggestionStore.observeCorrection(
+                source: entry.text,
+                replacement: correctedText,
+                enabled:
+                    session.preferences.vocabularySuggestionsEnabled
+            )
+            errorMessage =
+                "Correction added for local review. It is not active yet."
+        } catch {
+            errorMessage =
+                "Could not save the suggestion: \(error.localizedDescription)"
         }
     }
 
@@ -100,6 +128,10 @@ struct HistoryView: View {
     @State private var confirmsDeleteAll = false
     @State private var exportsHistory = false
     @State private var exportDocument: HistoryExportDocument?
+    @State private var selectedEntryID: UUID?
+    @State private var correctionEntry: HistoryEntry?
+    @State private var correctedText = ""
+    @State private var revisionEntry: HistoryEntry?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -160,6 +192,44 @@ struct HistoryView: View {
         ) { result in
             model.reportExport(result)
         }
+        .sheet(item: $correctionEntry) { entry in
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Suggest a Local Correction")
+                    .font(.title2)
+                Text(
+                    "Edit the final text below. The pair is stored only as a pending suggestion and cannot change dictation until you confirm it in Vocabulary."
+                )
+                .foregroundStyle(.secondary)
+                TextEditor(text: $correctedText)
+                    .font(.body)
+                    .frame(minWidth: 480, minHeight: 180)
+                    .border(.quaternary)
+                HStack {
+                    Button("Cancel", role: .cancel) {
+                        correctionEntry = nil
+                    }
+                    Spacer()
+                    Button("Add for Review") {
+                        model.suggestCorrection(
+                            for: entry,
+                            correctedText: correctedText
+                        )
+                        correctionEntry = nil
+                    }
+                    .disabled(
+                        VocabularySuggestionPolicy.normalizedKey(
+                            correctedText
+                        ) == VocabularySuggestionPolicy.normalizedKey(
+                            entry.text
+                        )
+                    )
+                }
+            }
+            .padding(24)
+        }
+        .sheet(item: $revisionEntry) { entry in
+            HistoryRevisionInspector(entry: entry)
+        }
     }
 
     private var header: some View {
@@ -193,20 +263,45 @@ struct HistoryView: View {
             if model.filteredEntries.isEmpty {
                 ContentUnavailableView.search(text: model.query)
             } else {
-                List(model.filteredEntries) { entry in
+                List(
+                    model.filteredEntries,
+                    selection: $selectedEntryID
+                ) { entry in
                     HStack(alignment: .top, spacing: 12) {
                         VStack(alignment: .leading, spacing: 5) {
                             Text(entry.text)
                                 .lineLimit(3)
                                 .textSelection(.enabled)
-                            Text(
-                                "\(entry.createdAt.formatted(date: .abbreviated, time: .shortened)) · \(entry.outcome.label)"
-                            )
+                            Text(metadata(for: entry))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button("Copy") {
+                        if entry.outcome == .insertionFailed {
+                            Button("Retry Here") {
+                                model.retry(entry)
+                            }
+                        }
+                        if model.session.preferences
+                            .vocabularySuggestionsEnabled
+                        {
+                            Button("Suggest Correction") {
+                                correctedText = entry.text
+                                correctionEntry = entry
+                            }
+                        }
+                        if entry.rawFinal != nil,
+                           entry.revision != nil
+                        {
+                            Button("Revisions") {
+                                revisionEntry = entry
+                            }
+                        }
+                        Button(
+                            model.copiedEntryID == entry.id
+                                ? "Copied"
+                                : "Copy"
+                        ) {
                             model.copy(entry)
                         }
                         Button("Delete", role: .destructive) {
@@ -214,6 +309,7 @@ struct HistoryView: View {
                         }
                     }
                     .padding(.vertical, 4)
+                    .tag(entry.id)
                 }
                 .listStyle(.inset)
             }
@@ -250,13 +346,34 @@ struct HistoryView: View {
         ViewThatFits(in: .horizontal) {
             HStack {
                 retentionPicker
+                customRetentionStepper
                 maximumPicker
             }
             VStack(alignment: .leading) {
                 retentionPicker
+                customRetentionStepper
                 maximumPicker
             }
         }
+    }
+
+    private var customRetentionStepper: some View {
+        Stepper(
+            "Custom: \(model.session.preferences.historyRetentionDays) days",
+            value: Binding(
+                get: {
+                    model.session.preferences.historyRetentionDays
+                },
+                set: {
+                    model.session.setHistoryRetentionDays($0)
+                }
+            ),
+            in: 1 ... 365
+        )
+        .accessibilityLabel("Custom history retention in days")
+        .accessibilityValue(
+            "\(model.session.preferences.historyRetentionDays) days"
+        )
     }
 
     private var retentionPicker: some View {
@@ -271,6 +388,7 @@ struct HistoryView: View {
                 }
             )
         ) {
+            Text("24 hours").tag(1)
             Text("7 days").tag(7)
             Text("30 days").tag(30)
             Text("90 days").tag(90)
@@ -293,6 +411,33 @@ struct HistoryView: View {
             Text("500 entries").tag(500)
             Text("1,000 entries").tag(1_000)
         }
+    }
+
+    private func metadata(for entry: HistoryEntry) -> String {
+        var values = [
+            entry.createdAt.formatted(
+                date: .abbreviated,
+                time: .shortened
+            ),
+            entry.outcome.label,
+        ]
+        if let languageCode = entry.languageCode {
+            values.append(languageCode.uppercased())
+        }
+        if let duration = entry.duration {
+            values.append(
+                Duration.seconds(duration).formatted(
+                    .units(
+                        allowed: [.minutes, .seconds],
+                        width: .abbreviated
+                    )
+                )
+            )
+        }
+        if let failureCategory = entry.failureCategory {
+            values.append(failureCategory.code)
+        }
+        return values.joined(separator: " · ")
     }
 
     private var historyActions: some View {
@@ -323,5 +468,69 @@ struct HistoryView: View {
             confirmsDeleteAll = true
         }
         .disabled(model.entries.isEmpty)
+    }
+}
+
+private struct HistoryRevisionInspector: View {
+    let entry: HistoryEntry
+    @State private var showsRaw = false
+    @State private var copied = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Transcript Revisions")
+                .font(.title2)
+            Text(
+                showsRaw
+                    ? "Raw final · immutable recognition root"
+                    : revisionLabel
+            )
+            .foregroundStyle(.secondary)
+
+            ScrollView {
+                Text(displayedText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+                    .padding(12)
+            }
+            .frame(minWidth: 500, minHeight: 220)
+            .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
+
+            HStack {
+                Button("Undo to Raw Final") {
+                    showsRaw = true
+                    copied = false
+                }
+                .disabled(showsRaw || entry.rawFinal == nil)
+                Button("Redo Cleanup") {
+                    showsRaw = false
+                    copied = false
+                }
+                .disabled(!showsRaw || entry.revision == nil)
+                Spacer()
+                Button(copied ? "Copied" : "Copy This Revision") {
+                    NSPasteboard.general.clearContents()
+                    copied = NSPasteboard.general.setString(
+                        displayedText,
+                        forType: .string
+                    )
+                }
+            }
+        }
+        .padding(24)
+    }
+
+    private var displayedText: String {
+        if showsRaw {
+            return entry.rawFinal?.text ?? entry.text
+        }
+        return entry.revision?.text ?? entry.text
+    }
+
+    private var revisionLabel: String {
+        guard let revision = entry.revision else {
+            return "Stored final"
+        }
+        return "\(revision.kind.rawValue) · \(revision.policyVersion) · \(revision.changes.count) change\(revision.changes.count == 1 ? "" : "s")"
     }
 }

@@ -21,11 +21,13 @@ private func printUsage() {
       autohand-voice transcribe <audio-file>
       autohand-voice check [--json]
       autohand-voice model-check [--json]
+      autohand-voice reliability [show|path|reset|export <file>] [--json]
       autohand-voice config [show|path|reset|set <key> <value>]
       autohand-voice --version
 
     Run without a command to open the menu bar app.
-    The default shortcut is Control + Option + Space.
+    The default activation is long-press Fn.
+    Control + Option + Space remains the fallback shortcut.
     Speech recognition stays on-device; no remote fallback is available.
     """)
 }
@@ -81,6 +83,13 @@ private func runConfig(_ arguments: ArraySlice<String>) throws {
                 )
             }
             value.recordingMode = mode
+        case "function_key_long_press":
+            guard ["on", "off"].contains(raw) else {
+                throw CommandError.invalidArguments(
+                    "function_key_long_press must be on or off"
+                )
+            }
+            value.functionKeyLongPressEnabled = raw == "on"
         case "model":
             guard let variant = SpeechModelVariant(rawValue: raw) else {
                 throw CommandError.invalidArguments("model must be v2 or v3")
@@ -114,6 +123,16 @@ private func runConfig(_ arguments: ArraySlice<String>) throws {
                 )
             }
             value.playSounds = raw == "on"
+        case "live_preview":
+            guard ["on", "off"].contains(raw) else {
+                throw CommandError.invalidArguments(
+                    "live_preview must be on or off"
+                )
+            }
+            value.livePreviewEnabled = raw == "on"
+            if value.livePreviewEnabled {
+                value.showRecordingHUD = true
+            }
         default:
             throw CommandError.invalidArguments("unknown preference: \(key)")
         }
@@ -121,6 +140,88 @@ private func runConfig(_ arguments: ArraySlice<String>) throws {
         print("Updated \(key).")
     default:
         throw CommandError.invalidArguments("unknown config action: \(action)")
+    }
+}
+
+private func runReliability(
+    _ arguments: ArraySlice<String>
+) async throws {
+    let ledger = ReliabilityLedger()
+    let action = arguments.first ?? "show"
+
+    switch action {
+    case "show", "--json":
+        let now = Date()
+        let snapshot = try await ledger.snapshot(
+            DateInterval(
+                start: now.addingTimeInterval(
+                    -ReliabilityLedger.maximumAge
+                ),
+                end: now
+            ),
+            now: now
+        )
+        if action == "--json" || arguments.contains("--json") {
+            try printJSON(snapshot)
+        } else {
+            print("Reliability rows: \(snapshot.rows.count)")
+            for category in ReliabilityEventCategory.allCases {
+                let success = snapshot.count(
+                    category: category,
+                    outcome: .success
+                )
+                let failure = snapshot.count(
+                    category: category,
+                    outcome: .failure
+                )
+                let interrupted = snapshot.count(
+                    category: category,
+                    outcome: .interrupted
+                )
+                guard success + failure + interrupted > 0 else {
+                    continue
+                }
+                print(
+                    "\(category.rawValue): "
+                        + "\(success) success, "
+                        + "\(failure) failure, "
+                        + "\(interrupted) interrupted"
+                )
+            }
+        }
+    case "path":
+        guard arguments.count == 1 else {
+            throw CommandError.invalidArguments(
+                "reliability path does not accept additional arguments"
+            )
+        }
+        print(await ledger.url.path)
+    case "reset":
+        guard arguments.count == 1 else {
+            throw CommandError.invalidArguments(
+                "reliability reset does not accept additional arguments"
+            )
+        }
+        try await ledger.reset()
+        print("Reliability aggregates reset.")
+    case "export":
+        guard arguments.count == 2, let path = arguments.dropFirst().first else {
+            throw CommandError.invalidArguments(
+                "reliability export requires an output file"
+            )
+        }
+        let data = try await ledger.exportRedacted()
+        let outputURL = URL(fileURLWithPath: path)
+        try data.write(to: outputURL, options: .atomic)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o600],
+            ofItemAtPath: outputURL.path
+        )
+        print("Redacted reliability report exported.")
+    default:
+        throw CommandError.invalidArguments(
+            "unknown reliability action: \(action)"
+        )
     }
 }
 
@@ -223,6 +324,8 @@ struct AutohandVoiceCommand {
                     print("Valid: \(isValid)")
                 }
                 if !isValid { exit(EXIT_FAILURE) }
+            case "reliability":
+                try await runReliability(arguments.dropFirst())
             case "config":
                 try runConfig(arguments.dropFirst())
             case "--version", "version":

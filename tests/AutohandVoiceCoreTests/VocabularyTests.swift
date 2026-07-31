@@ -118,4 +118,120 @@ final class VocabularyTests: XCTestCase {
             XCTAssertEqual($0 as? VocabularyError, .tooManyRules)
         }
     }
+
+    func testStarredAndFrequentlyUsedDuplicateWinsDeterministically() {
+        let plain = ReplacementRule(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            source: "flow",
+            replacement: "plain",
+            usageCount: 100
+        )
+        let starred = ReplacementRule(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            source: "FLOW",
+            replacement: "priority",
+            isStarred: true,
+            usageCount: 1
+        )
+
+        let result = VocabularyProcessor.applyWithUsage(
+            to: "flow",
+            rules: [plain, starred]
+        )
+
+        XCTAssertEqual(result.text, "priority")
+        XCTAssertEqual(result.matchedRuleIDs, [starred.id])
+    }
+
+    func testNormalizationDeduplicatesAndUsageAccountingIsBounded() {
+        let first = ReplacementRule(
+            source: "auto hand",
+            replacement: "Autohand",
+            usageCount: 2
+        )
+        let preferred = ReplacementRule(
+            source: "AUTO HAND",
+            replacement: "Autohand Voice",
+            isStarred: true,
+            usageCount: 1
+        )
+
+        let normalized = VocabularyRanking.normalized([first, preferred])
+        XCTAssertEqual(normalized, [preferred])
+
+        let updated = VocabularyRanking.recordUsage(
+            ruleIDs: [preferred.id, preferred.id],
+            in: normalized,
+            at: Date(timeIntervalSince1970: 500)
+        )
+        XCTAssertEqual(updated.first?.usageCount, 3)
+        XCTAssertEqual(
+            updated.first?.lastUsedAt,
+            Date(timeIntervalSince1970: 500)
+        )
+    }
+
+    func testLegacyVocabularyDefaultsToUnstarredAndUnused() throws {
+        let data = Data(
+            """
+            [{
+              "id": "00000000-0000-0000-0000-000000000001",
+              "source": "auto hand",
+              "replacement": "Autohand"
+            }]
+            """.utf8
+        )
+
+        let decoded = try VocabularyImporter.json(data)
+
+        XCTAssertEqual(decoded.first?.isStarred, false)
+        XCTAssertEqual(decoded.first?.usageCount, 0)
+        XCTAssertNil(decoded.first?.lastUsedAt)
+    }
+
+    func testSuggestionsNormalizeApostrophesUnicodeAndCase() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = VocabularySuggestionStore(
+            url: directory.appendingPathComponent("suggestions.json")
+        )
+
+        try store.observeCorrection(
+            source: "DON’T",
+            replacement: "do not",
+            enabled: true,
+            at: Date(timeIntervalSince1970: 100)
+        )
+        try store.observeCorrection(
+            source: "don't",
+            replacement: "DO NOT",
+            enabled: true,
+            at: Date(timeIntervalSince1970: 200)
+        )
+
+        let suggestions = try store.load()
+        XCTAssertEqual(suggestions.count, 1)
+        XCTAssertEqual(suggestions.first?.observationCount, 2)
+        let permissions = try FileManager.default.attributesOfItem(
+            atPath: store.url.path
+        )[.posixPermissions] as? NSNumber
+        XCTAssertEqual(permissions?.intValue, 0o600)
+    }
+
+    func testDisabledLearningPersistsNoSuggestion() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+        let store = VocabularySuggestionStore(url: url)
+
+        try store.observeCorrection(
+            source: "auto hand",
+            replacement: "Autohand",
+            enabled: false
+        )
+
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: url.path)
+        )
+    }
 }

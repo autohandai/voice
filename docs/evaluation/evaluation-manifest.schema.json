@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/autohandai/voice/docs/evaluation/evaluation-manifest.schema.json",
+  "title": "Autohand Voice local evaluation manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "suiteID",
+    "createdAt",
+    "dataset",
+    "model",
+    "languages",
+    "refinementPolicy",
+    "privacy"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "suiteID": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]{1,64}$"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "license",
+        "source",
+        "manifestSHA256",
+        "sampleCount"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "source": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 2048
+        },
+        "manifestSHA256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "sampleCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "variant",
+        "artifactSHA256",
+        "executionDevice"
+      ],
+      "properties": {
+        "variant": {
+          "enum": [
+            "v2",
+            "v3"
+          ]
+        },
+        "artifactSHA256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "executionDevice": {
+          "const": "apple_neural_engine"
+        }
+      }
+    },
+    "languages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 25,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]{2}$"
+      }
+    },
+    "refinementPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "smartFormatting",
+        "dictionaryEnabled",
+        "remoteCleanupEnabled"
+      ],
+      "properties": {
+        "smartFormatting": {
+          "type": "boolean"
+        },
+        "dictionaryEnabled": {
+          "type": "boolean"
+        },
+        "remoteCleanupEnabled": {
+          "const": false
+        }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "licensedPublicDataOnly",
+        "containsUserData",
+        "recordingsCommitted",
+        "networkDisabled",
+        "remoteFallbackEnabled"
+      ],
+      "properties": {
+        "licensedPublicDataOnly": {
+          "const": true
+        },
+        "containsUserData": {
+          "const": false
+        },
+        "recordingsCommitted": {
+          "const": false
+        },
+        "networkDisabled": {
+          "const": true
+        },
+        "remoteFallbackEnabled": {
+          "const": false
+        }
+      }
+    }
+  }
+}

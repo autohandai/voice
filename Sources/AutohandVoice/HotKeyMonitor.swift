@@ -5,6 +5,8 @@ import Foundation
 private let autohandHotKeySignature: OSType = 0x4156_484B // AVHK
 private let autohandHotKeyID: UInt32 = 1
 private let autohandCancelHotKeyID: UInt32 = 2
+private let autohandScratchpadHotKeyID: UInt32 = 3
+private let autohandCustomHotKeyBaseID: UInt32 = 100
 
 private let autohandHotKeyHandler: EventHandlerUPP = {
     _, event, userData in
@@ -43,6 +45,9 @@ private let autohandHotKeyHandler: EventHandlerUPP = {
 final class HotKeyMonitor {
     private var hotKey: EventHotKeyRef?
     private var cancelHotKey: EventHotKeyRef?
+    private var scratchpadHotKey: EventHotKeyRef?
+    private var customHotKeys: [UInt32: EventHotKeyRef] = [:]
+    private var customBindings: [UInt32: InputBinding] = [:]
     private var eventHandler: EventHandlerRef?
     private let session: VoiceSession
 
@@ -79,12 +84,32 @@ final class HotKeyMonitor {
         let registerStatus = registerPrimary(session.preferences.shortcut)
         if registerStatus != noErr {
             stop()
+            return registerStatus
+        }
+        let customStatus = registerCustomBindings(
+            session.preferences.inputBindings
+        )
+        if customStatus != noErr {
+            stop()
+            return customStatus
+        }
+        if session.scratchpadEnabled {
+            let scratchpadStatus = registerScratchpad(
+                session.preferences.scratchpadShortcut
+            )
+            session.reportScratchpadShortcutRegistration(
+                scratchpadStatus
+            )
         }
         return registerStatus
     }
 
     func stop() {
         unregisterCancelHotKey()
+        unregisterCustomHotKeys()
+        if let scratchpadHotKey {
+            UnregisterEventHotKey(scratchpadHotKey)
+        }
         if let hotKey {
             UnregisterEventHotKey(hotKey)
         }
@@ -92,6 +117,7 @@ final class HotKeyMonitor {
             RemoveEventHandler(eventHandler)
         }
         hotKey = nil
+        scratchpadHotKey = nil
         eventHandler = nil
     }
 
@@ -112,6 +138,21 @@ final class HotKeyMonitor {
                 "The shortcut could not be restored (error \(restoreStatus))."
             )
         }
+        return status
+    }
+
+    func updateScratchpadShortcut(
+        _ shortcut: RegisteredShortcut
+    ) -> OSStatus {
+        guard shortcut.isValid else { return OSStatus(paramErr) }
+        let previous = session.preferences.scratchpadShortcut
+        if let scratchpadHotKey {
+            UnregisterEventHotKey(scratchpadHotKey)
+            self.scratchpadHotKey = nil
+        }
+        let status = registerScratchpad(shortcut)
+        guard status != noErr else { return noErr }
+        _ = registerScratchpad(previous)
         return status
     }
 
@@ -138,6 +179,30 @@ final class HotKeyMonitor {
             perform(.cancel)
             return
         }
+        if identifier == autohandScratchpadHotKeyID {
+            guard eventKind == UInt32(kEventHotKeyPressed) else { return }
+            session.openScratchpad()
+            return
+        }
+        if let binding = customBindings[identifier] {
+            let triggerEvent: InputTriggerEvent
+            switch eventKind {
+            case UInt32(kEventHotKeyPressed):
+                triggerEvent = .pressed
+            case UInt32(kEventHotKeyReleased):
+                triggerEvent = .released
+            default:
+                return
+            }
+            guard case let .keyboard(shortcut) = binding.trigger else {
+                return
+            }
+            session.handleKeyboardInput(
+                shortcut: shortcut,
+                event: triggerEvent
+            )
+            return
+        }
         guard identifier == autohandHotKeyID else { return }
 
         let event: ShortcutEvent
@@ -162,7 +227,7 @@ final class HotKeyMonitor {
         case .none:
             break
         case .start:
-            session.beginRecording()
+            session.beginRecording(origin: .shortcut)
             synchronizeCancellationHotKey()
         case .finish:
             unregisterCancelHotKey()
@@ -204,6 +269,76 @@ final class HotKeyMonitor {
         )
     }
 
+    private func registerScratchpad(
+        _ shortcut: RegisteredShortcut
+    ) -> OSStatus {
+        let identifier = EventHotKeyID(
+            signature: autohandHotKeySignature,
+            id: autohandScratchpadHotKeyID
+        )
+        return RegisterEventHotKey(
+            shortcut.keyCode,
+            carbonModifiers(shortcut.modifiers),
+            identifier,
+            GetApplicationEventTarget(),
+            OptionBits(0),
+            &scratchpadHotKey
+        )
+    }
+
+    func updateInputBindings(_ bindings: [InputBinding]) -> OSStatus {
+        let previous = customBindings.values.map { $0 }
+        unregisterCustomHotKeys()
+        let status = registerCustomBindings(bindings)
+        guard status != noErr else { return noErr }
+        unregisterCustomHotKeys()
+        _ = registerCustomBindings(previous)
+        return status
+    }
+
+    private func registerCustomBindings(
+        _ bindings: [InputBinding]
+    ) -> OSStatus {
+        let keyboardBindings = bindings.filter {
+            guard case .keyboard = $0.trigger else { return false }
+            return $0.action != .startStop
+        }
+        for (index, binding) in keyboardBindings.enumerated() {
+            guard case let .keyboard(shortcut) = binding.trigger else {
+                continue
+            }
+            let id = autohandCustomHotKeyBaseID + UInt32(index)
+            let identifier = EventHotKeyID(
+                signature: autohandHotKeySignature,
+                id: id
+            )
+            var reference: EventHotKeyRef?
+            let status = RegisterEventHotKey(
+                shortcut.keyCode,
+                carbonModifiers(shortcut.modifiers),
+                identifier,
+                GetApplicationEventTarget(),
+                OptionBits(0),
+                &reference
+            )
+            guard status == noErr, let reference else {
+                unregisterCustomHotKeys()
+                return status == noErr ? OSStatus(eventNotHandledErr) : status
+            }
+            customHotKeys[id] = reference
+            customBindings[id] = binding
+        }
+        return noErr
+    }
+
+    private func unregisterCustomHotKeys() {
+        for reference in customHotKeys.values {
+            UnregisterEventHotKey(reference)
+        }
+        customHotKeys.removeAll(keepingCapacity: true)
+        customBindings.removeAll(keepingCapacity: true)
+    }
+
     private func unregisterCancelHotKey() {
         if let cancelHotKey {
             UnregisterEventHotKey(cancelHotKey)
@@ -220,6 +355,24 @@ final class HotKeyMonitor {
         if status != noErr {
             session.reportFailure(
                 "The shortcut could not be re-registered (error \(status))."
+            )
+        }
+        if session.scratchpadEnabled {
+            if let scratchpadHotKey {
+                UnregisterEventHotKey(scratchpadHotKey)
+                self.scratchpadHotKey = nil
+            }
+            session.reportScratchpadShortcutRegistration(
+                registerScratchpad(session.preferences.scratchpadShortcut)
+            )
+        }
+        let customStatus = updateInputBindings(
+            session.preferences.inputBindings
+        )
+        if customStatus != noErr {
+            session.reportFailure(
+                "A keyboard binding could not be re-registered "
+                    + "(error \(customStatus))."
             )
         }
     }

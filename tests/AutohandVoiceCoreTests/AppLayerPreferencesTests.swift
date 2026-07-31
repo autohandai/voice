@@ -48,6 +48,31 @@ final class AppLayerPreferencesTests: XCTestCase {
         XCTAssertFalse(decoded.usageInsightsEnabled)
     }
 
+    func testMinimalContextDefaultsOffAndLocalDenylistIsBounded() throws {
+        let data = try JSONEncoder().encode(VoicePreferences())
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        object.removeValue(forKey: "minimalContextEnabled")
+        object.removeValue(forKey: "sensitiveAppDenylist")
+
+        let migrated = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+        XCTAssertFalse(migrated.minimalContextEnabled)
+        XCTAssertTrue(migrated.sensitiveAppDenylist.isEmpty)
+
+        let bounded = VoicePreferences(
+            minimalContextEnabled: true,
+            sensitiveAppDenylist: (0 ... 150).map {
+                "com.example.App\($0)"
+            }
+        )
+        XCTAssertTrue(bounded.minimalContextEnabled)
+        XCTAssertEqual(bounded.sensitiveAppDenylist.count, 128)
+    }
+
     func testSmartFormattingDefaultsOffForExistingPreferences() throws {
         let data = try JSONEncoder().encode(VoicePreferences())
         var object = try XCTUnwrap(
@@ -62,7 +87,38 @@ final class AppLayerPreferencesTests: XCTestCase {
         )
 
         XCTAssertFalse(decoded.smartFormattingEnabled)
+        XCTAssertEqual(decoded.cleanupLevel, .literal)
         XCTAssertTrue(decoded.automaticTerminalPunctuation)
+    }
+
+    func testLegacySmartFormattingMigratesToEquivalentCleanupLevel() throws {
+        let data = try JSONEncoder().encode(
+            VoicePreferences(smartFormattingEnabled: true)
+        )
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        object.removeValue(forKey: "cleanupLevel")
+
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertEqual(decoded.cleanupLevel, .medium)
+        XCTAssertTrue(decoded.smartFormattingEnabled)
+    }
+
+    func testCleanupLevelRoundTripsAndMaintainsLegacyCompatibilityBit() throws {
+        let expected = VoicePreferences(cleanupLevel: .light)
+
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONEncoder().encode(expected)
+        )
+
+        XCTAssertEqual(decoded.cleanupLevel, .light)
+        XCTAssertTrue(decoded.smartFormattingEnabled)
     }
 
     func testExistingPreferencesDecodeWithOnboardingIncomplete() throws {
@@ -122,6 +178,11 @@ final class AppLayerPreferencesTests: XCTestCase {
     func testSelectedAudioInputDeviceRoundTrips() throws {
         var expected = VoicePreferences()
         expected.audioInputDeviceUID = "BuiltInMicrophoneDevice"
+        expected.audioInputDevicePriority = [
+            "StudioUSB",
+            "BuiltInMicrophoneDevice",
+        ]
+        expected.automaticAudioHandoffEnabled = true
 
         let decoded = try JSONDecoder().decode(
             VoicePreferences.self,
@@ -129,5 +190,45 @@ final class AppLayerPreferencesTests: XCTestCase {
         )
 
         XCTAssertEqual(decoded, expected)
+    }
+
+    func testExistingSingleMicrophoneMigratesIntoRankedPolicy() throws {
+        let data = try JSONEncoder().encode(VoicePreferences())
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        object["audioInputDeviceUID"] = "ExistingMicrophone"
+        object.removeValue(forKey: "audioInputDevicePriority")
+        object.removeValue(forKey: "automaticAudioHandoffEnabled")
+
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertEqual(
+            decoded.audioInputDevicePriority,
+            ["ExistingMicrophone"]
+        )
+        XCTAssertFalse(decoded.automaticAudioHandoffEnabled)
+    }
+
+    func testExistingPreferencesGainSafeHUDPresentationDefaults() throws {
+        let data = try JSONEncoder().encode(VoicePreferences())
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        object.removeValue(forKey: "recordingHUDMode")
+        object.removeValue(forKey: "recordingHUDOpacity")
+        object.removeValue(forKey: "recordingHUDPlacements")
+
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertEqual(decoded.recordingHUDMode, .automatic)
+        XCTAssertEqual(decoded.recordingHUDOpacity, 0.8)
+        XCTAssertTrue(decoded.recordingHUDPlacements.isEmpty)
     }
 }

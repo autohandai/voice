@@ -8,15 +8,30 @@ import UniformTypeIdentifiers
 @Observable
 final class VocabularySettingsModel {
     private(set) var rules: [ReplacementRule] = []
+    private(set) var suggestions: [VocabularySuggestion] = []
     var source = ""
     var replacement = ""
     var testInput = ""
     private(set) var message: String?
     @ObservationIgnored private let store: VocabularyStore
+    @ObservationIgnored private let suggestionStore:
+        VocabularySuggestionStore
+    @ObservationIgnored private weak var session: VoiceSession?
 
-    init(store: VocabularyStore = VocabularyStore()) {
+    init(
+        session: VoiceSession? = nil,
+        store: VocabularyStore = VocabularyStore(),
+        suggestionStore: VocabularySuggestionStore =
+            VocabularySuggestionStore()
+    ) {
+        self.session = session
         self.store = store
+        self.suggestionStore = suggestionStore
         reload()
+    }
+
+    var suggestionsEnabled: Bool {
+        session?.preferences.vocabularySuggestionsEnabled ?? false
     }
 
     var testOutput: String {
@@ -61,6 +76,76 @@ final class VocabularySettingsModel {
     func delete(at offsets: IndexSet) {
         rules.remove(atOffsets: offsets)
         save(message: "Replacement deleted.")
+    }
+
+    func toggleStar(_ rule: ReplacementRule) {
+        guard let index = rules.firstIndex(where: { $0.id == rule.id }) else {
+            return
+        }
+        rules[index].isStarred.toggle()
+        rules.sort(by: Self.sortRules)
+        save(
+            message: rules.first(where: { $0.id == rule.id })?.isStarred == true
+                ? "Replacement starred."
+                : "Replacement unstarred."
+        )
+    }
+
+    func setSuggestionsEnabled(_ enabled: Bool) {
+        session?.setVocabularySuggestionsEnabled(enabled)
+        if !enabled {
+            do {
+                try suggestionStore.save([])
+                suggestions = []
+                message = "Local vocabulary suggestions are off and cleared."
+            } catch {
+                message =
+                    "Suggestions could not be cleared: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    func acceptSuggestion(_ suggestion: VocabularySuggestion) {
+        guard
+            rules.count < VocabularyLimits.maximumRules,
+            !containsSource(suggestion.source)
+        else {
+            dismissSuggestion(suggestion)
+            message =
+                "That spoken phrase already has an active replacement."
+            return
+        }
+        let rule = ReplacementRule(
+            source: suggestion.source,
+            replacement: suggestion.replacement
+        )
+        guard rule.isValid else {
+            dismissSuggestion(suggestion)
+            return
+        }
+        do {
+            var updated = rules
+            updated.append(rule)
+            try store.save(updated)
+            try suggestionStore.remove(suggestion.id)
+            rules = updated.sorted(by: Self.sortRules)
+            suggestions.removeAll { $0.id == suggestion.id }
+            message = "Suggestion confirmed and activated."
+        } catch {
+            message =
+                "Suggestion could not be activated: \(error.localizedDescription)"
+        }
+    }
+
+    func dismissSuggestion(_ suggestion: VocabularySuggestion) {
+        do {
+            try suggestionStore.remove(suggestion.id)
+            suggestions.removeAll { $0.id == suggestion.id }
+            message = "Suggestion dismissed."
+        } catch {
+            message =
+                "Suggestion could not be dismissed: \(error.localizedDescription)"
+        }
     }
 
     func importFile(_ url: URL) {
@@ -135,12 +220,14 @@ final class VocabularySettingsModel {
         message = "Import failed: \(error.localizedDescription)"
     }
 
-    private func reload() {
+    func reload() {
         do {
             rules = try store.load().sorted(by: Self.sortRules)
+            suggestions = try suggestionStore.load()
             message = nil
         } catch {
             rules = []
+            suggestions = []
             message = "Vocabulary could not be loaded: \(error.localizedDescription)"
         }
     }
@@ -175,7 +262,7 @@ final class VocabularySettingsModel {
         _ lhs: ReplacementRule,
         _ rhs: ReplacementRule
     ) -> Bool {
-        lhs.source.localizedStandardCompare(rhs.source) == .orderedAscending
+        VocabularyRanking.ranksBefore(lhs, rhs)
     }
 }
 

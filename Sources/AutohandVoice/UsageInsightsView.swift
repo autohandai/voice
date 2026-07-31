@@ -1,3 +1,4 @@
+import AppKit
 import AutohandVoiceCore
 import Charts
 import Observation
@@ -8,9 +9,12 @@ import SwiftUI
 final class UsageInsightsModel {
     let session: VoiceSession
     var days: [UsageInsightDay] = []
+    var retainedHistory: [HistoryEntry] = []
     var errorMessage: String?
 
     private let store = UsageInsightsStore()
+    private let historyStore = HistoryStore()
+    @ObservationIgnored private var sharingPicker: NSSharingServicePicker?
 
     init(session: VoiceSession) {
         self.session = session
@@ -28,9 +32,28 @@ final class UsageInsightsModel {
         Array(days.prefix(30).reversed())
     }
 
+    var streak: UsageStreak {
+        UsageStreak(days: days)
+    }
+
+    var voiceProfile: LocalVoiceProfileResult {
+        LocalVoiceProfileAnalyzer.analyze(retainedHistory)
+    }
+
     func refresh() {
         do {
             days = try store.load()
+            if session.advancedInsightsEnabled,
+               session.preferences.historyEnabled {
+                retainedHistory = try historyStore.load(
+                    retentionDays:
+                        session.preferences.historyRetentionDays,
+                    maximumItems:
+                        session.preferences.historyMaximumItems
+                )
+            } else {
+                retainedHistory = []
+            }
             errorMessage = session.usageInsightsError
         } catch {
             days = []
@@ -53,6 +76,35 @@ final class UsageInsightsModel {
             errorMessage =
                 "Could not reset usage insights: \(error.localizedDescription)"
         }
+    }
+
+    func shareCard() {
+        let card = InsightsShareCard(
+            summary: summary,
+            streak: streak
+        )
+        guard
+            let rendered = InsightsShareCardRenderer.render(card),
+            let data = InsightsShareCardRenderer.pngData(rendered),
+            let auditedImage = NSImage(data: data),
+            let view = NSApp.keyWindow?.contentView
+        else {
+            errorMessage =
+                "The local share card could not pass its metadata audit."
+            return
+        }
+        let picker = NSSharingServicePicker(items: [auditedImage])
+        sharingPicker = picker
+        picker.show(
+            relativeTo: NSRect(
+                x: view.bounds.midX,
+                y: view.bounds.maxY,
+                width: 1,
+                height: 1
+            ),
+            of: view,
+            preferredEdge: .maxY
+        )
     }
 }
 
@@ -78,6 +130,9 @@ struct UsageInsightsView: View {
                 } else {
                     summary
                     dailyChart
+                    if model.session.advancedInsightsEnabled {
+                        advancedInsights
+                    }
                     dailyTable
                 }
             } else {
@@ -193,6 +248,15 @@ struct UsageInsightsView: View {
                 confirmsReset = true
             }
             .disabled(model.days.isEmpty)
+            if model.session.advancedInsightsEnabled {
+                Button("Share Local Summary…") {
+                    model.shareCard()
+                }
+                .disabled(model.days.isEmpty)
+                .accessibilityHint(
+                    "Opens the macOS share sheet. Autohand Voice never posts automatically."
+                )
+            }
         }
     }
 
@@ -258,6 +322,112 @@ struct UsageInsightsView: View {
         }
         .frame(minHeight: 170)
         .accessibilityLabel("Daily usage data table")
+    }
+
+    private var advancedInsights: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Advanced Local Insights")
+                .font(.headline)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 28) {
+                    advancedMetrics
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    advancedMetrics
+                }
+            }
+
+            HStack(alignment: .top, spacing: 30) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("App categories")
+                        .font(.subheadline.weight(.semibold))
+                    ForEach(
+                        UsageAppCategory.allCases,
+                        id: \.self
+                    ) { category in
+                        let count =
+                            model.summary.appCategoryCounts[category] ?? 0
+                        if count > 0 {
+                            LabeledContent(
+                                category.rawValue.capitalized,
+                                value: count.formatted()
+                            )
+                        }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Voice view")
+                        .font(.subheadline.weight(.semibold))
+                    voiceProfileContent
+                }
+            }
+
+            Text(
+                "Advanced metrics use bounded local counters. Voice view appears only from retained History after 2,000 words and labels its deterministic method."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private var advancedMetrics: some View {
+        summaryItem(
+            "Words per minute",
+            model.summary.wordsPerMinute.formatted(
+                .number.precision(.fractionLength(0))
+            )
+        )
+        summaryItem(
+            "Cleanup changes",
+            model.summary.cleanupChangeCount.formatted()
+        )
+        summaryItem(
+            "Vocabulary matches",
+            model.summary.vocabularyMatchCount.formatted()
+        )
+        summaryItem(
+            "Current streak",
+            "\(model.streak.currentDays.formatted()) days"
+        )
+        summaryItem(
+            "Longest streak",
+            "\(model.streak.longestDays.formatted()) days"
+        )
+    }
+
+    @ViewBuilder
+    private var voiceProfileContent: some View {
+        switch model.voiceProfile {
+        case let .insufficientWords(current, required):
+            Text(
+                "\(current.formatted()) of \(required.formatted()) retained words"
+            )
+            .foregroundStyle(.secondary)
+        case let .available(profile):
+            if profile.mostCorrectedTerms.isEmpty {
+                Text("No repeated correction pattern")
+            } else {
+                Text(
+                    "Most corrected: "
+                        + profile.mostCorrectedTerms.joined(separator: ", ")
+                )
+            }
+            if !profile.activeHours.isEmpty {
+                Text(
+                    "Most active hours: "
+                        + profile.activeHours.map {
+                            String(format: "%02d:00", $0)
+                        }.joined(separator: ", ")
+                )
+            }
+            Text(profile.methodDescription)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var chartSummary: String {

@@ -27,13 +27,18 @@ public enum RegisteredShortcutError: LocalizedError, Equatable {
     }
 }
 
-public struct RegisteredShortcut: Codable, Equatable, Sendable {
+public struct RegisteredShortcut: Codable, Equatable, Hashable, Sendable {
     public let keyCode: UInt32
     public let modifiers: ShortcutModifiers
 
     public static let controlOptionSpace = Self(
         keyCode: 49,
         modifiers: [.control, .option]
+    )
+
+    public static let optionS = Self(
+        keyCode: 1,
+        modifiers: [.option]
     )
 
     public init(keyCode: UInt32, modifiers: ShortcutModifiers) {

@@ -32,7 +32,7 @@ public final class TextInsertionTarget {
 @MainActor
 protocol TextInsertionDriving: AnyObject {
     func hasAccessibilityPermission(prompt: Bool) -> Bool
-    func captureTarget() -> TextInsertionTarget?
+    func captureTarget(contextScalarLimit: Int) -> TextInsertionTarget?
     func insertSelectedText(
         _ text: String,
         target: TextInsertionTarget
@@ -41,6 +41,28 @@ protocol TextInsertionDriving: AnyObject {
         _ text: String,
         target: TextInsertionTarget
     ) -> PasteInsertionResult
+    func insertUnicodeText(
+        _ text: String,
+        target: TextInsertionTarget
+    ) -> DirectInsertionResult
+    func sendEnter(
+        target: TextInsertionTarget
+    ) -> DirectInsertionResult
+}
+
+extension TextInsertionDriving {
+    func insertUnicodeText(
+        _ text: String,
+        target: TextInsertionTarget
+    ) -> DirectInsertionResult {
+        .unsupported
+    }
+
+    func sendEnter(
+        target: TextInsertionTarget
+    ) -> DirectInsertionResult {
+        .unsupported
+    }
 }
 
 @MainActor
@@ -59,8 +81,15 @@ public struct TextInserter {
         driver.hasAccessibilityPermission(prompt: prompt)
     }
 
-    public func captureTarget() -> TextInsertionTarget? {
-        driver.captureTarget()
+    public func captureTarget(
+        contextScalarLimit: Int = 0
+    ) -> TextInsertionTarget? {
+        driver.captureTarget(
+            contextScalarLimit: min(
+                max(contextScalarLimit, 0),
+                SensitiveContextPolicy.maximumScalars
+            )
+        )
     }
 
     public func commit(
@@ -97,23 +126,67 @@ public struct TextInserter {
             guard let target else {
                 throw VoiceError.noFocusedTextField
             }
-            switch driver.insertSelectedText(text, target: target) {
-            case .inserted:
-                return
-            case .noFocusedElement:
-                throw VoiceError.noFocusedTextField
-            case .focusMoved:
-                throw VoiceError.insertionTargetChanged
-            case .unsupported:
-                switch driver.pastePreservingClipboard(text, target: target) {
-                case .inserted:
-                    return
-                case .focusMoved:
-                    throw VoiceError.insertionTargetChanged
-                case .failed:
-                    throw VoiceError.textInsertionFailed
+            if target.context.targetDescriptor.isSecureField {
+                throw VoiceError.sensitiveTarget(.secureField)
+            }
+            let plan = TextInsertionPlanSelector.plan(for: target.context)
+            for strategy in plan.strategies {
+                switch strategy {
+                case .clipboardPreservingPaste:
+                    switch driver.pastePreservingClipboard(
+                        text,
+                        target: target
+                    ) {
+                    case .inserted:
+                        return
+                    case .focusMoved:
+                        throw VoiceError.insertionTargetChanged
+                    case .failed:
+                        continue
+                    }
+                case .accessibilitySelectedText:
+                    switch driver.insertSelectedText(text, target: target) {
+                    case .inserted:
+                        return
+                    case .noFocusedElement:
+                        throw VoiceError.noFocusedTextField
+                    case .focusMoved:
+                        throw VoiceError.insertionTargetChanged
+                    case .unsupported:
+                        continue
+                    }
+                case .unicodeEvents:
+                    switch driver.insertUnicodeText(text, target: target) {
+                    case .inserted:
+                        return
+                    case .noFocusedElement:
+                        throw VoiceError.noFocusedTextField
+                    case .focusMoved:
+                        throw VoiceError.insertionTargetChanged
+                    case .unsupported:
+                        continue
+                    }
                 }
             }
+            throw VoiceError.textInsertionFailed
+        }
+    }
+
+    public func commitExplicitEnter(
+        target: TextInsertionTarget
+    ) throws {
+        guard !target.context.targetDescriptor.isSecureField else {
+            throw VoiceError.sensitiveTarget(.secureField)
+        }
+        switch driver.sendEnter(target: target) {
+        case .inserted:
+            return
+        case .focusMoved:
+            throw VoiceError.insertionTargetChanged
+        case .noFocusedElement:
+            throw VoiceError.noFocusedTextField
+        case .unsupported:
+            throw VoiceError.textInsertionFailed
         }
     }
 }
@@ -127,7 +200,7 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
         return AXIsProcessTrustedWithOptions(options)
     }
 
-    func captureTarget() -> TextInsertionTarget? {
+    func captureTarget(contextScalarLimit: Int) -> TextInsertionTarget? {
         guard let element = focusedElement() else { return nil }
         var processID: pid_t = 0
         guard AXUIElementGetPid(element, &processID) == .success else {
@@ -137,6 +210,11 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
             element,
             name: kAXSelectedTextRangeAttribute
         )
+        let role = attribute(element, name: kAXRoleAttribute) as? String
+        let subrole = attribute(element, name: kAXSubroleAttribute) as? String
+        let isProtectedContent = (
+            attribute(element, name: "AXProtectedContent") as? NSNumber
+        )?.boolValue ?? false
         return TextInsertionTarget(
             storage: SystemInsertionTarget(
                 element: element,
@@ -146,7 +224,11 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
             context: insertionContext(
                 element: element,
                 processID: processID,
-                selectedRange: selectedRange
+                selectedRange: selectedRange,
+                role: role,
+                subrole: subrole,
+                contextScalarLimit: contextScalarLimit,
+                isProtectedContent: isProtectedContent
             )
         )
     }
@@ -205,13 +287,98 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
         }
         keyDown.flags = .maskCommand
         keyUp.flags = .maskCommand
+
+        guard targetIsStillFocused(systemTarget) else {
+            snapshot.restore(to: pasteboard)
+            return .focusMoved
+        }
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
             guard pasteboard.changeCount == temporaryChangeCount else { return }
             snapshot.restore(to: pasteboard)
         }
+        return .inserted
+    }
+
+    func insertUnicodeText(
+        _ text: String,
+        target: TextInsertionTarget
+    ) -> DirectInsertionResult {
+        guard let systemTarget = target.storage as? SystemInsertionTarget else {
+            return .noFocusedElement
+        }
+        let utf16 = Array(text.utf16)
+        let maximumUnitsPerEvent = 16
+        var offset = 0
+        while offset < utf16.count {
+            let targetRemainsValid = offset == 0
+                ? targetIsStillFocused(systemTarget)
+                : targetIsSameElement(systemTarget)
+            guard targetRemainsValid else {
+                return .focusMoved
+            }
+            let end = min(offset + maximumUnitsPerEvent, utf16.count)
+            let chunk = Array(utf16[offset ..< end])
+            guard
+                let keyDown = CGEvent(
+                    keyboardEventSource: nil,
+                    virtualKey: 0,
+                    keyDown: true
+                ),
+                let keyUp = CGEvent(
+                    keyboardEventSource: nil,
+                    virtualKey: 0,
+                    keyDown: false
+                )
+            else {
+                return .unsupported
+            }
+            chunk.withUnsafeBufferPointer { buffer in
+                guard let baseAddress = buffer.baseAddress else { return }
+                keyDown.keyboardSetUnicodeString(
+                    stringLength: buffer.count,
+                    unicodeString: baseAddress
+                )
+            }
+            guard targetIsSameElement(systemTarget) else {
+                return .focusMoved
+            }
+            keyDown.post(tap: .cghidEventTap)
+            keyUp.post(tap: .cghidEventTap)
+            offset = end
+        }
+        return .inserted
+    }
+
+    func sendEnter(
+        target: TextInsertionTarget
+    ) -> DirectInsertionResult {
+        guard let systemTarget = target.storage as? SystemInsertionTarget else {
+            return .noFocusedElement
+        }
+        guard targetIsSameElement(systemTarget) else {
+            return .focusMoved
+        }
+        guard
+            let keyDown = CGEvent(
+                keyboardEventSource: nil,
+                virtualKey: 36,
+                keyDown: true
+            ),
+            let keyUp = CGEvent(
+                keyboardEventSource: nil,
+                virtualKey: 36,
+                keyDown: false
+            )
+        else {
+            return .unsupported
+        }
+        guard targetIsSameElement(systemTarget) else {
+            return .focusMoved
+        }
+        keyDown.post(tap: .cghidEventTap)
+        keyUp.post(tap: .cghidEventTap)
         return .inserted
     }
 
@@ -233,19 +400,31 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
     private func targetIsStillFocused(
         _ target: SystemInsertionTarget
     ) -> Bool {
-        guard let current = focusedElement() else { return false }
-        var processID: pid_t = 0
         guard
-            AXUIElementGetPid(current, &processID) == .success,
-            processID == target.processID,
-            CFEqual(current, target.element)
-        else {
-            return false
-        }
+            let current = focusedElement(),
+            currentMatches(current, target: target)
+        else { return false }
         return equal(
             target.selectedRange,
             attribute(current, name: kAXSelectedTextRangeAttribute)
         )
+    }
+
+    private func targetIsSameElement(
+        _ target: SystemInsertionTarget
+    ) -> Bool {
+        guard let current = focusedElement() else { return false }
+        return currentMatches(current, target: target)
+    }
+
+    private func currentMatches(
+        _ current: AXUIElement,
+        target: SystemInsertionTarget
+    ) -> Bool {
+        var processID: pid_t = 0
+        return AXUIElementGetPid(current, &processID) == .success
+            && processID == target.processID
+            && CFEqual(current, target.element)
     }
 
     private func attribute(
@@ -266,7 +445,11 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
     private func insertionContext(
         element: AXUIElement,
         processID: pid_t,
-        selectedRange: CFTypeRef?
+        selectedRange: CFTypeRef?,
+        role: String?,
+        subrole: String?,
+        contextScalarLimit: Int,
+        isProtectedContent: Bool
     ) -> TextInsertionContext {
         guard
             let selectedRange,
@@ -276,7 +459,10 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
             return .init(
                 appBundleIdentifier: NSRunningApplication(
                     processIdentifier: processID
-                )?.bundleIdentifier
+                )?.bundleIdentifier,
+                accessibilityRole: role,
+                accessibilitySubrole: subrole,
+                isProtectedContent: isProtectedContent
             )
         }
         var range = CFRange()
@@ -286,6 +472,17 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
             &range
         ) else {
             return .unknown
+        }
+        guard contextScalarLimit > 0 else {
+            return TextInsertionContext(
+                hasSelection: range.length > 0,
+                appBundleIdentifier: NSRunningApplication(
+                    processIdentifier: processID
+                )?.bundleIdentifier,
+                accessibilityRole: role,
+                accessibilitySubrole: subrole,
+                isProtectedContent: isProtectedContent
+            )
         }
         let count = (
             attribute(element, name: kAXNumberOfCharactersAttribute)
@@ -316,7 +513,10 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
             } ?? false,
             appBundleIdentifier: NSRunningApplication(
                 processIdentifier: processID
-            )?.bundleIdentifier
+            )?.bundleIdentifier,
+            accessibilityRole: role,
+            accessibilitySubrole: subrole,
+            isProtectedContent: isProtectedContent
         )
     }
 

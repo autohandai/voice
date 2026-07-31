@@ -19,8 +19,8 @@ final class SettingsWindowController: NSWindowController {
             .miniaturizable,
             .resizable,
         ]
-        window.setContentSize(NSSize(width: 760, height: 540))
-        window.minSize = NSSize(width: 680, height: 480)
+        window.setContentSize(NSSize(width: 860, height: 620))
+        window.minSize = NSSize(width: 760, height: 560)
         window.isReleasedWhenClosed = false
         window.setFrameAutosaveName("AutohandVoiceSettings")
         super.init(window: window)

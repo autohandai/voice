@@ -2,15 +2,33 @@ import AudioToolbox
 import CoreAudio
 import Foundation
 
+public enum AudioInputDeviceKind: String, Codable, CaseIterable, Sendable {
+    case builtIn = "built_in"
+    case usb
+    case bluetooth
+    case aggregate
+    case virtual
+    case wired
+    case network
+    case unknown
+}
+
 public struct AudioInputDevice: Identifiable, Equatable, Sendable {
     public let id: String
     public let name: String
     public let isSystemDefault: Bool
+    public let kind: AudioInputDeviceKind
 
-    public init(id: String, name: String, isSystemDefault: Bool) {
+    public init(
+        id: String,
+        name: String,
+        isSystemDefault: Bool,
+        kind: AudioInputDeviceKind = .unknown
+    ) {
         self.id = id
         self.name = name
         self.isSystemDefault = isSystemDefault
+        self.kind = kind
     }
 }
 
@@ -138,7 +156,8 @@ public enum AudioInputDevices {
                     deviceID,
                     selector: kAudioObjectPropertyName
                 ),
-                isSystemDefault: deviceID == defaultID
+                isSystemDefault: deviceID == defaultID,
+                kind: (try? transportKind(deviceID)) ?? .unknown
             )
         }
         .sorted {
@@ -232,6 +251,41 @@ public enum AudioInputDevices {
             as: CFString.self
         )
         return value as String
+    }
+
+    private static func transportKind(
+        _ deviceID: AudioDeviceID
+    ) throws -> AudioInputDeviceKind {
+        let transport = try property(
+            objectID: deviceID,
+            selector: kAudioDevicePropertyTransportType,
+            scope: kAudioObjectPropertyScopeGlobal,
+            as: UInt32.self
+        )
+        switch transport {
+        case kAudioDeviceTransportTypeBuiltIn:
+            return .builtIn
+        case kAudioDeviceTransportTypeUSB:
+            return .usb
+        case kAudioDeviceTransportTypeBluetooth,
+             kAudioDeviceTransportTypeBluetoothLE:
+            return .bluetooth
+        case kAudioDeviceTransportTypeAggregate:
+            return .aggregate
+        case kAudioDeviceTransportTypeVirtual:
+            return .virtual
+        case kAudioDeviceTransportTypePCI,
+             kAudioDeviceTransportTypeFireWire,
+             kAudioDeviceTransportTypeThunderbolt,
+             kAudioDeviceTransportTypeHDMI,
+             kAudioDeviceTransportTypeDisplayPort:
+            return .wired
+        case kAudioDeviceTransportTypeAirPlay,
+             kAudioDeviceTransportTypeAVB:
+            return .network
+        default:
+            return .unknown
+        }
     }
 
     private static func property<Value>(
