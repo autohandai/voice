@@ -70,16 +70,26 @@ jobs:
           test -n "$dmg_path"
           sha_path="${dmg_path}.sha256"
           test -f "$sha_path"
-          notes="This is an **ad-hoc signed, unsigned DMG**. It has not been notarized by Apple. Gatekeeper will warn when you open it. To run it, right-click the DMG and choose **Open**, or remove the quarantine attribute with:\n\n\`\`\`\nxattr -dr com.apple.quarantine \"$(basename "$dmg_path")\"\n\`\`\`"
-          gh release edit "$tag" \
-            --title "Autohand Voice — Unsigned (latest)" \
-            --notes "$notes" \
-            --prerelease \
-            --force || \
+          notes_file="$(mktemp)"
+          {
+            printf '%s\n\n' "This is an **ad-hoc signed, unsigned DMG**. It has not been notarized by Apple. Gatekeeper will warn when you open it. To run it, right-click the DMG and choose **Open**, or remove the quarantine attribute with:"
+            printf '```\n'
+            printf 'xattr -dr com.apple.quarantine "%s"\n' "$(basename "$dmg_path")"
+            printf '```\n'
+          } > "$notes_file"
+
+          # Roll the release forward: delete any prior unsigned-latest (and
+          # its tag) so the new one always has exactly this run's DMG
+          # attached, then recreate it fresh. `gh release edit` has no
+          # `--force` flag, so it cannot update an existing release in place.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release delete "$tag" --yes --cleanup-tag
+          fi
+
           gh release create "$tag" \
             "$dmg_path" \
             "$sha_path" \
             dist/THIRD-PARTY-NOTICES.txt \
             --title "Autohand Voice — Unsigned (latest)" \
-            --notes "$notes" \
+            --notes-file "$notes_file" \
             --prerelease
