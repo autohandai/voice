@@ -6,7 +6,7 @@ public enum Brand {
     public static let helperName = "autohand-voice-stt"
     public static let bundleIdentifier = "ai.autohand.voice"
     public static let environmentPrefix = "AUTOHAND_VOICE_"
-    public static let version = "1.0.0"
+    public static let version = "0.1.0"
     public static let websiteURL = URL(string: "https://autohand.ai/")!
     public static let companyURL = URL(
         string: "https://autohand.ai/company"
