@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allowList": [
-      "run_command:ls /Users/igorcosta/Documents/autohand/voice/scripts/"
-    ]
-  },
-  "version": 1
-}
