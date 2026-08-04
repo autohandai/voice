@@ -26,6 +26,17 @@ cloud fallback.
 
 ## Build and install
 
+The fastest way to try Autohand Voice: download the
+[latest unsigned build](https://github.com/autohandai/voice/releases/tag/unsigned-latest)
+DMG, open it, and drag the app to Applications. It is ad-hoc signed, not
+notarized, so Gatekeeper will warn on first launch — right-click the app and
+choose **Open**, or run `xattr -dr com.apple.quarantine "/Applications/Autohand Voice.app"`.
+It rebuilds automatically from `main` on every push; see
+[Releasing](docs/releasing.md) for how it differs from a tagged, notarized
+release.
+
+To build from source instead:
+
 ```bash
 git clone https://github.com/autohandai/voice.git
 cd voice

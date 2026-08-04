@@ -1,0 +1,1 @@
+{"version":1,"eventId":"d001462e-52f4-4b27-81be-4c7b4b35951f","operation":"capability_used","level":"project","capability":{"kind":"slash_command","name":"/clear","source":"core"},"origin":"user","outcome":"succeeded","occurredAt":"2026-08-04T02:16:47.731Z"}

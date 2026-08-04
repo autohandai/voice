@@ -1,0 +1,85 @@
+name: Unsigned Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: unsigned-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Build and publish unsigned DMG
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    env:
+      AUTOHAND_VOICE_BUILD_NUMBER: ${{ github.run_number }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Verify Apple Silicon runner
+        run: test "$(uname -m)" = "arm64"
+
+      - name: Run Swift tests
+        run: swift test
+
+      - name: Build release executables
+        run: swift build -c release
+
+      - name: Verify local-only system contract
+        run: ./.build/release/autohand-voice check --json
+
+      - name: Build app bundle
+        run: ./scripts/build-app.sh
+
+      - name: Build installable disk image
+        env:
+          AUTOHAND_VOICE_SKIP_APP_BUILD: "1"
+        run: ./scripts/build-installer.sh
+
+      - name: Verify app signature and architecture
+        run: |
+          codesign --verify --deep --strict --verbose=2 "dist/Autohand Voice.app"
+          test "$(lipo -archs "dist/Autohand Voice.app/Contents/MacOS/autohand-voice")" = "arm64"
+          test "$(lipo -archs "dist/Autohand Voice.app/Contents/MacOS/autohand-voice-stt")" = "arm64"
+
+      - name: Compute checksum
+        run: |
+          (
+            cd dist
+            dmg="$(find . -maxdepth 1 -name '*.dmg' -print -quit)"
+            test -n "$dmg"
+            shasum -a 256 "$(basename "$dmg")" > "$(basename "$dmg").sha256"
+          )
+
+      - name: Publish unsigned release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="unsigned-latest"
+          dmg_path="$(find dist -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$dmg_path"
+          sha_path="${dmg_path}.sha256"
+          test -f "$sha_path"
+          notes="This is an **ad-hoc signed, unsigned DMG**. It has not been notarized by Apple. Gatekeeper will warn when you open it. To run it, right-click the DMG and choose **Open**, or remove the quarantine attribute with:\n\n\`\`\`\nxattr -dr com.apple.quarantine \"$(basename "$dmg_path")\"\n\`\`\`"
+          gh release edit "$tag" \
+            --title "Autohand Voice — Unsigned (latest)" \
+            --notes "$notes" \
+            --prerelease \
+            --force || \
+          gh release create "$tag" \
+            "$dmg_path" \
+            "$sha_path" \
+            dist/THIRD-PARTY-NOTICES.txt \
+            --title "Autohand Voice — Unsigned (latest)" \
+            --notes "$notes" \
+            --prerelease

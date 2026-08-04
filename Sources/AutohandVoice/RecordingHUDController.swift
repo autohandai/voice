@@ -67,7 +67,7 @@ final class RecordingHUDController: NSWindowController, NSWindowDelegate {
         window?.alphaValue = session.effectiveHUDOpacity
         switch session.state {
         case .ready:
-            if session.canCopyFinalFromHUD {
+            if session.recordingHUDIdlePresentation.isVisible {
                 positionOnActiveScreen()
                 window?.orderFrontRegardless()
             } else {
@@ -292,7 +292,7 @@ private struct RecordingHUDView: View {
                     .controlSize(.small)
                     .accessibilityLabel("Creating transcript")
             case .ready:
-                if session.canCopyFinalFromHUD {
+                if session.recordingHUDIdlePresentation.isVisible {
                     actionButton
                 } else {
                     Circle()
@@ -331,7 +331,12 @@ private struct RecordingHUDView: View {
             case .failed:
                 session.recover()
             case .ready:
-                session.dismissCompletionHUD()
+                if session.recordingHUDIdlePresentation
+                    == .cancelledRecording {
+                    session.discardRecoverableAudio()
+                } else {
+                    session.dismissCompletionHUD()
+                }
             case .processing:
                 break
             }
@@ -346,7 +351,7 @@ private struct RecordingHUDView: View {
         .disabled(session.state == .processing)
         .opacity(session.state == .processing ? 0.72 : 1)
         .help(leftActionHelp)
-        .accessibilityLabel(leftActionHelp)
+        .accessibilityLabel(leftActionAccessibilityLabel)
     }
 
     @ViewBuilder
@@ -373,7 +378,21 @@ private struct RecordingHUDView: View {
                 .background(.white.opacity(0.3), in: Circle())
                 .accessibilityLabel("Creating transcript")
         case .ready:
-            if session.canCopyFinalFromHUD {
+            if session.recordingHUDIdlePresentation
+                == .cancelledRecording {
+                Button {
+                    session.retryRecoverableAudio()
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.black)
+                        .frame(width: 40, height: 40)
+                        .background(.white.opacity(0.36), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Undo cancel and transcribe locally")
+                .accessibilityLabel("Undo cancelled recording")
+            } else if session.canCopyFinalFromHUD {
                 Button {
                     session.copyFinalFromHUD()
                 } label: {
@@ -412,11 +431,26 @@ private struct RecordingHUDView: View {
     private var leftActionHelp: String {
         switch session.state {
         case .starting, .recording:
+            "Cancel recording — Autohand Voice stays in the menu bar"
+        case .processing:
+            "Local processing cannot be interrupted"
+        case .ready, .failed:
+            session.recordingHUDIdlePresentation == .cancelledRecording
+                ? "Discard cancelled recording"
+                : "Dismiss"
+        }
+    }
+
+    private var leftActionAccessibilityLabel: String {
+        switch session.state {
+        case .starting, .recording:
             "Cancel recording"
         case .processing:
             "Local processing cannot be interrupted"
         case .ready, .failed:
-            "Dismiss"
+            session.recordingHUDIdlePresentation == .cancelledRecording
+                ? "Discard cancelled recording"
+                : "Dismiss"
         }
     }
 
@@ -441,7 +475,11 @@ private struct RecordingHUDView: View {
     private var title: String {
         switch session.state {
         case .ready:
-            session.completionPresentation == nil ? "Ready" : "Done"
+            if session.recordingHUDIdlePresentation == .cancelledRecording {
+                "Recording cancelled"
+            } else {
+                session.completionPresentation == nil ? "Ready" : "Done"
+            }
         case .starting: "Waking up"
         case .recording: "Listening · \(elapsedLabel)"
         case .processing: "Creating transcript"
@@ -452,8 +490,12 @@ private struct RecordingHUDView: View {
     private var detail: String {
         switch session.state {
         case .ready:
-            session.completionPresentation
-                ?? "Ready for private, on-device dictation"
+            if session.recordingHUDIdlePresentation == .cancelledRecording {
+                "Undo to transcribe locally, or discard"
+            } else {
+                session.completionPresentation
+                    ?? "Ready for private, on-device dictation"
+            }
         case .starting:
             "Connecting to \(session.audioInputName)"
         case .recording:
@@ -675,7 +717,20 @@ private struct RecordingHUDView: View {
             .help("Dismiss")
             .accessibilityLabel("Dismiss")
         case .ready:
-            if session.canCopyFinalFromHUD {
+            if session.recordingHUDIdlePresentation
+                == .cancelledRecording {
+                Button {
+                    session.retryRecoverableAudio()
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.system(size: 10, weight: .semibold))
+                        .frame(width: 28, height: 28)
+                        .background(.quaternary, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Undo cancel and transcribe locally")
+                .accessibilityLabel("Undo cancelled recording")
+            } else if session.canCopyFinalFromHUD {
                 Button {
                     session.copyFinalFromHUD()
                 } label: {

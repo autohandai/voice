@@ -26,6 +26,11 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private var systemNotificationBridge: SystemNotificationBridge?
     private var workspaceObservers: [NSObjectProtocol] = []
     private var lastRuntimeRestoreAt: TimeInterval = 0
+    private var statusAnimationTask: Task<Void, Never>?
+    private var statusAnimationFrame = 0
+    private var statusAnimationStartedAt: TimeInterval?
+    private lazy var statusAnimationImages =
+        StatusBarWaveformRenderer.frames()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -186,7 +191,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         rebuildMenu()
         recordingHUDController?.update()
         session.refreshPersistentRecovery()
-        session.prepareLocalModel()
+        session.warmLocalModel()
         if !session.preferences.hasCompletedOnboarding {
             DispatchQueue.main.async { [weak self] in
                 self?.settingsWindowController?.show()
@@ -195,6 +200,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        stopStatusAnimation()
         session.prepareForConfirmedTermination()
         hotKeyMonitor?.stop()
         functionKeyLongPressMonitor?.stop()
@@ -227,11 +233,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     }
 
     private func rebuildMenu() {
-        statusItem.button?.image = NSImage(
-            systemSymbolName: session.statusSymbol,
-            accessibilityDescription: session.statusLabel
-        )
-        statusItem.button?.toolTip = "Autohand Voice — \(session.statusLabel)"
+        updateStatusItemAppearance()
 
         let menu = NSMenu()
         let status = NSMenuItem(
@@ -501,6 +503,85 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             item("Quit Autohand Voice", action: #selector(quit), key: "q")
         )
         statusItem.menu = menu
+    }
+
+    private var shouldAnimateStatusItem: Bool {
+        guard
+            session.state == .ready,
+            !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        else { return false }
+        return StatusBarWaveformAnimation.shouldRemainVisible(
+            isPreparing: session.modelState == .preparing,
+            startedAtUptime: statusAnimationStartedAt,
+            nowUptime: ProcessInfo.processInfo.systemUptime
+        )
+    }
+
+    private func updateStatusItemAppearance() {
+        guard let button = statusItem.button else { return }
+        button.toolTip = "Autohand Voice — \(session.statusLabel)"
+
+        guard shouldAnimateStatusItem else {
+            stopStatusAnimation()
+            button.image = NSImage(
+                systemSymbolName: session.statusSymbol,
+                accessibilityDescription: session.statusLabel
+            )
+            button.image?.isTemplate = true
+            return
+        }
+
+        if statusAnimationTask == nil {
+            startStatusAnimation()
+        } else {
+            applyStatusAnimationFrame()
+        }
+    }
+
+    private func startStatusAnimation() {
+        statusAnimationTask?.cancel()
+        statusAnimationFrame = 0
+        statusAnimationStartedAt = ProcessInfo.processInfo.systemUptime
+        applyStatusAnimationFrame()
+        statusAnimationTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(
+                        for: StatusBarWaveformAnimation.frameInterval
+                    )
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled else { return }
+                self?.advanceStatusAnimationFrame()
+            }
+        }
+    }
+
+    private func advanceStatusAnimationFrame() {
+        guard shouldAnimateStatusItem else {
+            updateStatusItemAppearance()
+            return
+        }
+        guard !statusAnimationImages.isEmpty else {
+            stopStatusAnimation()
+            return
+        }
+        statusAnimationFrame =
+            (statusAnimationFrame + 1) % statusAnimationImages.count
+        applyStatusAnimationFrame()
+    }
+
+    private func applyStatusAnimationFrame() {
+        guard !statusAnimationImages.isEmpty else { return }
+        statusItem.button?.image = statusAnimationImages[statusAnimationFrame]
+    }
+
+    private func stopStatusAnimation() {
+        statusAnimationTask?.cancel()
+        statusAnimationTask = nil
+        statusAnimationFrame = 0
+        statusAnimationStartedAt = nil
     }
 
     private func addPermissionItems(to menu: NSMenu) {

@@ -29,6 +29,7 @@ cp "$BIN_PATH/autohand-voice" "$CONTENTS/MacOS/autohand-voice"
 cp "$BIN_PATH/autohand-voice-stt" "$CONTENTS/MacOS/autohand-voice-stt"
 cp "$REPO_ROOT/Resources/Info.plist" "$INFO_PLIST"
 cp "$REPO_ROOT/Resources/Brand/"* "$CONTENTS/Resources/Brand/"
+cp "$REPO_ROOT/Resources/Brand/autohand-voice.icns" "$CONTENTS/Resources/autohand-voice.icns"
 cp "$REPO_ROOT/Resources/Legal/"* "$CONTENTS/Resources/Legal/"
 
 /usr/libexec/PlistBuddy \

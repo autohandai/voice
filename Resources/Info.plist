@@ -6,6 +6,8 @@
     <string>en</string>
     <key>CFBundleExecutable</key>
     <string>autohand-voice</string>
+    <key>CFBundleIconFile</key>
+    <string>autohand-voice</string>
     <key>CFBundleIdentifier</key>
     <string>ai.autohand.voice</string>
     <key>CFBundleInfoDictionaryVersion</key>

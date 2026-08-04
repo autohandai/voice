@@ -353,7 +353,7 @@ private struct OnboardingSetupStep: View {
                     model.session.prepareLocalModel()
                 }
 
-                if model.session.modelState == .preparing {
+                if model.session.showsModelPreparationProgress {
                     ProgressView(value: model.session.modelProgress)
                         .accessibilityLabel("Local model preparation")
                 }

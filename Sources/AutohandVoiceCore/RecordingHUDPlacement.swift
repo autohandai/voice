@@ -18,6 +18,27 @@ public enum RecordingHUDPresentationMode:
     case dot
 }
 
+public enum RecordingHUDIdlePresentation: Equatable, Sendable {
+    case hidden
+    case finalTranscript
+    case cancelledRecording
+
+    public var isVisible: Bool {
+        self != .hidden
+    }
+
+    public static func resolve(
+        canCopyFinal: Bool,
+        hasRecoverableAudio: Bool,
+        recoveryWasCancelled: Bool
+    ) -> Self {
+        if hasRecoverableAudio, recoveryWasCancelled {
+            return .cancelledRecording
+        }
+        return canCopyFinal ? .finalTranscript : .hidden
+    }
+}
+
 public struct RecordingHUDDisplayPreference:
     Codable,
     Equatable,

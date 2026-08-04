@@ -135,11 +135,34 @@ public enum ModelPreparationPhase: Equatable, Sendable {
         case let .downloading(completed, total):
             total > 0
                 ? "Downloading model files \(completed) of \(total)…"
-                : "Downloading model files…"
-        case let .compiling(name):
-            name.isEmpty ? "Compiling CoreML models…" : "Compiling \(name)…"
+                : "Loading local speech engine…"
+        case .compiling:
+            "Loading local speech engine…"
         case .loading: "Loading on the Neural Engine…"
         case .validating: "Validating offline readiness…"
+        }
+    }
+}
+
+public enum ModelPreparationPresentation: Equatable, Sendable {
+    case background
+    case foreground
+
+    public var showsDetailedProgress: Bool {
+        self == .foreground
+    }
+
+    public func advanced(
+        for phase: ModelPreparationPhase
+    ) -> ModelPreparationPresentation {
+        guard self == .background else { return self }
+        switch phase {
+        case .listing:
+            return .foreground
+        case let .downloading(_, totalFiles) where totalFiles > 0:
+            return .foreground
+        case .checking, .downloading, .compiling, .loading, .validating:
+            return .background
         }
     }
 }

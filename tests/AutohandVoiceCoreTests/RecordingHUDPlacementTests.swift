@@ -173,4 +173,24 @@ final class RecordingHUDPlacementTests: XCTestCase {
             CGSize(width: 31, height: 31)
         )
     }
+
+    func testCancelledRecordingRemainsVisibleForRecovery() {
+        XCTAssertEqual(
+            RecordingHUDIdlePresentation.resolve(
+                canCopyFinal: false,
+                hasRecoverableAudio: true,
+                recoveryWasCancelled: true
+            ),
+            .cancelledRecording
+        )
+        XCTAssertTrue(RecordingHUDIdlePresentation.cancelledRecording.isVisible)
+        XCTAssertEqual(
+            RecordingHUDIdlePresentation.resolve(
+                canCopyFinal: false,
+                hasRecoverableAudio: false,
+                recoveryWasCancelled: false
+            ),
+            .hidden
+        )
+    }
 }

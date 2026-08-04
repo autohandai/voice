@@ -51,4 +51,49 @@ final class ModelManagementTests: XCTestCase {
             .loading
         )
     }
+
+    func testCachedCoreMLLoadUsesCustomerFacingLanguage() {
+        let label = ModelPreparationPhase.compiling("Encoder.mlmodelc").label
+
+        XCTAssertEqual(label, "Loading local speech engine…")
+        XCTAssertFalse(label.contains(".mlmodelc"))
+        XCTAssertEqual(
+            ModelPreparationPhase.downloading(
+                completedFiles: 0,
+                totalFiles: 0
+            ).label,
+            "Loading local speech engine…"
+        )
+    }
+
+    func testBackgroundModelWarmupHidesDetailedProgress() {
+        XCTAssertFalse(
+            ModelPreparationPresentation.background.showsDetailedProgress
+        )
+        XCTAssertTrue(
+            ModelPreparationPresentation.foreground.showsDetailedProgress
+        )
+        XCTAssertEqual(
+            ModelPreparationPresentation.background.advanced(
+                for: .compiling("Encoder.mlmodelc")
+            ),
+            .background
+        )
+        XCTAssertEqual(
+            ModelPreparationPresentation.background.advanced(
+                for: .downloading(completedFiles: 0, totalFiles: 0)
+            ),
+            .background
+        )
+        XCTAssertEqual(
+            ModelPreparationPresentation.background.advanced(for: .listing),
+            .foreground
+        )
+        XCTAssertEqual(
+            ModelPreparationPresentation.background.advanced(
+                for: .downloading(completedFiles: 1, totalFiles: 4)
+            ),
+            .foreground
+        )
+    }
 }

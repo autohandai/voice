@@ -1958,7 +1958,7 @@ private struct LanguageModelSettingsView: View {
                         value: model.modelLastValidatedLabel
                     )
 
-                    if model.session.modelState == .preparing {
+                    if model.session.showsModelPreparationProgress {
                         ProgressView(value: model.session.modelProgress)
                             .accessibilityLabel("Model preparation progress")
                             .accessibilityValue(

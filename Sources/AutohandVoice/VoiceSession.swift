@@ -120,6 +120,10 @@ final class VoiceSession {
     private(set) var modelPhase: ModelPreparationPhase? {
         didSet { onChange?() }
     }
+    private(set) var modelPreparationPresentation:
+        ModelPreparationPresentation = .background {
+        didSet { onChange?() }
+    }
     private(set) var modelStorageBytes: Int64 = 0
     private(set) var modelLastValidated: Date?
     private(set) var modelFailureKind: ModelFailureKind?
@@ -193,15 +197,26 @@ final class VoiceSession {
     }
 
     var modelStatusLabel: String {
+        if modelState == .preparing,
+            !modelPreparationPresentation.showsDetailedProgress {
+            return "Starting local speech engine…"
+        }
         if modelState == .preparing, let modelPhase {
             return modelPhase.label
         }
         return modelState.label
     }
 
+    var showsModelPreparationProgress: Bool {
+        modelState == .preparing
+            && modelPreparationPresentation.showsDetailedProgress
+    }
+
     var statusSymbol: String {
         if state == .ready, modelState == .preparing {
-            return "arrow.down.circle"
+            return modelPreparationPresentation.showsDetailedProgress
+                ? "arrow.down.circle"
+                : state.symbol
         }
         return state.symbol
     }
@@ -999,11 +1014,19 @@ final class VoiceSession {
     }
 
     func prepareLocalModel() {
-        startModelPreparation(repair: false)
+        guard modelState != .preparing else {
+            modelPreparationPresentation = .foreground
+            return
+        }
+        startModelPreparation(repair: false, presentation: .foreground)
+    }
+
+    func warmLocalModel() {
+        startModelPreparation(repair: false, presentation: .background)
     }
 
     func repairLocalModel() {
-        startModelPreparation(repair: true)
+        startModelPreparation(repair: true, presentation: .foreground)
     }
 
     func cancelModelPreparation() {
@@ -1012,11 +1035,16 @@ final class VoiceSession {
         modelOperationID = nil
         modelProgress = 0
         modelPhase = nil
+        modelPreparationPresentation = .background
         modelState = .notChecked
     }
 
     func validateLocalModel() {
-        guard modelState != .preparing else { return }
+        guard modelState != .preparing else {
+            modelPreparationPresentation = .foreground
+            return
+        }
+        modelPreparationPresentation = .foreground
         modelPhase = .validating
         modelState = .preparing
         Task {
@@ -1269,6 +1297,14 @@ final class VoiceSession {
         else { return false }
         return completionExpiresAtUptime
             > ProcessInfo.processInfo.systemUptime
+    }
+
+    var recordingHUDIdlePresentation: RecordingHUDIdlePresentation {
+        .resolve(
+            canCopyFinal: canCopyFinalFromHUD,
+            hasRecoverableAudio: hasRecoverableAudio,
+            recoveryWasCancelled: recoverableAudioWasCancelled
+        )
     }
 
     func copyFinalFromHUD() {
@@ -2573,6 +2609,7 @@ final class VoiceSession {
     private func prepareModelForUse() async throws {
         guard modelState != .ready else { return }
         if modelState == .preparing, let modelTask {
+            modelPreparationPresentation = .foreground
             await modelTask.value
             guard modelState == .ready else {
                 throw VoiceError.modelUnavailable(modelState.label)
@@ -2581,6 +2618,7 @@ final class VoiceSession {
         }
         let operationID = UUID()
         modelOperationID = operationID
+        modelPreparationPresentation = .foreground
         modelState = .preparing
         modelProgress = 0
         modelPhase = .checking
@@ -2610,10 +2648,14 @@ final class VoiceSession {
         }
     }
 
-    private func startModelPreparation(repair: Bool) {
+    private func startModelPreparation(
+        repair: Bool,
+        presentation: ModelPreparationPresentation
+    ) {
         modelTask?.cancel()
         let operationID = UUID()
         modelOperationID = operationID
+        modelPreparationPresentation = presentation
         modelProgress = 0
         modelPhase = .checking
         modelFailureKind = nil
@@ -2658,6 +2700,12 @@ final class VoiceSession {
             [weak self] progress in
             Task { @MainActor [weak self] in
                 guard self?.modelOperationID == operationID else { return }
+                if let presentation = self?.modelPreparationPresentation {
+                    let advanced = presentation.advanced(for: progress.phase)
+                    if advanced != presentation {
+                        self?.modelPreparationPresentation = advanced
+                    }
+                }
                 self?.modelProgress = progress.fractionCompleted
                 self?.modelPhase = progress.phase
             }
@@ -3027,7 +3075,7 @@ final class VoiceSession {
         modelStorageBytes = 0
         modelLastValidated = nil
         modelFailureKind = nil
-        prepareLocalModel()
+        warmLocalModel()
     }
 
     private func retainAudioRecovery(
@@ -3087,6 +3135,7 @@ final class VoiceSession {
         modelState = .notChecked
         modelProgress = 0
         modelPhase = nil
+        modelPreparationPresentation = .background
         modelStorageBytes = 0
         modelLastValidated = nil
         modelFailureKind = nil
