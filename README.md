@@ -1,6 +1,8 @@
 # Autohand Voice
 
-Native, private voice input for Apple Silicon Macs.
+Native, private voice input for Apple Silicon Macs. Hold Fn, talk, let go —
+your words land exactly where your cursor is, and nothing you say ever leaves
+your Mac.
 
 Autohand Voice is written entirely in Swift. It records through AVFoundation,
 transcribes locally with FluidAudio and CoreML on the Apple Neural Engine, then
@@ -14,6 +16,48 @@ end-to-end dictation into a focused test field. Company, brand, and privacy
 policy links use the current public Autohand pages. The guided setup can be
 reopened later from Settings → Getting Started.
 
+![Autohand Voice demo](assets/voice-animation.gif)
+
+## Highlights
+
+- **Fully local, always** — recording, transcription, and text insertion all
+  run on-device through FluidAudio and CoreML on the Apple Neural Engine.
+  There is no remote transcription service and no silent cloud fallback.
+- **Hold Fn and go** — long-press Fn to dictate, then release to insert.
+  Toggle and hands-free recording modes are also available, plus a
+  nonintrusive HUD that shows input level and processing state without
+  stealing focus from the app you're typing into.
+- **Shape the result, on your terms** — local Vocabulary replacements for
+  names and jargon, opt-in Smart Formatting that trims filler words, and
+  explicit voice commands ("command new paragraph") when you want them.
+  Everything is literal by default.
+- **App-aware, not content-aware** — App Profiles override output mode,
+  language, model, and formatting per application, using only the frontmost
+  bundle identifier — never window titles or document content.
+- **25 languages for transcription, 5 for the UI** — Parakeet v2 and v3 models
+  cover 25 European languages; the app itself is localized in English,
+  German, Spanish, Italian, and Portuguese.
+- **Private by construction** — optional local history and usage insights
+  stay on-device, are bounded, and store no transcript text unless you
+  explicitly turn history on.
+
+## Quick start
+
+```bash
+gh release download unsigned-latest --repo autohandai/voice --pattern '*.dmg' --output AutohandVoice.dmg
+open AutohandVoice.dmg
+```
+
+Drag **Autohand Voice** into **Applications**, then launch it. This build is
+ad-hoc signed, not notarized — Gatekeeper will warn the first time, so
+right-click the app and choose **Open**, or run `xattr -dr
+com.apple.quarantine "/Applications/Autohand Voice.app"`. It rebuilds
+automatically from `main` on every push; see [Releasing](docs/releasing.md)
+for how it differs from a tagged, notarized release.
+
+No `gh` CLI handy? Grab the DMG directly from the
+[unsigned-latest release page](https://github.com/autohandai/voice/releases/tag/unsigned-latest).
+
 ## Requirements
 
 - macOS 14 or newer
@@ -24,18 +68,7 @@ reopened later from Settings → Getting Started.
 There is no Python runtime, MLX runtime, remote speech service, or automatic
 cloud fallback.
 
-## Build and install
-
-The fastest way to try Autohand Voice: download the
-[latest unsigned build](https://github.com/autohandai/voice/releases/tag/unsigned-latest)
-DMG, open it, and drag the app to Applications. It is ad-hoc signed, not
-notarized, so Gatekeeper will warn on first launch — right-click the app and
-choose **Open**, or run `xattr -dr com.apple.quarantine "/Applications/Autohand Voice.app"`.
-It rebuilds automatically from `main` on every push; see
-[Releasing](docs/releasing.md) for how it differs from a tagged, notarized
-release.
-
-To build from source instead:
+## Build from source
 
 ```bash
 git clone https://github.com/autohandai/voice.git
