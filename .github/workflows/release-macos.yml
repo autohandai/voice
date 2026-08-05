@@ -30,7 +30,7 @@ jobs:
         run: |
           test "$(uname -m)" = "arm64"
           version="${GITHUB_REF_NAME#v}"
-          source_version="$(sed -n 's/.*static let version = "\\([^"]*\\)".*/\\1/p' Sources/AutohandVoiceCore/Brand.swift)"
+          source_version="$(sed -n 's/.*static let version = "\([^"]*\)".*/\1/p' Sources/AutohandVoiceCore/Brand.swift)"
           plist_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
           test "$version" = "$source_version"
           test "$version" = "$plist_version"
@@ -80,7 +80,7 @@ jobs:
             -k "$KEYCHAIN_PASSWORD" \
             "$keychain_path"
           security list-keychains -d user -s "$keychain_path"
-          identity="$(security find-identity -v -p codesigning "$keychain_path" | sed -n 's/.*"\\(Developer ID Application[^"]*\\)".*/\\1/p' | head -1)"
+          identity="$(security find-identity -v -p codesigning "$keychain_path" | sed -n 's/.*"\(Developer ID Application[^"]*\)".*/\1/p' | head -1)"
           test -n "$identity"
           echo "AUTOHAND_VOICE_CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
 
