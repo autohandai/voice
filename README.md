@@ -44,19 +44,22 @@ reopened later from Settings → Getting Started.
 ## Quick start
 
 ```bash
-gh release download unsigned-latest --repo autohandai/voice --pattern '*.dmg' --output AutohandVoice.dmg
+gh release download --repo autohandai/voice --pattern '*.dmg' --output AutohandVoice.dmg
 open AutohandVoice.dmg
 ```
 
-Drag **Autohand Voice** into **Applications**, then launch it. This build is
-ad-hoc signed, not notarized — Gatekeeper will warn the first time, so
-right-click the app and choose **Open**, or run `xattr -dr
-com.apple.quarantine "/Applications/Autohand Voice.app"`. It rebuilds
-automatically from `main` on every push; see [Releasing](docs/releasing.md)
-for how it differs from a tagged, notarized release.
+Drag **Autohand Voice** into **Applications**, then launch it. Until a
+Developer ID certificate is configured (see [Releasing](docs/releasing.md)),
+every release is ad-hoc signed, not notarized — Gatekeeper will warn the
+first time, so right-click the app and choose **Open**, or run `xattr -dr
+com.apple.quarantine "/Applications/Autohand Voice.app"`.
 
 No `gh` CLI handy? Grab the DMG directly from the
-[unsigned-latest release page](https://github.com/autohandai/voice/releases/tag/unsigned-latest).
+[latest release page](https://github.com/autohandai/voice/releases/latest).
+
+Want the bleeding edge instead of a stable release? The
+[nightly build](https://github.com/autohandai/voice/releases/tag/nightlybuild-latest)
+rebuilds automatically from `main` on every push.
 
 ## Requirements
 
@@ -82,15 +85,17 @@ To build the drag-to-Applications installer and its SHA-256 checksum:
 
 ```bash
 ./scripts/build-installer.sh
-open dist/Autohand-Voice-1.0.0-arm64.dmg
-(cd dist && shasum -a 256 -c Autohand-Voice-1.0.0-arm64.dmg.sha256)
+open dist/Autohand-Voice-0.1.0-arm64.dmg
+(cd dist && shasum -a 256 -c Autohand-Voice-0.1.0-arm64.dmg.sha256)
 ```
 
-Local builds use an ad-hoc signature. Tagged releases are signed with a
-Developer ID Application certificate, submitted to Apple for notarization,
-stapled, and published with their checksum by the private repository's release
-workflow. See [Releasing](docs/releasing.md) for the required repository
-secrets and versioning contract.
+Local builds use an ad-hoc signature. Tagged releases are published by the
+private repository's release workflow the same way — ad-hoc signed, clearly
+labeled unsigned — until a Developer ID Application certificate is
+configured, at which point the same workflow instead submits the app and DMG
+to Apple for notarization and staples the result. See
+[Releasing](docs/releasing.md) for the required repository secrets and
+versioning contract.
 
 The first transcription downloads the pinned FluidAudio Parakeet model. The
 model is compiled for CoreML and reused from the local cache on later launches.

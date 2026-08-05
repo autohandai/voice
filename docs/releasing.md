@@ -8,26 +8,27 @@ Autohand Voice has three macOS workflows:
   and complete notices as workflow artifacts. Requires no secrets, but the
   artifact is only downloadable from the Actions run by someone signed into
   GitHub.
-- `Unsigned Release` runs on every push to `main` (and manually via
+- `Nightly Build` runs on every push to `main` (and manually via
   `workflow_dispatch`). It builds the same ad-hoc-signed DMG as `Build macOS`
   and publishes it publicly to a single rolling GitHub Release tagged
-  `unsigned-latest`, overwriting the previous one each time. This is the
-  channel to link to for anyone downloading and installing the app directly,
-  the way many indie macOS apps are distributed outside the App Store. The
-  release notes always state plainly that it is ad-hoc signed and not
-  notarized, and that Gatekeeper requires right-click → Open (or `xattr -dr
-  com.apple.quarantine`) on first launch. It requires no secrets either.
-- `Release macOS` runs for version tags, requires a Developer ID Application
-  certificate, signs the app and DMG with hardened runtime, notarizes and
-  staples the DMG, then creates the private GitHub release.
-
-The release workflow intentionally fails when signing or notarization
-credentials are absent. It never publishes an unsigned or unnotarized tagged
-release. `Unsigned Release` is a deliberately separate, always-available
-channel so an unsigned build never has to masquerade as a notarized one —
-once a Developer ID certificate exists, tagged `v*` releases remain the
-notarized, canonical distribution and `unsigned-latest` keeps serving
-untagged `main` builds.
+  `nightlybuild-latest`, overwriting the previous one each time. This is the
+  bleeding-edge channel — always exactly what's on `main`, not a stable,
+  versioned release. The release notes always state plainly that it is
+  ad-hoc signed and not notarized, and that Gatekeeper requires right-click →
+  Open (or `xattr -dr com.apple.quarantine`) on first launch. It requires no
+  secrets either.
+- `Release macOS` runs for version tags (`v*.*.*`) and always publishes a
+  real, permanent, versioned GitHub release for that tag — this is the one to
+  link to for anyone downloading and installing the app directly, the way
+  many indie macOS apps are distributed outside the App Store. Without a
+  Developer ID Application certificate configured, it builds and publishes an
+  ad-hoc-signed release clearly titled and labeled "(Unsigned)" in its notes,
+  with the same Gatekeeper right-click-Open guidance as `Nightly Build`. Once
+  the repository secrets below are configured, the exact same tag-push flow
+  instead signs the app and DMG with hardened runtime, notarizes and staples
+  the DMG, verifies it with `spctl`, and publishes a release with no
+  "(Unsigned)" suffix and no Gatekeeper warning — no other change is needed
+  to move from unsigned to notarized releases.
 
 ## Repository secrets
 
@@ -53,7 +54,7 @@ Before tagging, update both:
   `Sources/AutohandVoiceCore/Brand.swift`
 - `CFBundleShortVersionString` in `Resources/Info.plist`
 
-The tag must be `v<Brand.version>`, for example `v1.0.0`. The release workflow
+The tag must be `v<Brand.version>`, for example `v0.1.0`. The release workflow
 rejects a tag that does not match `Brand.version`. The GitHub run number
 becomes `CFBundleVersion`.
 
@@ -66,7 +67,7 @@ swift build -c release
 ./scripts/build-app.sh
 ./scripts/build-installer.sh
 codesign --verify --deep --strict --verbose=2 "dist/Autohand Voice.app"
-(cd dist && shasum -a 256 -c Autohand-Voice-1.0.0-arm64.dmg.sha256)
+(cd dist && shasum -a 256 -c Autohand-Voice-0.1.0-arm64.dmg.sha256)
 ```
 
 Local artifacts are ad-hoc signed and are not a substitute for the notarized
