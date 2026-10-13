@@ -73,18 +73,13 @@ struct OnboardingView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 14) {
-            AutohandBrandMark()
+        HStack(alignment: .lastTextBaseline, spacing: 10) {
+            AutohandLockup(height: 26)
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text("AUTOHAND")
-                    .font(.system(.headline, design: .rounded).weight(.semibold))
-                    .tracking(1.2)
-                Text("VOICE")
-                    .font(.system(.caption2, design: .monospaced).weight(.medium))
-                    .tracking(2)
-                    .foregroundStyle(.secondary)
-            }
+            Text("VOICE")
+                .font(.system(.caption, design: .monospaced).weight(.medium))
+                .tracking(2)
+                .foregroundStyle(.secondary)
 
             Spacer()
 
@@ -700,69 +695,62 @@ private struct OnboardingRequirementRow: View {
     }
 }
 
+/// The Autohand mark: two rows of four rings with centered dots, drawn with
+/// the proportions of the official artwork in `Resources/Brand`.
 struct AutohandBrandMark: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private static let orbits: [Orbit] = [
-        .init(id: 0, duration: 2.0, clockwise: true),
-        .init(id: 1, duration: 2.5, clockwise: false),
-        .init(id: 2, duration: 3.0, clockwise: true),
-        .init(id: 3, duration: 1.8, clockwise: false),
-        .init(id: 4, duration: 2.2, clockwise: false),
-        .init(id: 5, duration: 2.8, clockwise: true),
-        .init(id: 6, duration: 2.6, clockwise: false),
-        .init(id: 7, duration: 1.9, clockwise: true),
-    ]
+    var ringDiameter: CGFloat = 12
 
     var body: some View {
-        TimelineView(
-            .animation(
-                minimumInterval: 1.0 / 30.0,
-                paused: reduceMotion
-            )
-        ) { timeline in
-            LazyVGrid(
-                columns: Array(
-                    repeating: GridItem(.fixed(12), spacing: 4),
-                    count: 4
-                ),
-                spacing: 7
-            ) {
-                ForEach(Self.orbits) { orbit in
-                    ZStack {
-                        Circle()
-                            .stroke(lineWidth: 1.4)
-                        Circle()
-                            .fill()
-                            .frame(width: 2.4, height: 2.4)
-                            .offset(y: -6)
+        let ring = ringDiameter
+        let lineWidth = ring * 0.18
+        Grid(horizontalSpacing: ring * 0.25, verticalSpacing: ring * 0.25) {
+            ForEach(0..<2, id: \.self) { _ in
+                GridRow {
+                    ForEach(0..<4, id: \.self) { _ in
+                        ZStack {
+                            Circle()
+                                .inset(by: lineWidth / 2)
+                                .stroke(lineWidth: lineWidth)
+                            Circle()
+                                .frame(width: ring * 0.3, height: ring * 0.3)
+                        }
+                        .frame(width: ring, height: ring)
                     }
-                    .frame(width: 12, height: 12)
-                    .rotationEffect(
-                        .degrees(
-                            reduceMotion
-                                ? 0
-                                : orbit.angle(at: timeline.date)
-                        )
-                    )
                 }
             }
         }
-        .frame(width: 60, height: 34)
         .accessibilityHidden(true)
     }
+}
 
-    private struct Orbit: Identifiable {
-        let id: Int
-        let duration: TimeInterval
-        let clockwise: Bool
+/// The official Autohand lockup (mark and wordmark) from autohand.ai,
+/// bundled locally. Falls back to the drawn mark when running outside the
+/// app bundle.
+struct AutohandLockup: View {
+    @Environment(\.colorScheme) private var colorScheme
+    var height: CGFloat = 24
 
-        func angle(at date: Date) -> Double {
-            let progress =
-                date.timeIntervalSinceReferenceDate
-                    .truncatingRemainder(dividingBy: duration)
-                / duration
-            return progress * 360 * (clockwise ? 1 : -1)
+    var body: some View {
+        if let image {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(height: height)
+                .accessibilityLabel("Autohand")
+        } else {
+            AutohandBrandMark(ringDiameter: height * 0.45)
         }
+    }
+
+    private var image: NSImage? {
+        let resource = colorScheme == .dark
+            ? "autohand-lockup-dark"
+            : "autohand-lockup-light"
+        return Bundle.main.url(
+            forResource: resource,
+            withExtension: "png",
+            subdirectory: "Brand"
+        ).flatMap(NSImage.init(contentsOf:))
     }
 }

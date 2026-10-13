@@ -296,9 +296,7 @@ private struct AboutHero: View {
                 .scaledToFit()
                 .accessibilityHidden(true)
         } else {
-            AutohandBrandMark()
-                .scaleEffect(2)
-                .accessibilityHidden(true)
+            AutohandBrandMark(ringDiameter: 24)
         }
     }
 
