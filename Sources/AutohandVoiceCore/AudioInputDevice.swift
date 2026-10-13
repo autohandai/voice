@@ -168,6 +168,16 @@ public enum AudioInputDevices {
         }
     }
 
+    /// The display name of the device with `uid`, or of the system default
+    /// input when `uid` is nil.
+    public static func name(forUID uid: String?) -> String? {
+        guard let deviceID = try? deviceID(forUID: uid) else { return nil }
+        return try? stringProperty(
+            deviceID,
+            selector: kAudioObjectPropertyName
+        )
+    }
+
     static func deviceID(forUID uid: String?) throws -> AudioDeviceID {
         if let uid {
             guard let match = try allDeviceIDs().first(where: {

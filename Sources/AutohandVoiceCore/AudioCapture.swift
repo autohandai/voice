@@ -367,3 +367,14 @@ public final class AudioCapture: @unchecked Sendable {
         }
     }
 }
+
+public enum CapturedAudioLevel {
+    /// Working microphones never fall below about 1e-3 even in a quiet room,
+    /// and the local model still transcribes speech peaking near 2.5e-3. A
+    /// capture that never exceeds this peak means the input delivered silence.
+    public static let silencePeak: Float = 0.000_5
+
+    public static func isSilent(_ samples: [Float]) -> Bool {
+        !samples.contains { abs($0) >= silencePeak }
+    }
+}

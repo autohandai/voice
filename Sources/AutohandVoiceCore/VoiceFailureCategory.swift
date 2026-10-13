@@ -475,6 +475,8 @@ public extension VoiceError {
             .recognition(.emptyFinal)
         case .recordingTooShort:
             .capture(.tooShort)
+        case .silentRecording:
+            .microphone(.noSignal)
         case .modelUnavailable:
             .model(.unavailable)
         }

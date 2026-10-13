@@ -1179,6 +1179,7 @@ final class VoiceSession {
             do {
                 _ = await dictationCoordinator.handle(.stop)
                 let samples = try capture.stop()
+                let capturedDeviceUID = currentAudioDeviceUID
                 finishAudioRouteTimeline(as: .finalized)
                 currentAudioDeviceUID = nil
                 await stopProvisionalPreview()
@@ -1187,6 +1188,12 @@ final class VoiceSession {
                 Self.logger.notice(
                     "Audio capture stopped with \(samples.count) local samples"
                 )
+                if CapturedAudioLevel.isSilent(samples) {
+                    throw VoiceError.silentRecording(
+                        AudioInputDevices.name(forUID: capturedDeviceUID)
+                            ?? audioInputName
+                    )
+                }
                 try await transcribeAndCommit(
                     samples: samples,
                     target: insertionTarget

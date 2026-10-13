@@ -41,7 +41,7 @@ public enum FailedCaptureRecoveryPolicy {
             return false
         }
         switch error as? VoiceError {
-        case .emptyTranscript?, .recordingTooShort?:
+        case .emptyTranscript?, .recordingTooShort?, .silentRecording?:
             return false
         default:
             return true

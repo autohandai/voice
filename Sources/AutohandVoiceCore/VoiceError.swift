@@ -12,6 +12,7 @@ public enum VoiceError: LocalizedError, Equatable {
     case transcriptIsNotFinal
     case emptyTranscript
     case recordingTooShort
+    case silentRecording(String)
     case modelUnavailable(String)
 
     public var errorDescription: String? {
@@ -47,6 +48,8 @@ public enum VoiceError: LocalizedError, Equatable {
             return "No speech was recognized. Check the selected microphone, then try again."
         case .recordingTooShort:
             return "The recording was too short to transcribe."
+        case let .silentRecording(microphone):
+            return "No sound reached Autohand Voice from \(microphone). Choose another microphone or raise its input level in System Settings → Sound, then try again."
         case let .modelUnavailable(reason):
             return "The local speech model is unavailable: \(reason)"
         }
