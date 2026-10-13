@@ -23,7 +23,10 @@
 - Fixed onboarding getting stuck after a recording with no recognized speech:
   a failed attempt no longer blocks the next one, and audio with no words is
   erased instead of held for recovery.
+- A recording where no sound reached the app now names the microphone and
+  explains how to fix it, instead of reporting an empty transcript.
 - Opening the app while it is already running now shows its window.
+- Onboarding now shows the official Autohand logo.
 - The recording HUD now renders at native resolution instead of being scaled
   down.
 
