@@ -222,14 +222,21 @@ final class VoiceSession {
     }
 
     var canStartRecording: Bool {
-        isEnabled && state == .ready && modelState == .ready
-            && !isTestingMicrophone && !hasRecoverableAudio
-            && !isCheckingPersistentRecovery
-            && (
-                !persistentRecoveryEnabled
-                    || persistentRecoverySummaries.isEmpty
-            )
-            && !isFileTranscriptionActive
+        var gate = DictationStartGate()
+        gate.isEnabled = isEnabled
+        switch state {
+        case .ready: gate.activity = .ready
+        case .failed: gate.activity = .failed
+        case .starting, .recording, .processing: gate.activity = .busy
+        }
+        gate.modelReady = modelState == .ready
+        gate.isTestingMicrophone = isTestingMicrophone
+        gate.hasRecoverableAudio = hasRecoverableAudio
+        gate.isCheckingPersistentRecovery = isCheckingPersistentRecovery
+        gate.hasPendingPersistentRecovery = persistentRecoveryEnabled
+            && !persistentRecoverySummaries.isEmpty
+        gate.isFileTranscriptionActive = isFileTranscriptionActive
+        return gate.canStart
     }
 
     var isRecordingOrStarting: Bool {
@@ -1188,6 +1195,10 @@ final class VoiceSession {
                 await stopProvisionalPreview()
                 await reportCoordinatorFailure(error)
                 insertionTarget = nil
+                if !FailedCaptureRecoveryPolicy.retainsAudio(after: error) {
+                    discardAudioRecovery()
+                    await resolvePersistentRecovery(as: .discarded)
+                }
                 if case .failed = modelState {
                     // Model preparation records its own finite issue category.
                 } else {
@@ -1590,6 +1601,9 @@ final class VoiceSession {
                 try await transcribeAndCommit(samples: samples, target: target)
             } catch {
                 await reportCoordinatorFailure(error)
+                if !FailedCaptureRecoveryPolicy.retainsAudio(after: error) {
+                    discardAudioRecovery()
+                }
                 Self.logger.error(
                     "Recovery failed: \(error.localizedDescription)"
                 )

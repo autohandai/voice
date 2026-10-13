@@ -44,7 +44,7 @@ public enum VoiceError: LocalizedError, Equatable {
         case .transcriptIsNotFinal:
             return "A provisional transcript cannot be inserted."
         case .emptyTranscript:
-            return "The final transcript is empty."
+            return "No speech was recognized. Check the selected microphone, then try again."
         case .recordingTooShort:
             return "The recording was too short to transcribe."
         case let .modelUnavailable(reason):

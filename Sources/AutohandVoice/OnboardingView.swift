@@ -427,7 +427,14 @@ private struct OnboardingDictationTestStep: View {
                         toggleTest()
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(model.session.state == .processing || passed)
+                    .disabled(
+                        model.session.state == .processing
+                            || passed
+                            || (
+                                model.session.hasRecoverableAudio
+                                    && !model.session.isRecordingOrStarting
+                            )
+                    )
 
                     if model.session.state == .processing {
                         ProgressView()
@@ -452,6 +459,24 @@ private struct OnboardingDictationTestStep: View {
                     Label(message, systemImage: "exclamationmark.triangle")
                         .font(.callout)
                         .foregroundStyle(.orange)
+                }
+
+                if model.session.hasRecoverableAudio,
+                   model.session.state != .processing {
+                    HStack(spacing: 12) {
+                        Button("Retry Last Recording") {
+                            testFieldFocused = true
+                            DispatchQueue.main.asyncAfter(
+                                deadline: .now() + 0.18
+                            ) {
+                                model.session.retryRecoverableAudio()
+                            }
+                        }
+                        Button("Discard Recording") {
+                            model.session.discardRecoverableAudio()
+                        }
+                    }
+                    .font(.callout)
                 }
 
                 Text(
