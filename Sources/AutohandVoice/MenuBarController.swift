@@ -34,6 +34,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        installMainMenu()
         session.onChange = { [weak self] in
             self?.rebuildMenu()
             self?.recordingHUDController?.update()
@@ -197,6 +198,87 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
                 self?.settingsWindowController?.show()
             }
         }
+    }
+
+    /// Opening the app again from Finder, Spotlight, or Launchpad while it is
+    /// already running brings up its window instead of doing nothing, which
+    /// also keeps it reachable when the menu bar item is hidden.
+    func applicationShouldHandleReopen(
+        _ sender: NSApplication,
+        hasVisibleWindows flag: Bool
+    ) -> Bool {
+        settingsWindowController?.show()
+        return false
+    }
+
+    /// Menu bar apps have no main menu by default, so standard editing key
+    /// equivalents such as Command-V never reach their own text fields.
+    private func installMainMenu() {
+        let mainMenu = NSMenu()
+
+        let appMenu = NSMenu(title: Brand.productName)
+        appMenu.addItem(
+            withTitle: "Quit \(Brand.productName)",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+        let appItem = NSMenuItem()
+        appItem.submenu = appMenu
+        mainMenu.addItem(appItem)
+
+        let editMenu = NSMenu(title: "Edit")
+        editMenu.addItem(
+            withTitle: "Undo",
+            action: Selector(("undo:")),
+            keyEquivalent: "z"
+        )
+        let redo = editMenu.addItem(
+            withTitle: "Redo",
+            action: Selector(("redo:")),
+            keyEquivalent: "z"
+        )
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(.separator())
+        editMenu.addItem(
+            withTitle: "Cut",
+            action: #selector(NSText.cut(_:)),
+            keyEquivalent: "x"
+        )
+        editMenu.addItem(
+            withTitle: "Copy",
+            action: #selector(NSText.copy(_:)),
+            keyEquivalent: "c"
+        )
+        editMenu.addItem(
+            withTitle: "Paste",
+            action: #selector(NSText.paste(_:)),
+            keyEquivalent: "v"
+        )
+        editMenu.addItem(
+            withTitle: "Select All",
+            action: #selector(NSText.selectAll(_:)),
+            keyEquivalent: "a"
+        )
+        let editItem = NSMenuItem()
+        editItem.submenu = editMenu
+        mainMenu.addItem(editItem)
+
+        let windowMenu = NSMenu(title: "Window")
+        windowMenu.addItem(
+            withTitle: "Close",
+            action: #selector(NSWindow.performClose(_:)),
+            keyEquivalent: "w"
+        )
+        windowMenu.addItem(
+            withTitle: "Minimize",
+            action: #selector(NSWindow.performMiniaturize(_:)),
+            keyEquivalent: "m"
+        )
+        let windowItem = NSMenuItem()
+        windowItem.submenu = windowMenu
+        mainMenu.addItem(windowItem)
+
+        NSApp.mainMenu = mainMenu
     }
 
     func applicationWillTerminate(_ notification: Notification) {

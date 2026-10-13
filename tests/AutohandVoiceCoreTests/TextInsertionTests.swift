@@ -176,6 +176,79 @@ final class TextInsertionTests: XCTestCase {
         XCTAssertEqual(driver.unicodeInsertions, ["one\ntwo"])
     }
 
+    func testAccessibilityWriteToReadOnlyTextIsUnsupported() {
+        XCTAssertEqual(
+            SelectedTextWriteOutcome.result(
+                isSettable: false,
+                setSucceeded: true
+            ),
+            .unsupported,
+            "Terminal.app reports success for a read-only AXSelectedText write without inserting anything."
+        )
+        XCTAssertEqual(
+            SelectedTextWriteOutcome.result(
+                isSettable: true,
+                setSucceeded: true
+            ),
+            .inserted
+        )
+        XCTAssertEqual(
+            SelectedTextWriteOutcome.result(
+                isSettable: true,
+                setSucceeded: false
+            ),
+            .unsupported
+        )
+    }
+
+    func testOwnWindowsInsertThroughTheResponderChain() throws {
+        let driver = TestTextInsertionDriver(
+            directResult: .inserted,
+            pasteResult: .inserted
+        )
+        driver.responderResult = .inserted
+        driver.context = TextInsertionContext(
+            accessibilityRole: "AXTextArea",
+            isOwnProcess: true
+        )
+        let inserter = TextInserter(driver: driver)
+        let target = try XCTUnwrap(inserter.captureTarget())
+
+        try inserter.commitVerifiedFinalText(
+            "Autohand Voice is ready",
+            mode: .type,
+            target: target
+        )
+
+        XCTAssertEqual(
+            driver.responderInsertions,
+            ["Autohand Voice is ready"]
+        )
+        XCTAssertTrue(
+            driver.pasteInsertions.isEmpty,
+            "A synthetic Command-V posted to this app beeps instead of pasting."
+        )
+    }
+
+    func testOwnWindowsFallBackToPasteWhenNoTextResponderIsKey() throws {
+        let driver = TestTextInsertionDriver(
+            directResult: .inserted,
+            pasteResult: .inserted
+        )
+        driver.context = TextInsertionContext(isOwnProcess: true)
+        let inserter = TextInserter(driver: driver)
+        let target = try XCTUnwrap(inserter.captureTarget())
+
+        try inserter.commitVerifiedFinalText(
+            "fallback",
+            mode: .type,
+            target: target
+        )
+
+        XCTAssertEqual(driver.responderInsertions, ["fallback"])
+        XCTAssertEqual(driver.pasteInsertions, ["fallback"])
+    }
+
     func testExplicitEnterUsesCapturedTargetAndSurfacesFocusMove()
         throws
     {
@@ -216,6 +289,8 @@ private final class TestTextInsertionDriver: TextInsertionDriving {
     var unicodeResult: DirectInsertionResult = .unsupported
     var enterResult: DirectInsertionResult = .unsupported
     var enterAttempts = 0
+    var responderResult: DirectInsertionResult = .unsupported
+    var responderInsertions: [String] = []
 
     init(directResult: DirectInsertionResult, pasteResult: Bool) {
         self.directResult = directResult
@@ -257,6 +332,14 @@ private final class TestTextInsertionDriver: TextInsertionDriving {
     ) -> PasteInsertionResult {
         pasteInsertions.append(text)
         return pasteResult
+    }
+
+    func insertIntoOwnResponder(
+        _ text: String,
+        target: TextInsertionTarget
+    ) -> DirectInsertionResult {
+        responderInsertions.append(text)
+        return responderResult
     }
 
     func insertUnicodeText(

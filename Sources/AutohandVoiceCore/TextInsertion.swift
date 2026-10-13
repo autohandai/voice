@@ -9,6 +9,18 @@ enum DirectInsertionResult {
     case focusMoved
 }
 
+enum SelectedTextWriteOutcome {
+    /// Some apps, including Terminal.app, report success when writing a
+    /// read-only `AXSelectedText` attribute without inserting anything, so
+    /// the write only counts when the attribute is settable.
+    static func result(
+        isSettable: Bool,
+        setSucceeded: Bool
+    ) -> DirectInsertionResult {
+        isSettable && setSucceeded ? .inserted : .unsupported
+    }
+}
+
 enum PasteInsertionResult {
     case inserted
     case focusMoved
@@ -48,9 +60,20 @@ protocol TextInsertionDriving: AnyObject {
     func sendEnter(
         target: TextInsertionTarget
     ) -> DirectInsertionResult
+    func insertIntoOwnResponder(
+        _ text: String,
+        target: TextInsertionTarget
+    ) -> DirectInsertionResult
 }
 
 extension TextInsertionDriving {
+    func insertIntoOwnResponder(
+        _ text: String,
+        target: TextInsertionTarget
+    ) -> DirectInsertionResult {
+        .unsupported
+    }
+
     func insertUnicodeText(
         _ text: String,
         target: TextInsertionTarget
@@ -155,6 +178,20 @@ public struct TextInserter {
                     case .unsupported:
                         continue
                     }
+                case .ownProcessResponder:
+                    switch driver.insertIntoOwnResponder(
+                        text,
+                        target: target
+                    ) {
+                    case .inserted:
+                        return
+                    case .noFocusedElement:
+                        throw VoiceError.noFocusedTextField
+                    case .focusMoved:
+                        throw VoiceError.insertionTargetChanged
+                    case .unsupported:
+                        continue
+                    }
                 case .unicodeEvents:
                     switch driver.insertUnicodeText(text, target: target) {
                     case .inserted:
@@ -243,12 +280,47 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
         guard targetIsStillFocused(systemTarget) else {
             return .focusMoved
         }
+        var isSettable = DarwinBoolean(false)
+        let settableStatus = AXUIElementIsAttributeSettable(
+            systemTarget.element,
+            kAXSelectedTextAttribute as CFString,
+            &isSettable
+        )
+        guard settableStatus == .success, isSettable.boolValue else {
+            return .unsupported
+        }
         let status = AXUIElementSetAttributeValue(
             systemTarget.element,
             kAXSelectedTextAttribute as CFString,
             text as CFString
         )
-        return status == .success ? .inserted : .unsupported
+        return SelectedTextWriteOutcome.result(
+            isSettable: isSettable.boolValue,
+            setSucceeded: status == .success
+        )
+    }
+
+    func insertIntoOwnResponder(
+        _ text: String,
+        target: TextInsertionTarget
+    ) -> DirectInsertionResult {
+        guard
+            let systemTarget = target.storage as? SystemInsertionTarget,
+            systemTarget.processID == ProcessInfo.processInfo.processIdentifier
+        else {
+            return .unsupported
+        }
+        guard targetIsSameElement(systemTarget) else {
+            return .focusMoved
+        }
+        guard
+            let textView = NSApp.keyWindow?.firstResponder as? NSTextView,
+            textView.isEditable
+        else {
+            return .unsupported
+        }
+        textView.insertText(text, replacementRange: textView.selectedRange())
+        return .inserted
     }
 
     func pastePreservingClipboard(
@@ -385,12 +457,26 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
     private func focusedElement() -> AXUIElement? {
         let system = AXUIElementCreateSystemWide()
         var focused: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
+        if AXUIElementCopyAttributeValue(
             system,
             kAXFocusedUIElementAttribute as CFString,
             &focused
         ) == .success,
-        let focused
+        let focused {
+            return (focused as! AXUIElement)
+        }
+        // The system-wide element can fail to report focus for some
+        // frontmost apps (observed with Terminal.app) while the app element
+        // still does.
+        guard
+            let frontmost = NSWorkspace.shared.frontmostApplication,
+            AXUIElementCopyAttributeValue(
+                AXUIElementCreateApplication(frontmost.processIdentifier),
+                kAXFocusedUIElementAttribute as CFString,
+                &focused
+            ) == .success,
+            let focused,
+            CFGetTypeID(focused) == AXUIElementGetTypeID()
         else {
             return nil
         }
@@ -462,7 +548,8 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
                 )?.bundleIdentifier,
                 accessibilityRole: role,
                 accessibilitySubrole: subrole,
-                isProtectedContent: isProtectedContent
+                isProtectedContent: isProtectedContent,
+                isOwnProcess: isOwnProcess(processID)
             )
         }
         var range = CFRange()
@@ -481,7 +568,8 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
                 )?.bundleIdentifier,
                 accessibilityRole: role,
                 accessibilitySubrole: subrole,
-                isProtectedContent: isProtectedContent
+                isProtectedContent: isProtectedContent,
+                isOwnProcess: isOwnProcess(processID)
             )
         }
         let count = (
@@ -516,8 +604,13 @@ private final class SystemTextInsertionDriver: TextInsertionDriving {
             )?.bundleIdentifier,
             accessibilityRole: role,
             accessibilitySubrole: subrole,
-            isProtectedContent: isProtectedContent
+            isProtectedContent: isProtectedContent,
+            isOwnProcess: isOwnProcess(processID)
         )
+    }
+
+    private func isOwnProcess(_ processID: pid_t) -> Bool {
+        processID == ProcessInfo.processInfo.processIdentifier
     }
 
     private func character(

@@ -10,6 +10,8 @@ public struct TextInsertionContext: Equatable, Sendable {
     public let accessibilityRole: String?
     public let accessibilitySubrole: String?
     public let isProtectedContent: Bool
+    /// The focused control belongs to Autohand Voice itself.
+    public let isOwnProcess: Bool
 
     public init(
         precedingCharacter: Character? = nil,
@@ -20,7 +22,8 @@ public struct TextInsertionContext: Equatable, Sendable {
         appBundleIdentifier: String? = nil,
         accessibilityRole: String? = nil,
         accessibilitySubrole: String? = nil,
-        isProtectedContent: Bool = false
+        isProtectedContent: Bool = false,
+        isOwnProcess: Bool = false
     ) {
         self.precedingCharacter = precedingCharacter
         self.followingCharacter = followingCharacter
@@ -31,6 +34,7 @@ public struct TextInsertionContext: Equatable, Sendable {
         self.accessibilityRole = accessibilityRole
         self.accessibilitySubrole = accessibilitySubrole
         self.isProtectedContent = isProtectedContent
+        self.isOwnProcess = isOwnProcess
     }
 
     public static let unknown = TextInsertionContext()

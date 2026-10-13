@@ -4,6 +4,7 @@ public enum TextInsertionStrategy: String, Equatable, Sendable {
     case accessibilitySelectedText
     case clipboardPreservingPaste
     case unicodeEvents
+    case ownProcessResponder
 }
 
 public enum TextTargetProfile: String, Equatable, Sendable {
@@ -58,6 +59,17 @@ public enum TextInsertionPlanSelector {
     public static func plan(
         for context: TextInsertionContext
     ) -> TextInsertionPlan {
+        if context.isOwnProcess {
+            // Synthetic Command-V posted to this app is not routed to its
+            // own text fields, so insert through the key window's responder.
+            return TextInsertionPlan(
+                profile: .generic,
+                strategies: [
+                    .ownProcessResponder,
+                    .clipboardPreservingPaste,
+                ]
+            )
+        }
         let profile = profile(for: context)
         if profile.isTestedTerminal {
             return TextInsertionPlan(
