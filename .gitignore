@@ -10,5 +10,6 @@ DerivedData/
 *.wav
 *.tmp
 .claude/
+.claude/CLAUDE.md
 .autohand/
 .playwright-mcp/
