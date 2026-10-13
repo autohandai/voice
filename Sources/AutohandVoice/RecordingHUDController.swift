@@ -227,11 +227,6 @@ private struct RecordingHUDView: View {
                 standardContent
             }
         }
-        .frame(
-            width: unscaledContentSize.width,
-            height: unscaledContentSize.height
-        )
-        .scaleEffect(RecordingHUDPlacement.visualScale)
         .frame(width: contentSize.width, height: contentSize.height)
         .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
         .accessibilityElement(children: .contain)
@@ -247,15 +242,15 @@ private struct RecordingHUDView: View {
     }
 
     private var bottomContent: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: hud(8)) {
             capsuleControls
-                .frame(width: 260, height: 74)
+                .frame(width: hud(260), height: hud(74))
                 .parityGlassCapsule(tint: .cyan.opacity(0.17))
 
             if session.shouldShowHUDPreviewContent {
                 preview
-                    .padding(.horizontal, 12)
-                    .frame(width: 300, height: 24)
+                    .padding(.horizontal, hud(12))
+                    .frame(width: hud(300), height: hud(24))
                     .parityGlassCapsule(tint: .cyan.opacity(0.08))
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
@@ -264,7 +259,7 @@ private struct RecordingHUDView: View {
     }
 
     private var sideContent: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: hud(12)) {
             leftActionButton
             VoiceWaveform(session: session)
             if session.shouldShowHUDPreviewContent {
@@ -273,10 +268,10 @@ private struct RecordingHUDView: View {
             }
             rightActionButton
         }
-        .padding(14)
+        .padding(hud(14))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .parityGlassSurface(
-            cornerRadius: 44,
+            cornerRadius: hud(44),
             tint: .cyan.opacity(0.17)
         )
     }
@@ -289,7 +284,7 @@ private struct RecordingHUDView: View {
                 actionButton
             case .processing:
                 ProgressView()
-                    .controlSize(.small)
+                    .controlSize(.mini)
                     .accessibilityLabel("Creating transcript")
             case .ready:
                 if session.recordingHUDIdlePresentation.isVisible {
@@ -297,13 +292,13 @@ private struct RecordingHUDView: View {
                 } else {
                     Circle()
                         .fill(.secondary.opacity(0.35))
-                        .frame(width: 12, height: 12)
+                        .frame(width: hud(12), height: hud(12))
                 }
             }
         }
-        .frame(width: 52, height: 52)
+        .frame(width: hud(52), height: hud(52))
         .parityGlassSurface(
-            cornerRadius: 26,
+            cornerRadius: hud(26),
             tint: .cyan.opacity(0.17)
         )
     }
@@ -312,15 +307,15 @@ private struct RecordingHUDView: View {
         HStack(spacing: 0) {
             leftActionButton
 
-            Spacer(minLength: 12)
+            Spacer(minLength: hud(12))
 
             VoiceWaveform(session: session)
 
-            Spacer(minLength: 12)
+            Spacer(minLength: hud(12))
 
             rightActionButton
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, hud(14))
     }
 
     private var leftActionButton: some View {
@@ -342,9 +337,9 @@ private struct RecordingHUDView: View {
             }
         } label: {
             Image(systemName: "xmark")
-                .font(.system(size: 23, weight: .medium))
+                .font(.system(size: hud(23), weight: .medium))
                 .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
+                .frame(width: hud(44), height: hud(44))
                 .background(.black, in: Circle())
         }
         .buttonStyle(.plain)
@@ -362,9 +357,9 @@ private struct RecordingHUDView: View {
                 session.finishRecording()
             } label: {
                 Image(systemName: "stop")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: hud(20), weight: .semibold))
                     .foregroundStyle(.black)
-                    .frame(width: 40, height: 40)
+                    .frame(width: hud(40), height: hud(40))
                     .background(.white.opacity(0.36), in: Circle())
             }
             .buttonStyle(.plain)
@@ -372,9 +367,9 @@ private struct RecordingHUDView: View {
             .accessibilityLabel("Stop recording")
         case .processing:
             ProgressView()
-                .controlSize(.small)
+                .controlSize(.mini)
                 .tint(.black)
-                .frame(width: 40, height: 40)
+                .frame(width: hud(40), height: hud(40))
                 .background(.white.opacity(0.3), in: Circle())
                 .accessibilityLabel("Creating transcript")
         case .ready:
@@ -384,9 +379,9 @@ private struct RecordingHUDView: View {
                     session.retryRecoverableAudio()
                 } label: {
                     Image(systemName: "arrow.uturn.backward")
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.system(size: hud(20), weight: .semibold))
                         .foregroundStyle(.black)
-                        .frame(width: 40, height: 40)
+                        .frame(width: hud(40), height: hud(40))
                         .background(.white.opacity(0.36), in: Circle())
                 }
                 .buttonStyle(.plain)
@@ -397,9 +392,9 @@ private struct RecordingHUDView: View {
                     session.copyFinalFromHUD()
                 } label: {
                     Image(systemName: "arrow.up")
-                        .font(.system(size: 22, weight: .medium))
+                        .font(.system(size: hud(22), weight: .medium))
                         .foregroundStyle(.black)
-                        .frame(width: 40, height: 40)
+                        .frame(width: hud(40), height: hud(40))
                         .background(.white.opacity(0.36), in: Circle())
                 }
                 .buttonStyle(.plain)
@@ -417,9 +412,9 @@ private struct RecordingHUDView: View {
                 }
             } label: {
                 Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 19, weight: .semibold))
+                    .font(.system(size: hud(19), weight: .semibold))
                     .foregroundStyle(.black)
-                    .frame(width: 40, height: 40)
+                    .frame(width: hud(40), height: hud(40))
                     .background(.white.opacity(0.36), in: Circle())
             }
             .buttonStyle(.plain)
@@ -456,15 +451,6 @@ private struct RecordingHUDView: View {
 
     private var contentSize: CGSize {
         RecordingHUDPlacement.contentSize(
-            mode: session.effectiveHUDPresentationMode,
-            anchor: layoutState.anchor,
-            livePreviewEnabled: session.effectiveLivePreviewEnabled,
-            hasPreviewContent: session.shouldShowHUDPreviewContent
-        )
-    }
-
-    private var unscaledContentSize: CGSize {
-        RecordingHUDPlacement.baseContentSize(
             mode: session.effectiveHUDPresentationMode,
             anchor: layoutState.anchor,
             livePreviewEnabled: session.effectiveLivePreviewEnabled,
@@ -610,14 +596,14 @@ private struct RecordingHUDView: View {
     @ViewBuilder
     private var preview: some View {
         if let provisional = session.provisionalTranscript {
-            HStack(alignment: .firstTextBaseline, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: hud(7)) {
                 Circle()
                     .fill(.cyan)
-                    .frame(width: 4, height: 4)
+                    .frame(width: hud(4), height: hud(4))
                     .accessibilityHidden(true)
 
                 Text(provisional)
-                    .font(.caption)
+                    .font(.system(size: 9))
                     .foregroundStyle(.primary.opacity(0.88))
                     .lineLimit(1)
                     .contentTransition(.interpolate)
@@ -626,7 +612,7 @@ private struct RecordingHUDView: View {
             .accessibilityLabel("Live preview, \(provisional)")
         } else if let notice = session.provisionalPreviewNotice {
             Label(notice, systemImage: "exclamationmark.circle")
-                .font(.caption2)
+                .font(.system(size: 8))
                 .foregroundStyle(.orange)
                 .lineLimit(1)
         }
@@ -695,8 +681,8 @@ private struct RecordingHUDView: View {
                 session.finishRecording()
             } label: {
                 Image(systemName: "stop.fill")
-                    .font(.system(size: 8, weight: .bold))
-                    .frame(width: 28, height: 28)
+                    .font(.system(size: hud(8), weight: .bold))
+                    .frame(width: hud(28), height: hud(28))
                     .foregroundStyle(.white)
                     .background(.red.gradient, in: Circle())
             }
@@ -709,8 +695,8 @@ private struct RecordingHUDView: View {
                 session.recover()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .frame(width: 28, height: 28)
+                    .font(.system(size: hud(10), weight: .semibold))
+                    .frame(width: hud(28), height: hud(28))
                     .background(.quaternary, in: Circle())
             }
             .buttonStyle(.plain)
@@ -723,8 +709,8 @@ private struct RecordingHUDView: View {
                     session.retryRecoverableAudio()
                 } label: {
                     Image(systemName: "arrow.uturn.backward")
-                        .font(.system(size: 10, weight: .semibold))
-                        .frame(width: 28, height: 28)
+                        .font(.system(size: hud(10), weight: .semibold))
+                        .frame(width: hud(28), height: hud(28))
                         .background(.quaternary, in: Circle())
                 }
                 .buttonStyle(.plain)
@@ -735,8 +721,8 @@ private struct RecordingHUDView: View {
                     session.copyFinalFromHUD()
                 } label: {
                     Image(systemName: "doc.on.doc")
-                        .font(.system(size: 10, weight: .semibold))
-                        .frame(width: 28, height: 28)
+                        .font(.system(size: hud(10), weight: .semibold))
+                        .frame(width: hud(28), height: hud(28))
                         .background(.quaternary, in: Circle())
                 }
                 .buttonStyle(.plain)
@@ -763,16 +749,16 @@ private struct VoiceWaveform: View {
         ) { timeline in
             let phase = timeline.date.timeIntervalSinceReferenceDate * 5.2
 
-            HStack(spacing: 5) {
+            HStack(spacing: hud(5)) {
                 ForEach(0..<11, id: \.self) { index in
                     Capsule()
                         .frame(
-                            width: 3,
+                            width: hud(3),
                             height: barHeight(index: index, phase: phase)
                         )
                 }
             }
-            .frame(width: 83, height: 30)
+            .frame(width: hud(83), height: hud(30))
             .foregroundStyle(
                 isFailed
                     ? Color.orange.opacity(0.9)
@@ -806,7 +792,7 @@ private struct VoiceWaveform: View {
         let wave = 0.25
             + (0.75 * abs(sin(motionPhase + Double(index) * 0.74)))
         let center = 1 - abs(CGFloat(index - 5)) / 8
-        return 3 + (20 * level * CGFloat(wave) * center)
+        return hud(3 + (20 * level * CGFloat(wave) * center))
     }
 
     private var isFailed: Bool {
@@ -815,6 +801,13 @@ private struct VoiceWaveform: View {
         }
         return false
     }
+}
+
+/// Scales a HUD design dimension to its on-screen size. The HUD is laid out
+/// at its final size rather than shrunk with `scaleEffect`, which rendered
+/// text, symbols, and the glass surface at the wrong resolution.
+private func hud(_ value: CGFloat) -> CGFloat {
+    value * RecordingHUDPlacement.visualScale
 }
 
 private extension VoiceSession {

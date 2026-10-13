@@ -15,6 +15,18 @@
 
 ## Unreleased
 
+- Fixed microphone start failing with -10868 when the input and output devices
+  run at different sample rates (#1).
+- Fixed type-mode insertion silently doing nothing in Terminal, iTerm2, and the
+  onboarding dictation test (#2); added standard Edit menu shortcuts to the
+  app's own windows.
+- Fixed onboarding getting stuck after a recording with no recognized speech:
+  a failed attempt no longer blocks the next one, and audio with no words is
+  erased instead of held for recovery.
+- Opening the app while it is already running now shows its window.
+- The recording HUD now renders at native resolution instead of being scaled
+  down.
+
 - Replaced the Input Monitoring-dependent modifier shortcut with a registered
   Control + Option + Space push-to-talk hotkey.
 - Added legacy shortcut preference migration and explicit microphone and
