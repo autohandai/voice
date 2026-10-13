@@ -83,8 +83,10 @@ public final class AudioCapture: @unchecked Sendable {
             reset()
             throw error
         }
-        let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0, format.channelCount > 0 else {
+        guard let format = Self.inputTapFormat(
+            outputFormat: input.outputFormat(forBus: 0),
+            hardwareFormat: input.inputFormat(forBus: 0)
+        ) else {
             reset()
             throw VoiceError.microphoneUnavailable("no input audio format is available")
         }
@@ -139,8 +141,10 @@ public final class AudioCapture: @unchecked Sendable {
         removeTapIfInstalled(from: input)
         do {
             try selectInputDevice(deviceUID, for: input)
-            let format = input.outputFormat(forBus: 0)
-            guard format.sampleRate > 0, format.channelCount > 0 else {
+            guard let format = Self.inputTapFormat(
+                outputFormat: input.outputFormat(forBus: 0),
+                hardwareFormat: input.inputFormat(forBus: 0)
+            ) else {
                 throw VoiceError.microphoneUnavailable(
                     "the replacement input has no audio format"
                 )
@@ -270,7 +274,7 @@ public final class AudioCapture: @unchecked Sendable {
         input.installTap(
             onBus: 0,
             bufferSize: 1_024,
-            format: Self.inputTapFormat(for: format)
+            format: format
         ) { [weak self] buffer, _ in
             self?.consume(buffer)
         }
@@ -279,12 +283,22 @@ public final class AudioCapture: @unchecked Sendable {
         }
     }
 
-    /// AVAudioInputNode owns the hardware format. Supplying its reported
-    /// output format back to `installTap` asks Core Audio to set that format
-    /// and can raise an Objective-C exception when the active route differs.
-    /// A nil tap format preserves the current hardware-negotiated route.
-    static func inputTapFormat(for _: AVAudioFormat) -> AVAudioFormat? {
-        nil
+    /// On macOS the input node's output format can follow the default
+    /// output device's sample rate. When input and output run at different
+    /// rates, tapping in that format fails to start with -10868, so the tap
+    /// uses the input hardware format and resampling stays in
+    /// `StreamingAudioResampler`.
+    static func inputTapFormat(
+        outputFormat: AVAudioFormat,
+        hardwareFormat: AVAudioFormat
+    ) -> AVAudioFormat? {
+        if hardwareFormat.sampleRate > 0, hardwareFormat.channelCount > 0 {
+            return hardwareFormat
+        }
+        if outputFormat.sampleRate > 0, outputFormat.channelCount > 0 {
+            return outputFormat
+        }
+        return nil
     }
 
     private func removeTapIfInstalled(from input: AVAudioInputNode) {

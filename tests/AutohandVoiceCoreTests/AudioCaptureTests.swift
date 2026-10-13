@@ -3,18 +3,44 @@ import XCTest
 @testable import AutohandVoiceCore
 
 final class AudioCaptureTests: XCTestCase {
-    func testInputTapUsesHardwareNegotiatedFormat() {
-        let sourceFormat = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: 48_000,
-            channels: 1,
-            interleaved: false
+    func testInputTapUsesInputHardwareRateWhenOutputRateDiffers() throws {
+        let hardwareFormat = try XCTUnwrap(
+            AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: 48_000,
+                channels: 1,
+                interleaved: false
+            )
+        )
+        let outputFormat = try XCTUnwrap(
+            AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: 96_000,
+                channels: 1,
+                interleaved: false
+            )
         )
 
-        XCTAssertNotNil(sourceFormat)
+        let tapFormat = AudioCapture.inputTapFormat(
+            outputFormat: outputFormat,
+            hardwareFormat: hardwareFormat
+        )
+
+        XCTAssertEqual(
+            tapFormat?.sampleRate,
+            48_000,
+            "A 96 kHz output device must not force a 96 kHz tap on a 48 kHz microphone (-10868)."
+        )
+    }
+
+    func testInputTapRejectsMissingFormats() throws {
+        let empty = AVAudioFormat()
+
         XCTAssertNil(
-            AudioCapture.inputTapFormat(for: sourceFormat!),
-            "The input node must negotiate its own tap format. Passing its output format back to installTap can raise an uncaught AVAudioEngine exception."
+            AudioCapture.inputTapFormat(
+                outputFormat: empty,
+                hardwareFormat: empty
+            )
         )
     }
 
