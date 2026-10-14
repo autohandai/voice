@@ -13,3 +13,6 @@ DerivedData/
 .claude/CLAUDE.md
 .autohand/
 .playwright-mcp/
+/*.o
+/*.d
+/*.swiftdeps
