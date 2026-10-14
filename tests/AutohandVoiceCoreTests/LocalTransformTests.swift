@@ -114,6 +114,7 @@ final class LocalTransformTests: XCTestCase {
         )
         let manifestData = try JSONEncoder().encode(signed)
 
+        #if arch(arm64)
         let artifact = try LocalTransformArtifactValidator.validate(
             manifestData: manifestData,
             modelURL: modelURL,
@@ -123,6 +124,22 @@ final class LocalTransformTests: XCTestCase {
 
         XCTAssertEqual(artifact.manifest, signed)
         XCTAssertEqual(artifact.modelURL, modelURL)
+        #else
+        // Local Transforms need the Neural Engine, so Intel rejects them.
+        XCTAssertThrowsError(
+            try LocalTransformArtifactValidator.validate(
+                manifestData: manifestData,
+                modelURL: modelURL,
+                signerPublicKey: privateKey.publicKey.rawRepresentation,
+                languageCode: "en"
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? LocalTransformArtifactError,
+                .unsupportedPlatform
+            )
+        }
+        #endif
     }
 
     func testTemplateStoreRejectsUnboundedTemplatesAndIsOwnerOnly()
