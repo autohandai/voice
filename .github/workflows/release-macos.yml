@@ -28,7 +28,7 @@ jobs:
 
       - name: Verify release version, detect signing credentials
         run: |
-          test "$(uname -m)" = "x86_64 arm64"
+          test "$(uname -m)" = "arm64"
           version="${GITHUB_REF_NAME#v}"
           source_version="$(sed -n 's/.*static let version = "\([^"]*\)".*/\1/p' Sources/AutohandVoiceCore/Brand.swift)"
           plist_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
