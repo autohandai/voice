@@ -49,6 +49,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var showRecordingHUD: Bool
     public var livePreviewEnabled: Bool
     public var recordingHUDTheme: RecordingHUDTheme
+    public var talkEnabled: Bool
     public var audioInputDeviceUID: String?
     public var audioInputDevicePriority: [String]
     public var automaticAudioHandoffEnabled: Bool
@@ -90,6 +91,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         showRecordingHUD: Bool = true,
         livePreviewEnabled: Bool = false,
         recordingHUDTheme: RecordingHUDTheme = .flow,
+        talkEnabled: Bool = true,
         audioInputDeviceUID: String? = nil,
         audioInputDevicePriority: [String] = [],
         automaticAudioHandoffEnabled: Bool = false,
@@ -130,6 +132,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         self.showRecordingHUD = showRecordingHUD
         self.livePreviewEnabled = livePreviewEnabled
         self.recordingHUDTheme = recordingHUDTheme
+        self.talkEnabled = talkEnabled
         self.audioInputDeviceUID = audioInputDeviceUID
         self.audioInputDevicePriority = AudioRoutePolicy.normalized(
             audioInputDevicePriority.isEmpty
@@ -216,6 +219,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         case showRecordingHUD
         case livePreviewEnabled
         case recordingHUDTheme
+        case talkEnabled
         case audioInputDeviceUID
         case audioInputDevicePriority
         case automaticAudioHandoffEnabled
@@ -273,6 +277,10 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
             RecordingHUDTheme.self,
             forKey: .recordingHUDTheme
         )) ?? .flow
+        talkEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .talkEnabled
+        ) ?? true
         audioInputDeviceUID = try container.decodeIfPresent(
             String.self,
             forKey: .audioInputDeviceUID

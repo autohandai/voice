@@ -10,6 +10,10 @@ private voice input. Work as a critical staff-level Swift engineer.
 - Use CoreML as the only STT path: Neural Engine on Apple Silicon, CPU/GPU on
   Intel.
 - Never silently fall back to remote speech, cleanup, or another engine.
+- Talk (Fn + Shift) is the only networked feature: explicit, opt-in, signed in
+  to Autohand. It sends final transcript text and recent conversation to the
+  `fantail` model, never audio, and speaks replies with local Kokoro. Dictation
+  must never use the network or fall back to Talk.
 - Preserve user typing, selection, clipboard, and cursor state.
 - Treat partial transcripts as provisional and commit only final transcripts.
 - Surface permission, model, microphone, hot-key, and insertion failures.
@@ -24,7 +28,7 @@ private voice input. Work as a critical staff-level Swift engineer.
 - Repository: `github.com/autohandai/voice`
 
 The runtime is native Swift. Do not introduce Python, MLX, a web runtime, or a
-remote inference dependency. Preserve upstream legal attribution.
+remote inference dependency beyond the opt-in Talk feature above. Preserve upstream legal attribution.
 
 ## Engineering workflow
 

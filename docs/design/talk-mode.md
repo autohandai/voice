@@ -1,6 +1,6 @@
 # Talk mode — design
 
-Status: draft for review (2026-10-15). No code yet.
+Status: v1 implemented (2026-10-15). v2 and v3 are not built yet.
 
 Talk mode lets you speak to Autohand Voice and hear a spoken reply, as a
 dialogue. Dictation is unchanged: hold Fn, text lands at the cursor, fully

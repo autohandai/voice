@@ -454,6 +454,10 @@ private struct OnboardingDictationTestStep: View {
                     MacOSDictationConflictNotice()
                 }
 
+                if passed {
+                    TalkOnboardingOffer(account: model.session.talk.account)
+                }
+
                 if case let .failed(message) = model.session.state {
                     Label(message, systemImage: "exclamationmark.triangle")
                         .font(.callout)
@@ -756,5 +760,41 @@ struct AutohandLockup: View {
             withExtension: "png",
             subdirectory: "Brand"
         ).flatMap(NSImage.init(contentsOf:))
+    }
+}
+
+/// Optional last step: Talk needs an Autohand account; dictation never does,
+/// so this can always be skipped.
+private struct TalkOnboardingOffer: View {
+    let account: AutohandAccount
+
+    var body: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Optional: talk with Fantail", systemImage: "sparkles")
+                    .font(.headline)
+                Text(
+                    "Hold Fn and Shift to ask a question and hear the answer. Talk needs a free Autohand account; you can also set it up later in Settings."
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                switch account.status {
+                case .signedOut:
+                    Button("Sign In with Autohand") {
+                        account.signIn()
+                    }
+                case let .signingIn(code, _):
+                    Text("Finish signing in in your browser. Code: \(code)")
+                        .font(.callout)
+                        .textSelection(.enabled)
+                case .signedIn:
+                    Label("Signed in. Talk is ready.", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(4)
+        }
     }
 }

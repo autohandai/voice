@@ -67,7 +67,9 @@ final class RecordingHUDController: NSWindowController, NSWindowDelegate {
         window?.alphaValue = session.effectiveHUDOpacity
         switch session.state {
         case .ready:
-            if session.recordingHUDIdlePresentation.isVisible {
+            if session.recordingHUDIdlePresentation.isVisible
+                || session.showsTalkCard
+            {
                 positionOnActiveScreen()
                 window?.orderFrontRegardless()
             } else {
@@ -85,10 +87,14 @@ final class RecordingHUDController: NSWindowController, NSWindowDelegate {
         let placement = session.recordingHUDPlacement(for: displayID)
         layoutState.anchor = placement.anchor
         let isFlow = session.preferences.recordingHUDTheme == .flow
-        // Flow draws its own soft shadow inside a fixed transparent window.
-        window.hasShadow = !isFlow
+        let showsTalkCard = session.showsTalkCard
+        // Flow and the Talk card draw their own soft shadow inside a fixed
+        // transparent window.
+        window.hasShadow = !isFlow && !showsTalkCard
         window.setContentSize(
-            isFlow
+            showsTalkCard
+                ? RecordingHUDPlacement.talkContentSize
+                : isFlow
                 ? RecordingHUDPlacement.flowContentSize
                 : RecordingHUDPlacement.contentSize(
                     mode: session.effectiveHUDPresentationMode,
@@ -225,7 +231,13 @@ private struct RecordingHUDView: View {
     let layoutState: RecordingHUDLayoutState
 
     var body: some View {
-        if session.preferences.recordingHUDTheme == .flow {
+        if session.showsTalkCard {
+            TalkCardView(talk: session.talk)
+                .frame(
+                    width: RecordingHUDPlacement.talkContentSize.width,
+                    height: RecordingHUDPlacement.talkContentSize.height
+                )
+        } else if session.preferences.recordingHUDTheme == .flow {
             FlowRecordingHUDView(session: session)
                 .frame(
                     width: RecordingHUDPlacement.flowContentSize.width,

@@ -101,8 +101,19 @@ struct FlowRecordingHUDView: View {
     private var center: some View {
         switch phase {
         case .listening:
-            FlowVoiceBars(session: session, mode: .live)
-                .accessibilityLabel("Listening")
+            if session.isTalkRecording {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color.talkAccent)
+                    FlowVoiceBars(session: session, mode: .live, tint: .talkAccent)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Listening for Fantail")
+            } else {
+                FlowVoiceBars(session: session, mode: .live)
+                    .accessibilityLabel("Listening")
+            }
         case .transcribing:
             FlowVoiceBars(session: session, mode: .thinking)
                 .accessibilityLabel("Creating transcript")
@@ -238,6 +249,7 @@ private struct FlowVoiceBars: View {
 
     let session: VoiceSession
     let mode: Mode
+    var tint: Color = .white
     @State private var meter = FlowMeter()
 
     private static let envelope: [Double] = [
@@ -255,7 +267,7 @@ private struct FlowVoiceBars: View {
             HStack(spacing: Self.spacing) {
                 ForEach(Self.envelope.indices, id: \.self) { index in
                     Capsule(style: .continuous)
-                        .fill(Color.white.opacity(mode == .live ? 0.95 : 0.6))
+                        .fill(tint.opacity(mode == .live ? 0.95 : 0.6))
                         .frame(
                             width: Self.barWidth,
                             height: height(index: index, level: level, time: time)

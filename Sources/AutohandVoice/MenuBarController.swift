@@ -41,6 +41,10 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
             self?.recordingHUDController?.update()
             self?.hotKeyMonitor?.synchronizeCancellationHotKey()
         }
+        session.talk.onChange = { [weak self] in
+            self?.recordingHUDController?.update()
+            self?.hotKeyMonitor?.synchronizeCancellationHotKey()
+        }
         settingsWindowController = SettingsWindowController(session: session)
         historyWindowController = HistoryWindowController(session: session)
         fileTranscriptionWindowController =
@@ -115,8 +119,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         recordingHUDController = RecordingHUDController(session: session)
         hotKeyMonitor = HotKeyMonitor(session: session)
         let functionKeyMonitor = FunctionKeyLongPressMonitor()
-        functionKeyMonitor.onIntent = { [weak session] intent in
-            session?.handleFunctionKeyIntent(intent)
+        functionKeyMonitor.onIntent = { [weak session] intent, withShift in
+            session?.handleFunctionKeyIntent(intent, withShift: withShift)
         }
         functionKeyLongPressMonitor = functionKeyMonitor
         session.onFunctionKeyMonitoringChange = {

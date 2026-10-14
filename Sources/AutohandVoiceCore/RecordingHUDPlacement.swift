@@ -103,6 +103,9 @@ public enum RecordingHUDPlacement {
     /// inside it so state changes never move the window.
     public static let flowContentSize = CGSize(width: 340, height: 56)
 
+    /// Window for the Talk reply card; the card sits at its bottom edge.
+    public static let talkContentSize = CGSize(width: 460, height: 220)
+
     public static func contentSize(
         mode: RecordingHUDPresentationMode = .automatic,
         anchor: RecordingHUDAnchor = .bottom,

@@ -91,6 +91,9 @@ final class VoiceSession {
     private(set) var state: State = .ready { didSet { onChange?() } }
     private(set) var audioLevel: Float = 0
     private(set) var recordingStartedWithFunctionKey = false
+    /// The current recording is a Talk question (Fn+Shift), not dictation.
+    private(set) var isTalkRecording = false
+    @ObservationIgnored let talk: TalkController
     @ObservationIgnored private(set) var audioInputRMS: Float = 0
     @ObservationIgnored private var functionKeyHoldConfirmed = false
     @ObservationIgnored private var discardAudioWhenStarted = false
@@ -342,8 +345,10 @@ final class VoiceSession {
         store: PreferencesStore = PreferencesStore(),
         faultInjector: any VoiceFaultInjecting = NoVoiceFaultInjector(),
         clamshellStateChecker: any ClamshellStateChecking =
-            SystemClamshellStateChecker()
+            SystemClamshellStateChecker(),
+        talk: TalkController? = nil
     ) {
+        self.talk = talk ?? TalkController()
         self.store = store
         self.faultInjector = faultInjector
         self.clamshellStateChecker = clamshellStateChecker
@@ -368,6 +373,9 @@ final class VoiceSession {
         reloadDictationStyles()
         reloadAppProfiles()
         refreshActiveProfile()
+        self.talk.onInsert = { [weak self] reply in
+            self?.insertTalkReply(reply)
+        }
     }
 
     var activeProfileLabel: String {
@@ -622,6 +630,7 @@ final class VoiceSession {
         touchTemporaryStyleOverride()
         guard canStartRecording else { return }
         recordingStartedWithFunctionKey = viaFunctionKey
+        isTalkRecording = false
         audioInputRMS = 0
         clearCompletionPresentation()
         quickDictationTargetActive = origin == .scratchpad
@@ -847,6 +856,7 @@ final class VoiceSession {
     }
 
     func cancelRecording(discardingAudio: Bool = false) {
+        endTalkRecording()
         if state == .starting {
             stopWhenStarted = false
             cancelWhenStarted = true
@@ -1219,6 +1229,7 @@ final class VoiceSession {
                 await stopProvisionalPreview()
                 await reportCoordinatorFailure(error)
                 insertionTarget = nil
+                endTalkRecording()
                 if !FailedCaptureRecoveryPolicy.retainsAudio(after: error) {
                     discardAudioRecovery()
                     await resolvePersistentRecovery(as: .discarded)
@@ -2263,7 +2274,11 @@ final class VoiceSession {
 
     /// Fn is hold-to-talk. Capture starts on press; Fn intents only act on a
     /// recording that Fn itself started.
-    func handleFunctionKeyIntent(_ intent: FunctionKeyIntent) {
+    /// `withShift` is true when Shift was held with Fn: a Talk question.
+    func handleFunctionKeyIntent(
+        _ intent: FunctionKeyIntent,
+        withShift: Bool = false
+    ) {
         guard preferences.functionKeyLongPressEnabled else { return }
         switch intent {
         case .none:
@@ -2275,11 +2290,13 @@ final class VoiceSession {
             guard recordingStartedWithFunctionKey, isRecordingOrStarting
             else { return }
             functionKeyHoldConfirmed = true
+            markTalkRecordingIfNeeded(withShift)
             if state == .recording, activeConfiguration.playSounds {
                 NSSound.beep()
             }
         case .finish:
             guard recordingStartedWithFunctionKey else { return }
+            markTalkRecordingIfNeeded(withShift)
             finishRecording()
         case .discard:
             guard recordingStartedWithFunctionKey else { return }
@@ -2287,6 +2304,78 @@ final class VoiceSession {
         case .cancel:
             guard recordingStartedWithFunctionKey else { return }
             cancelRecording()
+        }
+    }
+
+    private func markTalkRecordingIfNeeded(_ withShift: Bool) {
+        guard
+            withShift,
+            preferences.talkEnabled,
+            !isTalkRecording,
+            !quickDictationTargetActive
+        else { return }
+        isTalkRecording = true
+        talk.beginListening()
+    }
+
+    private func endTalkRecording() {
+        guard isTalkRecording else { return }
+        isTalkRecording = false
+        talk.cancelListening()
+    }
+
+    /// The HUD shows the Fantail card when Talk has something to show and no
+    /// dictation is in progress.
+    var showsTalkCard: Bool {
+        talk.showsCard && state == .ready
+    }
+
+    func setTalkEnabled(_ value: Bool) {
+        preferences.talkEnabled = value
+        if !value {
+            talk.endConversation()
+        }
+        persist()
+    }
+
+    /// Hands a final Talk transcript to Fantail instead of inserting it.
+    private func handOffToTalk(_ question: String) async {
+        if let coordinatorSessionID {
+            _ = await dictationCoordinator.handle(
+                .rawFinalProduced(coordinatorSessionID)
+            )
+            _ = await dictationCoordinator.handle(
+                .revisionProduced(coordinatorSessionID)
+            )
+            _ = await dictationCoordinator.handle(
+                .commitSucceeded(coordinatorSessionID, outcome: .copied)
+            )
+        }
+        discardAudioRecovery()
+        await resolvePersistentRecovery(as: .discarded)
+        pendingTranscript = nil
+        insertionTarget = nil
+        isTalkRecording = false
+        state = .ready
+        talk.ask(question)
+    }
+
+    /// Types a Talk reply at the current cursor.
+    private func insertTalkReply(_ reply: String) {
+        do {
+            guard inserter.hasAccessibilityPermission(prompt: true) else {
+                throw VoiceError.accessibilityPermissionDenied
+            }
+            let target = try captureInsertionTarget()
+            try inserter.commitVerifiedFinalText(
+                reply,
+                mode: .type,
+                target: target
+            )
+            talk.dismiss()
+        } catch {
+            recordOperationalIssue(.insertion)
+            state = .failed(error.localizedDescription)
         }
     }
 
@@ -2873,6 +2962,10 @@ final class VoiceSession {
         }
         guard commandResult.text.contains(where: { !$0.isWhitespace }) else {
             throw VoiceError.emptyTranscript
+        }
+        if isTalkRecording {
+            await handOffToTalk(commandResult.text)
+            return
         }
         if let coordinatorSessionID {
             _ = await dictationCoordinator.handle(

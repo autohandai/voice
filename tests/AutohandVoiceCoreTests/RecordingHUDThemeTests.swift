@@ -33,3 +33,31 @@ final class RecordingHUDThemeTests: XCTestCase {
         XCTAssertLessThanOrEqual(size.height, 64)
     }
 }
+
+final class TalkPreferenceTests: XCTestCase {
+    func testTalkIsOnByDefaultAndSurvivesARoundTrip() throws {
+        XCTAssertTrue(VoicePreferences().talkEnabled)
+
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(
+                with: JSONEncoder().encode(VoicePreferences())
+            ) as? [String: Any]
+        )
+        object.removeValue(forKey: "talkEnabled")
+        XCTAssertTrue(
+            try JSONDecoder().decode(
+                VoicePreferences.self,
+                from: JSONSerialization.data(withJSONObject: object)
+            ).talkEnabled
+        )
+
+        var preferences = VoicePreferences()
+        preferences.talkEnabled = false
+        XCTAssertFalse(
+            try JSONDecoder().decode(
+                VoicePreferences.self,
+                from: JSONEncoder().encode(preferences)
+            ).talkEnabled
+        )
+    }
+}

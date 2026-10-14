@@ -112,9 +112,10 @@ swift run autohand-voice-stt check
 
 ## Use
 
-Launch the app and hold Fn for 0.4 seconds to start dictation, then release it
-to finish. Long-press Fn is the default activation; short Fn presses keep their
-normal macOS behavior. The existing Accessibility permission is sufficient for
+Launch the app and hold Fn while you speak, then release it to finish.
+Recording starts the moment Fn goes down; a press shorter than 0.4 seconds is
+treated as a normal Fn tap and its audio is discarded, so short presses keep
+their normal macOS behavior. The existing Accessibility permission is sufficient for
 global Fn observation. Input Monitoring is an optional alternative, and
 Control + Option + Space remains the registered fallback shortcut. The menu bar
 icon shows recording and local processing state. A final transcript is inserted
@@ -131,6 +132,19 @@ required in System Settings. After sleep or session unlock, the app restores
 one hot-key registration and recreates its Core Audio device observation.
 Sleep-interrupted captured audio remains available in memory for local retry;
 quitting during capture requires explicit discard confirmation.
+
+### Talk with Fantail (optional)
+
+Hold **Fn + Shift**, ask a question, and let go. Your speech is transcribed on
+this Mac, the text goes to Autohand's Fantail model, and the reply streams back
+on screen and is spoken with the local Kokoro voice (`af_heart`). Hold Fn + Shift
+again to follow up; the conversation is kept in memory for two minutes of
+inactivity. Escape or Stop interrupts a reply; Insert types it at the cursor.
+
+Talk needs a free Autohand account (Settings → Talk → Sign In with Autohand,
+using the same browser sign-in as the Autohand CLI). The API key is stored in
+Keychain. When the free plan's limit is reached, Talk shows when it resets and
+offers an upgrade. Turn Talk off in Settings → Talk.
 
 The menu supports:
 
@@ -303,7 +317,10 @@ security, legal, billing, and delivery gates pass; see
   24-hour policy. Recovery is never retried automatically and can always be
   transcribed directly to the clipboard.
 - Speech recognition runs in the local CoreML process.
-- No speech or cleanup request is sent to a remote endpoint.
+- Dictation never sends speech, text, or cleanup requests to a remote endpoint.
+- Talk is the only networked feature. It runs only when you hold Fn + Shift
+  and are signed in, sends only the final transcript text and the recent
+  conversation (never audio) to Autohand, and speaks replies locally.
 - There is no silent engine fallback.
 - Permission, microphone, model, and focused-control failures remain visible in
   the menu instead of discarding or inventing text.

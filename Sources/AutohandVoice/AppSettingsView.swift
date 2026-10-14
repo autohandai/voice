@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 private enum SettingsPane: String, CaseIterable, Identifiable {
     case gettingStarted
     case general
+    case talk
     case formatting
     case vocabulary
     case appProfiles
@@ -21,6 +22,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .gettingStarted: "Getting Started"
         case .general: "General"
+        case .talk: "Talk"
         case .formatting: "Formatting"
         case .vocabulary: "Vocabulary"
         case .appProfiles: "App Profiles"
@@ -34,6 +36,7 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .gettingStarted: "checklist"
         case .general: "gearshape"
+        case .talk: "sparkles"
         case .formatting: "textformat"
         case .vocabulary: "text.book.closed"
         case .appProfiles: "square.stack.3d.up"
@@ -103,6 +106,8 @@ struct AppSettingsView: View {
             }
         case .general:
             GeneralSettingsView(model: model)
+        case .talk:
+            TalkSettingsView(model: model)
         case .formatting:
             FormattingSettingsView(model: model)
         case .vocabulary:

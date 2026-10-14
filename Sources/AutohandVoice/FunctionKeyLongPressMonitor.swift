@@ -16,13 +16,16 @@ enum FunctionKeyMonitorResult {
 final class FunctionKeyLongPressMonitor {
     static let holdDuration: TimeInterval = 0.4
 
-    var onIntent: ((FunctionKeyIntent) -> Void)?
+    /// Delivers each intent with whether Shift was held during the press
+    /// (Fn+Shift starts a Talk question instead of dictation).
+    var onIntent: ((FunctionKeyIntent, Bool) -> Void)?
 
     private var globalMonitor: Any?
     private var localMonitor: Any?
     private var thresholdWorkItem: DispatchWorkItem?
     private var reducer = FunctionKeyLongPressReducer()
     private var functionKeyIsDown = false
+    private var shiftSeenDuringPress = false
 
     func start(requestPermission: Bool) -> FunctionKeyMonitorResult {
         stop(deliverCancellation: false)
@@ -69,8 +72,9 @@ final class FunctionKeyLongPressMonitor {
         functionKeyIsDown = false
         let intent = reducer.reduce(.cancelled)
         if deliverCancellation, intent != .none {
-            onIntent?(intent)
+            onIntent?(intent, shiftSeenDuringPress)
         }
+        shiftSeenDuringPress = false
         if let globalMonitor {
             NSEvent.removeMonitor(globalMonitor)
         }
@@ -82,9 +86,11 @@ final class FunctionKeyLongPressMonitor {
     }
 
     private func observe(_ flags: NSEvent.ModifierFlags) {
-        let isDown = flags
-            .intersection(.deviceIndependentFlagsMask)
-            .contains(.function)
+        let modifiers = flags.intersection(.deviceIndependentFlagsMask)
+        let isDown = modifiers.contains(.function)
+        if isDown, modifiers.contains(.shift) {
+            shiftSeenDuringPress = true
+        }
         if isDown {
             guard !functionKeyIsDown else { return }
             functionKeyIsDown = true
@@ -107,13 +113,14 @@ final class FunctionKeyLongPressMonitor {
             thresholdWorkItem?.cancel()
             thresholdWorkItem = nil
             emit(.released)
+            shiftSeenDuringPress = false
         }
     }
 
     private func emit(_ event: FunctionKeyLongPressEvent) {
         let intent = reducer.reduce(event)
         if intent != .none {
-            onIntent?(intent)
+            onIntent?(intent, shiftSeenDuringPress)
         }
     }
 }

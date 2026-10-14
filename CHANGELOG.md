@@ -15,6 +15,11 @@
 
 ## Unreleased
 
+- Talk with Fantail: hold Fn + Shift to ask a question and hear the answer.
+  Transcription and the Kokoro voice stay on the Mac; only the question text
+  and recent conversation go to Autohand. Optional Autohand sign-in (browser
+  device flow, Keychain), free-plan limits with an upgrade prompt, and a new
+  Talk settings pane.
 - The menu bar icon now shows a live waveform that follows the microphone
   while recording.
 - Fn is hold-to-talk in every Recording Mode and starts capturing the
