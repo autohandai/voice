@@ -195,6 +195,8 @@ struct AboutView: View {
     private var architecture: String {
         #if arch(arm64)
         "Apple Silicon (arm64)"
+        #elseif arch(x86_64)
+        "Intel (x86_64)"
         #else
         "Unsupported architecture"
         #endif

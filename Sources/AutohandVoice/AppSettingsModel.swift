@@ -321,7 +321,7 @@ final class AppSettingsModel {
         switch remediation {
         case .useSupportedMac:
             actionMessage =
-                "Autohand Voice requires macOS 14 or later on Apple Silicon."
+                "Autohand Voice requires macOS 14 or later."
         case .allowMicrophone:
             openMicrophoneSettings()
         case .allowAccessibility:

@@ -18,7 +18,7 @@ public enum DiagnosticRemediation: String, Codable, Sendable {
 
     public var label: String {
         switch self {
-        case .useSupportedMac: "Use macOS 14+ on Apple Silicon"
+        case .useSupportedMac: "Use macOS 14 or later"
         case .allowMicrophone: "Open Microphone Settings"
         case .allowAccessibility: "Open Accessibility Settings"
         case .registerShortcut: "Reset Shortcut"

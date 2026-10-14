@@ -15,7 +15,7 @@ public struct AboutMetadata: Equatable, Sendable {
         companyName: "Autohand AI",
         version: Brand.version,
         summary:
-            "Native, private voice input for Apple Silicon Macs. "
+            "Native, private voice input for Mac. "
             + "Speech recognition runs locally with CoreML.",
         upstreamAttribution:
             "Based on Dictate by brando, used under the MIT License.",

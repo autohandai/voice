@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build:
-    name: Test and package (Apple Silicon)
+    name: Test and package (universal)
     runs-on: macos-15
     timeout-minutes: 45
 
@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Verify Apple Silicon runner
-        run: test "$(uname -m)" = "arm64"
+        run: test "$(uname -m)" = "x86_64 arm64"
 
       - name: Run Swift tests
         run: swift test
@@ -50,15 +50,36 @@ jobs:
       - name: Verify app signature and architecture
         run: |
           codesign --verify --deep --strict --verbose=2 "dist/Autohand Voice.app"
-          test "$(lipo -archs "dist/Autohand Voice.app/Contents/MacOS/autohand-voice")" = "arm64"
-          test "$(lipo -archs "dist/Autohand Voice.app/Contents/MacOS/autohand-voice-stt")" = "arm64"
+          test "$(lipo -archs "dist/Autohand Voice.app/Contents/MacOS/autohand-voice")" = "x86_64 arm64"
+          test "$(lipo -archs "dist/Autohand Voice.app/Contents/MacOS/autohand-voice-stt")" = "x86_64 arm64"
 
       - name: Upload installable build
         uses: actions/upload-artifact@v7
         with:
-          name: Autohand-Voice-${{ github.sha }}-arm64
+          name: Autohand-Voice-${{ github.sha }}-universal
           if-no-files-found: error
           path: |
             dist/*.dmg
             dist/*.sha256
             dist/THIRD-PARTY-NOTICES.txt
+
+  test-intel:
+    name: Test on Intel
+    runs-on: macos-15-intel
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Verify Intel runner
+        run: test "$(uname -m)" = "x86_64"
+
+      - name: Run Swift tests
+        run: swift test
+
+      - name: Build release executables
+        run: swift build -c release
+
+      - name: Verify local-only system contract
+        run: ./.build/release/autohand-voice check --json

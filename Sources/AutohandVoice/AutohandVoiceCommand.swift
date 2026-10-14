@@ -14,7 +14,7 @@ private enum CommandError: LocalizedError {
 
 private func printUsage() {
     print("""
-    Autohand Voice — private, native voice input for Apple Silicon
+    Autohand Voice — private, native voice input for Mac
 
     Usage:
       autohand-voice run

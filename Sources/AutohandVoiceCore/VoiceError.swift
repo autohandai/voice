@@ -18,7 +18,7 @@ public enum VoiceError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .unsupportedPlatform:
-            return "Autohand Voice requires macOS 14 or later on Apple Silicon."
+            return "Autohand Voice requires macOS 14 or later."
         case .microphonePermissionDenied:
             return "Microphone access is denied. Enable Autohand Voice in System Settings → Privacy & Security → Microphone."
         case let .microphoneUnavailable(reason):

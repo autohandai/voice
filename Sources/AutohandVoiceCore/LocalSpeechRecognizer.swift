@@ -42,9 +42,23 @@ public actor LocalSpeechRecognizer {
 
     public func validate() async throws -> Bool {
         do {
+            #if arch(arm64)
             return try await AsrModels.isModelValid(
                 version: variant.asrVersion
             )
+            #else
+            // FluidAudio's validator rejects Intel, but loading and
+            // transcription run there on the CPU and GPU. Validate by loading.
+            guard AsrModels.modelsExist(
+                at: variant.cacheDirectory,
+                version: variant.asrVersion
+            ) else { return false }
+            _ = try await AsrModels.load(
+                from: variant.cacheDirectory,
+                version: variant.asrVersion
+            )
+            return true
+            #endif
         } catch is CancellationError {
             throw CancellationError()
         } catch {
@@ -221,7 +235,7 @@ public actor LocalSpeechRecognizer {
     }
 
     private static func map(
-        _ progress: DownloadUtils.DownloadProgress
+        _ progress: DownloadProgress
     ) -> ModelPreparationProgress {
         let phase: ModelPreparationPhase
         switch progress.phase {

@@ -11,7 +11,7 @@ VERSION="${AUTOHAND_VOICE_VERSION:-$(
         -c 'Print :CFBundleShortVersionString' \
         "$REPO_ROOT/Resources/Info.plist"
 )}"
-ARTIFACT_NAME="Autohand-Voice-$VERSION-arm64"
+ARTIFACT_NAME="Autohand-Voice-$VERSION-universal"
 DMG_PATH="$REPO_ROOT/dist/$ARTIFACT_NAME.dmg"
 CHECKSUM_PATH="$DMG_PATH.sha256"
 CODESIGN_IDENTITY="${AUTOHAND_VOICE_CODESIGN_IDENTITY:--}"
@@ -28,8 +28,8 @@ fi
 for executable in autohand-voice autohand-voice-stt; do
     executable_path="$APP_PATH/Contents/MacOS/$executable"
     architectures="$(lipo -archs "$executable_path")"
-    if [[ "$architectures" != "arm64" ]]; then
-        echo "$executable must contain only arm64, found: $architectures" >&2
+    if [[ "$architectures" != "x86_64 arm64" ]]; then
+        echo "$executable must be universal (x86_64 arm64), found: $architectures" >&2
         exit 1
     fi
 done

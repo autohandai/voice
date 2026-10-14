@@ -1,6 +1,6 @@
 # Autohand Voice
 
-Native, private voice input for Apple Silicon Macs. Hold Fn, talk, let go —
+Native, private voice input for Mac (Apple Silicon and Intel). Hold Fn, talk, let go —
 your words land exactly where your cursor is, and nothing you say ever leaves
 your Mac.
 
@@ -85,8 +85,8 @@ To build the drag-to-Applications installer and its SHA-256 checksum:
 
 ```bash
 ./scripts/build-installer.sh
-open dist/Autohand-Voice-0.1.0-arm64.dmg
-(cd dist && shasum -a 256 -c Autohand-Voice-0.1.0-arm64.dmg.sha256)
+open dist/Autohand-Voice-0.1.0-universal.dmg
+(cd dist && shasum -a 256 -c Autohand-Voice-0.1.0-universal.dmg.sha256)
 ```
 
 Local builds use an ad-hoc signature. Tagged releases are published by the

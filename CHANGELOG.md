@@ -15,6 +15,8 @@
 
 ## Unreleased
 
+- Shipped a universal app that also runs on Intel Macs (CoreML on the CPU
+  and GPU there), and updated FluidAudio to 0.15.8.
 - Fixed microphone start failing with -10868 when the input and output devices
   run at different sample rates (#1).
 - Fixed type-mode insertion silently doing nothing in Terminal, iTerm2, and the

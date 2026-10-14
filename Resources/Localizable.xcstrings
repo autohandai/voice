@@ -11323,36 +11323,36 @@
         }
       }
     },
-    "Use macOS 14+ on Apple Silicon" : {
+    "Use macOS 14 or later" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verwenden Sie macOS 14 auf Apple Silicon"
+            "value" : "Verwenden Sie macOS 14 oder neuer"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use macOS 14+ on Apple Silicon"
+            "value" : "Use macOS 14 or later"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Utilice macOS 14 en Apple Silicon"
+            "value" : "Utilice macOS 14 o posterior"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Usa macOS 14 su Apple Silicon"
+            "value" : "Usa macOS 14 o versioni successive"
           }
         },
         "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use o macOS 14 no Apple Silicon"
+            "value" : "Use o macOS 14 ou posterior"
           }
         }
       }

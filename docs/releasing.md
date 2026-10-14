@@ -67,7 +67,7 @@ swift build -c release
 ./scripts/build-app.sh
 ./scripts/build-installer.sh
 codesign --verify --deep --strict --verbose=2 "dist/Autohand Voice.app"
-(cd dist && shasum -a 256 -c Autohand-Voice-0.1.0-arm64.dmg.sha256)
+(cd dist && shasum -a 256 -c Autohand-Voice-0.1.0-universal.dmg.sha256)
 ```
 
 Local artifacts are ad-hoc signed and are not a substitute for the notarized

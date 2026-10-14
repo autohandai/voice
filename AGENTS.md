@@ -5,9 +5,10 @@ private voice input. Work as a critical staff-level Swift engineer.
 
 ## Product contract
 
-- Target macOS 14+ on Apple Silicon only.
+- Target macOS 14+ on Apple Silicon and Intel, shipped as one universal app.
 - Keep speech recognition local.
-- Use CoreML on the Apple Neural Engine as the only STT path.
+- Use CoreML as the only STT path: Neural Engine on Apple Silicon, CPU/GPU on
+  Intel.
 - Never silently fall back to remote speech, cleanup, or another engine.
 - Preserve user typing, selection, clipboard, and cursor state.
 - Treat partial transcripts as provisional and commit only final transcripts.
@@ -46,7 +47,7 @@ swift build -c release
 ```
 
 For microphone, keyboard, menu bar, permission, model, or text insertion
-changes, also run a real Apple Silicon smoke test.
+changes, also run a real smoke test (Apple Silicon, and Intel or Rosetta).
 
 ## Code standards
 

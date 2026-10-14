@@ -16,9 +16,16 @@ VERSION="${AUTOHAND_VOICE_VERSION:-$(
 BUILD_NUMBER="${AUTOHAND_VOICE_BUILD_NUMBER:-1}"
 CODESIGN_IDENTITY="${AUTOHAND_VOICE_CODESIGN_IDENTITY:--}"
 
-swift build -c release --product autohand-voice
-swift build -c release --product autohand-voice-stt
-BIN_PATH="$(swift build -c release --show-bin-path)"
+# Universal by default so one installer runs on Apple Silicon and Intel Macs.
+read -r -a ARCHS <<< "${AUTOHAND_VOICE_ARCHS:-arm64 x86_64}"
+ARCH_ARGUMENTS=()
+for arch in "${ARCHS[@]}"; do
+    ARCH_ARGUMENTS+=(--arch "$arch")
+done
+
+swift build -c release "${ARCH_ARGUMENTS[@]}" --product autohand-voice
+swift build -c release "${ARCH_ARGUMENTS[@]}" --product autohand-voice-stt
+BIN_PATH="$(swift build -c release "${ARCH_ARGUMENTS[@]}" --show-bin-path)"
 
 rm -rf "$APP_PATH"
 mkdir -p \

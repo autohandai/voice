@@ -263,7 +263,7 @@ private struct OnboardingPrivacyStep: View {
                 OnboardingTitle(
                     "Private by design",
                     subtitle:
-                        "Speech recognition runs locally with CoreML on Apple Silicon."
+                        "Speech recognition runs locally with CoreML on your Mac."
                 )
 
                 PrivacyPromise(
