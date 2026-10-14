@@ -28,6 +28,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private var lastRuntimeRestoreAt: TimeInterval = 0
     private var statusAnimationTask: Task<Void, Never>?
     private var statusAnimationFrame = 0
+    private var liveWaveformLevels = VoiceLevelHistory(
+        barCount: StatusBarWaveformAnimation.barCount
+    )
     private var statusAnimationIsLive = false
     private var statusAnimationStartedAt: TimeInterval?
     private lazy var statusAnimationImages =
@@ -665,6 +668,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private func startLiveWaveform() {
         stopStatusAnimation()
         statusAnimationIsLive = true
+        liveWaveformLevels.reset()
         applyLiveWaveformFrame()
         statusAnimationTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -680,18 +684,17 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
                     self.updateStatusItemAppearance()
                     return
                 }
-                self.statusAnimationFrame += 1
                 self.applyLiveWaveformFrame()
             }
         }
     }
 
     private func applyLiveWaveformFrame() {
+        liveWaveformLevels.push(
+            StatusBarWaveformAnimation.meterLevel(rms: session.audioInputRMS)
+        )
         statusItem.button?.image = StatusBarWaveformRenderer.liveFrame(
-            level: StatusBarWaveformAnimation.meterLevel(
-                rms: session.audioInputRMS
-            ),
-            frame: statusAnimationFrame
+            levels: liveWaveformLevels.barLevels
         )
     }
 

@@ -23,6 +23,16 @@ public enum RecordingHUDPresentationMode:
 public enum RecordingHUDTheme: String, Codable, CaseIterable, Sendable {
     case flow
     case classic
+
+    /// How long the result stays on screen after text is inserted. Flow
+    /// confirms briefly and gets out of the way; Classic keeps the transcript
+    /// preview up long enough to copy it.
+    public var completionDisplayDuration: Duration {
+        switch self {
+        case .flow: .milliseconds(1_400)
+        case .classic: .seconds(10)
+        }
+    }
 }
 
 public enum RecordingHUDIdlePresentation: Equatable, Sendable {

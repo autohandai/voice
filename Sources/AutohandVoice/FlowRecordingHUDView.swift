@@ -239,8 +239,8 @@ struct FlowRecordingHUDView: View {
     }
 }
 
-/// Nine bars: live mode follows the microphone level; thinking mode is a
-/// calm travelling wave while the transcript is created.
+/// Nine bars: live mode draws the real recent microphone levels; thinking
+/// mode is a calm travelling wave while the transcript is created.
 private struct FlowVoiceBars: View {
     enum Mode {
         case live
@@ -250,7 +250,7 @@ private struct FlowVoiceBars: View {
     let session: VoiceSession
     let mode: Mode
     var tint: Color = .white
-    @State private var meter = FlowMeter()
+    @State private var meter = VoiceBarsMeter(barCount: Self.envelope.count)
 
     private static let envelope: [Double] = [
         0.42, 0.6, 0.8, 0.94, 1, 0.94, 0.8, 0.6, 0.42,
@@ -263,14 +263,14 @@ private struct FlowVoiceBars: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 40)) { context in
             let time = context.date.timeIntervalSinceReferenceDate
-            let level = currentLevel(at: time)
+            let levels = barLevels(at: time)
             HStack(spacing: Self.spacing) {
                 ForEach(Self.envelope.indices, id: \.self) { index in
                     Capsule(style: .continuous)
                         .fill(tint.opacity(mode == .live ? 0.95 : 0.6))
                         .frame(
                             width: Self.barWidth,
-                            height: height(index: index, level: level, time: time)
+                            height: height(level: levels[index])
                         )
                 }
             }
@@ -282,40 +282,54 @@ private struct FlowVoiceBars: View {
         )
     }
 
-    private func currentLevel(at time: TimeInterval) -> Double {
+    private func barLevels(at time: TimeInterval) -> [Double] {
         switch mode {
         case .live:
-            meter.follow(
-                StatusBarWaveformAnimation.meterLevel(
+            let levels = meter.bars(
+                level: StatusBarWaveformAnimation.meterLevel(
                     rms: session.audioInputRMS
-                )
+                ),
+                at: time
             )
+            // A gentle taper keeps the pill shape without inventing motion.
+            return levels.indices.map {
+                levels[$0] * (0.7 + 0.3 * Self.envelope[$0])
+            }
         case .thinking:
-            0.32
+            return Self.envelope.indices.map {
+                0.32 * Self.envelope[$0]
+                    * (0.5 + 0.5 * sin(time * 5 - Double($0) * 0.7))
+            }
         }
     }
 
-    private func height(index: Int, level: Double, time: TimeInterval) -> CGFloat {
-        let wobble: Double
-        switch mode {
-        case .live:
-            wobble = 0.62 + 0.38 * sin(time * 9 + Double(index) * 1.3)
-        case .thinking:
-            wobble = 0.5 + 0.5 * sin(time * 5 - Double(index) * 0.7)
-        }
-        let shaped = level * Self.envelope[index] * wobble
-        return Self.minimumHeight
-            + CGFloat(shaped) * (Self.maximumHeight - Self.minimumHeight)
+    private func height(level: Double) -> CGFloat {
+        Self.minimumHeight
+            + CGFloat(level) * (Self.maximumHeight - Self.minimumHeight)
     }
 }
 
-/// Smooths the meter: rises quickly with speech, falls back gently.
-private final class FlowMeter {
-    private var value = 0.0
+/// Turns a stream of meter readings into bar levels from the real voice:
+/// readings are smoothed (quick rise, gentle fall) and sampled into a
+/// short history at a steady pace, independent of the frame rate.
+final class VoiceBarsMeter {
+    private static let sampleInterval: TimeInterval = 0.05
 
-    func follow(_ target: Double) -> Double {
-        let rate = target > value ? 0.45 : 0.12
-        value += (target - value) * rate
-        return value
+    private var smoothed = 0.0
+    private var history: VoiceLevelHistory
+    private var lastSample: TimeInterval = 0
+
+    init(barCount: Int) {
+        history = VoiceLevelHistory(barCount: barCount)
+    }
+
+    func bars(level target: Double, at time: TimeInterval) -> [Double] {
+        let rate = target > smoothed ? 0.55 : 0.2
+        smoothed += (target - smoothed) * rate
+        if time - lastSample >= Self.sampleInterval {
+            history.push(smoothed)
+            lastSample = time
+        }
+        return history.barLevels
     }
 }

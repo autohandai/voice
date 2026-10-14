@@ -20,21 +20,21 @@ public enum StatusBarWaveformAnimation {
     private static let silentBarHeight = 0.12
 
     /// Maps microphone RMS to 0...1 on a decibel scale, like a level meter:
-    /// room noise (about -60 dBFS) stays flat and speech fills the range.
+    /// room tone (about -45 dBFS) stays low, conversational speech (about
+    /// -20 dBFS) leaves headroom, and only loud speech fills the range.
     public static func meterLevel(rms: Float) -> Double {
         guard rms > 0 else { return 0 }
         let decibels = 20 * log10(Double(rms))
-        let floor = -60.0
-        let ceiling = -20.0
+        let floor = -55.0
+        let ceiling = -12.0
         return min(max((decibels - floor) / (ceiling - floor), 0), 1)
     }
 
-    /// Bar heights for the recording waveform: flat when silent, rising with
-    /// the normalized input level, and shifting each frame while speaking.
-    public static func liveBarHeights(level: Double, frame: Int) -> [Double] {
-        let level = min(max(level, 0), 1)
-        return barHeights(for: frame).map {
-            silentBarHeight + (1 - silentBarHeight) * level * $0
+    /// Bar heights for the recording waveform from the real recent voice
+    /// levels: flat when silent, rising and moving with speech.
+    public static func liveBarHeights(levels: [Double]) -> [Double] {
+        levels.map {
+            silentBarHeight + (1 - silentBarHeight) * min(max($0, 0), 1)
         }
     }
 

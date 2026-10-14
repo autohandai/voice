@@ -3533,11 +3533,14 @@ final class VoiceSession {
 
     private func presentCompletion(_ message: String) {
         completionTask?.cancel()
-        let deadline = ProcessInfo.processInfo.systemUptime + 10
+        let duration = preferences.recordingHUDTheme.completionDisplayDuration
+        let deadline = ProcessInfo.processInfo.systemUptime
+            + Double(duration.components.seconds)
+            + Double(duration.components.attoseconds) / 1e18
         completionExpiresAtUptime = deadline
         completionPresentation = message
         completionTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(10))
+            try? await Task.sleep(for: duration)
             guard
                 !Task.isCancelled,
                 let self,

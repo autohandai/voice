@@ -18,11 +18,10 @@ enum StatusBarWaveformRenderer {
         }
     }
 
-    static func liveFrame(level: Double, frame: Int) -> NSImage {
+    static func liveFrame(levels: [Double]) -> NSImage {
         image(
             barHeights: StatusBarWaveformAnimation.liveBarHeights(
-                level: level,
-                frame: frame
+                levels: levels
             ),
             description: "Autohand Voice is listening"
         )

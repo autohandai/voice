@@ -227,27 +227,38 @@ private struct TintedIconLabelStyle: LabelStyle {
 struct TalkVoiceBars: View {
     let speaker: TalkSpeaker
     let isThinking: Bool
+    @State private var meter = VoiceBarsMeter(barCount: Self.count)
 
     private static let count = 5
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 30)) { context in
             let time = context.date.timeIntervalSinceReferenceDate
-            let level = isThinking
-                ? 0.35
-                : StatusBarWaveformAnimation.meterLevel(rms: speaker.level)
+            let levels = barLevels(at: time)
             HStack(spacing: 2) {
                 ForEach(0..<Self.count, id: \.self) { index in
-                    let wobble = 0.55 + 0.45 * sin(time * 7 - Double(index) * 0.9)
                     Capsule(style: .continuous)
                         .fill(Color.talkAccent)
                         .frame(
                             width: 2.5,
-                            height: 3 + CGFloat(level * wobble) * 9
+                            height: 3 + CGFloat(levels[index]) * 9
                         )
                 }
             }
             .frame(height: 12)
         }
+    }
+
+    /// Thinking is a calm wave; speaking follows the real voice output.
+    private func barLevels(at time: TimeInterval) -> [Double] {
+        if isThinking {
+            return (0..<Self.count).map {
+                0.35 * (0.55 + 0.45 * sin(time * 7 - Double($0) * 0.9))
+            }
+        }
+        return meter.bars(
+            level: StatusBarWaveformAnimation.meterLevel(rms: speaker.level),
+            at: time
+        )
     }
 }

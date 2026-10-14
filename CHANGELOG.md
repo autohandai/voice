@@ -15,6 +15,12 @@
 
 ## Unreleased
 
+- The recording pill, the Talk card and the menu bar icon now draw the real
+  recent voice level instead of an animated wobble: flat in silence, moving
+  with each word. The level meter was recalibrated so normal speech no longer
+  pins the bars at full height.
+- With the Flow look, the "Done" pill now hides about 1.4 seconds after the
+  text is inserted instead of staying for 10 seconds. Classic is unchanged.
 - Talk with Fantail: hold Fn + Shift to ask a question and hear the answer.
   Transcription and the Kokoro voice stay on the Mac; only the question text
   and recent conversation go to Autohand. Optional Autohand sign-in (browser

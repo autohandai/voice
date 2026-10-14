@@ -32,6 +32,22 @@ final class RecordingHUDThemeTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(size.width, 300)
         XCTAssertLessThanOrEqual(size.height, 64)
     }
+
+    func testFlowGetsOutOfTheWayRightAfterInserting() {
+        XCTAssertLessThanOrEqual(
+            RecordingHUDTheme.flow.completionDisplayDuration,
+            .seconds(2)
+        )
+        XCTAssertGreaterThanOrEqual(
+            RecordingHUDTheme.flow.completionDisplayDuration,
+            .seconds(1)
+        )
+        // Classic keeps the transcript preview up long enough to copy it.
+        XCTAssertEqual(
+            RecordingHUDTheme.classic.completionDisplayDuration,
+            .seconds(10)
+        )
+    }
 }
 
 final class TalkPreferenceTests: XCTestCase {
