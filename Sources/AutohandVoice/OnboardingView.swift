@@ -450,6 +450,10 @@ private struct OnboardingDictationTestStep: View {
                     }
                 }
 
+                if model.session.preferences.functionKeyLongPressEnabled {
+                    MacOSDictationConflictNotice()
+                }
+
                 if case let .failed(message) = model.session.state {
                     Label(message, systemImage: "exclamationmark.triangle")
                         .font(.callout)

@@ -69,6 +69,176 @@
         }
       }
     },
+    "Hold Fn for 0.4 seconds to start, then keep talking after you let go. Press Fn again to finish. Short presses keep their normal macOS behavior." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halten Sie Fn 0,4 Sekunden lang gedrückt, um zu starten, und sprechen Sie nach dem Loslassen weiter. Drücken Sie Fn erneut, um zu beenden. Durch kurzes Drücken bleibt das normale macOS-Verhalten erhalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold Fn for 0.4 seconds to start, then keep talking after you let go. Press Fn again to finish. Short presses keep their normal macOS behavior."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantenga presionada la tecla Fn durante 0,4 segundos para comenzar y siga hablando después de soltarla. Presione Fn de nuevo para finalizar. Las pulsaciones breves mantienen el comportamiento normal de macOS."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tieni premuto Fn per 0,4 secondi per iniziare, poi continua a parlare dopo averlo rilasciato. Premi di nuovo Fn per terminare. Le pressioni brevi mantengono il normale comportamento di macOS."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segure Fn por 0,4 segundos para iniciar e continue falando depois de soltar. Pressione Fn novamente para terminar. Pressões curtas mantêm seu comportamento normal do macOS."
+          }
+        }
+      }
+    },
+    "Hold Fn or the shortcut while speaking, then release to transcribe." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halten Sie Fn oder das Tastenkürzel beim Sprechen gedrückt und lassen Sie los, um zu transkribieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold Fn or the shortcut while speaking, then release to transcribe."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantenga presionada Fn o el atajo mientras habla y suéltelo para transcribir."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tieni premuto Fn o la scorciatoia mentre parli, poi rilascia per trascrivere."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segure Fn ou o atalho enquanto fala e solte para transcrever."
+          }
+        }
+      }
+    },
+    "In Keyboard settings, change the Dictation shortcut away from pressing Fn twice, or turn Dictation off." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ändern Sie in den Tastatureinstellungen das Diktierkürzel auf etwas anderes als zweimaliges Drücken von Fn, oder deaktivieren Sie die Diktierfunktion."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Keyboard settings, change the Dictation shortcut away from pressing Fn twice, or turn Dictation off."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En la configuración de Teclado, cambie el atajo de Dictado para que no sea presionar Fn dos veces, o desactive el Dictado."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nelle impostazioni Tastiera, cambia l'abbreviazione della Dettatura in modo che non sia premere Fn due volte, oppure disattiva la Dettatura."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nos ajustes de Teclado, altere o atalho do Ditado para algo diferente de pressionar Fn duas vezes, ou desative o Ditado."
+          }
+        }
+      }
+    },
+    "macOS Dictation is on and can start when you press Fn twice." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die macOS-Diktierfunktion ist aktiviert und kann starten, wenn Sie Fn zweimal drücken."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS Dictation is on and can start when you press Fn twice."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El Dictado de macOS está activado y puede iniciarse al presionar Fn dos veces."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La Dettatura di macOS è attiva e può avviarsi quando premi Fn due volte."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Ditado do macOS está ativado e pode iniciar quando você pressiona Fn duas vezes."
+          }
+        }
+      }
+    },
+    "Open Keyboard Settings" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tastatureinstellungen öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Keyboard Settings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir configuración de Teclado"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apri impostazioni Tastiera"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir ajustes de Teclado"
+          }
+        }
+      }
+    },
     "Retry Last Recording" : {
       "localizations" : {
         "de" : {
@@ -99,6 +269,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tentar novamente a última gravação"
+          }
+        }
+      }
+    },
+    "Start with a Fn hold or the shortcut, then press either again to finish." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starten Sie, indem Sie Fn gedrückt halten oder das Tastenkürzel drücken, und drücken Sie eines davon erneut, um zu beenden."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start with a Fn hold or the shortcut, then press either again to finish."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comience manteniendo presionada Fn o con el atajo y presione cualquiera de los dos de nuevo para finalizar."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inizia tenendo premuto Fn o con la scorciatoia, poi premi di nuovo uno dei due per terminare."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comece segurando Fn ou com o atalho e pressione qualquer um deles novamente para terminar."
+          }
+        }
+      }
+    },
+    "Start with a Fn hold or the shortcut, then press either again to finish. Escape cancels." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starten Sie, indem Sie Fn gedrückt halten oder das Tastenkürzel drücken, und drücken Sie eines davon erneut, um zu beenden. Escape bricht ab."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start with a Fn hold or the shortcut, then press either again to finish. Escape cancels."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comience manteniendo presionada Fn o con el atajo y presione cualquiera de los dos de nuevo para finalizar. Escape cancela."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inizia tenendo premuto Fn o con la scorciatoia, poi premi di nuovo uno dei due per terminare. Esc annulla."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comece segurando Fn ou com o atalho e pressione qualquer um deles novamente para terminar. Esc cancela."
           }
         }
       }
@@ -4829,40 +5067,6 @@
         }
       }
     },
-    "Hold the shortcut while speaking, then release to transcribe." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Halten Sie die Tastenkombination gedrückt, während Sie sprechen, und lassen Sie sie dann los, um zu transkribieren."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hold the shortcut while speaking, then release to transcribe."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mantenga presionado el atajo mientras habla y luego suéltelo para transcribir."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tieni premuta la scorciatoia mentre parli, quindi rilasciala per trascrivere."
-          }
-        },
-        "pt" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Segure o atalho enquanto fala e solte para transcrever."
-          }
-        }
-      }
-    },
     "HUD Edge" : {
       "localizations" : {
         "de" : {
@@ -7613,74 +7817,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pressione e segure"
-          }
-        }
-      }
-    },
-    "Press once to start and again to finish." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Drücken Sie einmal zum Starten und erneut zum Beenden."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Press once to start and again to finish."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Presione una vez para comenzar y nuevamente para finalizar."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Premere una volta per iniziare e un'altra per terminare."
-          }
-        },
-        "pt" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pressione uma vez para iniciar e novamente para terminar."
-          }
-        }
-      }
-    },
-    "Press once to start. Press again to finish, or Escape to cancel." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zum Starten einmal drücken. Drücken Sie erneut, um den Vorgang abzuschließen, oder Escape, um abzubrechen."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Press once to start. Press again to finish, or Escape to cancel."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Presione una vez para comenzar. Presione nuevamente para finalizar o Escape para cancelar."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Premere una volta per iniziare. Premi di nuovo per terminare o Esci per annullare."
-          }
-        },
-        "pt" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pressione uma vez para começar. Pressione novamente para finalizar ou Escape para cancelar."
           }
         }
       }

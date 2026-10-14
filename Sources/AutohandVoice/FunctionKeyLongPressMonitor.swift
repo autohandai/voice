@@ -17,6 +17,9 @@ final class FunctionKeyLongPressMonitor {
     static let holdDuration: TimeInterval = 0.4
 
     var onIntent: ((DictationInputIntent) -> Void)?
+    var recordingContext: () -> (mode: RecordingMode, isRecording: Bool) = {
+        (.pressAndHold, false)
+    }
 
     private var globalMonitor: Any?
     private var localMonitor: Any?
@@ -67,7 +70,12 @@ final class FunctionKeyLongPressMonitor {
         thresholdWorkItem?.cancel()
         thresholdWorkItem = nil
         functionKeyIsDown = false
-        let intent = reducer.reduce(.cancelled)
+        let context = recordingContext()
+        let intent = reducer.reduce(
+            .cancelled,
+            mode: context.mode,
+            isRecording: context.isRecording
+        )
         if deliverCancellation, intent != .none {
             onIntent?(intent)
         }
@@ -111,7 +119,12 @@ final class FunctionKeyLongPressMonitor {
     }
 
     private func emit(_ event: FunctionKeyLongPressEvent) {
-        let intent = reducer.reduce(event)
+        let context = recordingContext()
+        let intent = reducer.reduce(
+            event,
+            mode: context.mode,
+            isRecording: context.isRecording
+        )
         if intent != .none {
             onIntent?(intent)
         }

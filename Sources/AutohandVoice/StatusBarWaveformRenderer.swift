@@ -12,12 +12,26 @@ enum StatusBarWaveformRenderer {
     static func frames() -> [NSImage] {
         (0..<StatusBarWaveformAnimation.frameCount).map { frame in
             image(
-                barHeights: StatusBarWaveformAnimation.barHeights(for: frame)
+                barHeights: StatusBarWaveformAnimation.barHeights(for: frame),
+                description: "Autohand Voice is starting"
             )
         }
     }
 
-    private static func image(barHeights: [Double]) -> NSImage {
+    static func liveFrame(level: Double, frame: Int) -> NSImage {
+        image(
+            barHeights: StatusBarWaveformAnimation.liveBarHeights(
+                level: level,
+                frame: frame
+            ),
+            description: "Autohand Voice is listening"
+        )
+    }
+
+    private static func image(
+        barHeights: [Double],
+        description: String
+    ) -> NSImage {
         let image = NSImage(
             size: imageSize,
             flipped: false
@@ -47,7 +61,7 @@ enum StatusBarWaveformRenderer {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = "Autohand Voice is starting"
+        image.accessibilityDescription = description
         return image
     }
 }

@@ -15,6 +15,12 @@
 
 ## Unreleased
 
+- The menu bar icon now shows a live waveform that follows the microphone
+  while recording.
+- Fn now follows the Recording Mode: in Toggle and Hands-Free, hold Fn to
+  start, keep talking after letting go, and press Fn again to finish.
+- Warn when macOS Dictation is on, since pressing Fn twice can also start
+  Apple's Dictation, with a shortcut to Keyboard settings.
 - Shipped a universal app that also runs on Intel Macs (CoreML on the CPU
   and GPU there), and updated FluidAudio to 0.15.8.
 - Fixed microphone start failing with -10868 when the input and output devices

@@ -1018,6 +1018,15 @@ private struct SetupStep: View {
 }
 
 private struct GeneralSettingsView: View {
+    private var functionKeyHelp: LocalizedStringKey {
+        switch model.session.preferences.recordingMode {
+        case .pressAndHold:
+            "Hold Fn for 0.4 seconds to start, then release to finish. Short presses keep their normal macOS behavior."
+        case .toggle, .handsFree:
+            "Hold Fn for 0.4 seconds to start, then keep talking after you let go. Press Fn again to finish. Short presses keep their normal macOS behavior."
+        }
+    }
+
     @Bindable var model: AppSettingsModel
     @State private var confirmsPointerMonitoring = false
 
@@ -1058,11 +1067,9 @@ private struct GeneralSettingsView: View {
                         )
                     )
 
-                    Text(
-                        "Hold Fn for 0.4 seconds to start, then release to finish. Short presses keep their normal macOS behavior."
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    Text(functionKeyHelp)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
                     if model.session.preferences
                         .functionKeyLongPressEnabled
@@ -1070,6 +1077,7 @@ private struct GeneralSettingsView: View {
                         Text(model.session.functionKeyLongPressStatus)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                        MacOSDictationConflictNotice()
                     }
 
                     LabeledContent("Fallback Shortcut") {
@@ -1596,11 +1604,11 @@ private struct GeneralSettingsView: View {
     private var recordingModeHelp: LocalizedStringKey {
         switch model.session.preferences.recordingMode {
         case .pressAndHold:
-            "Hold the shortcut while speaking, then release to transcribe."
+            "Hold Fn or the shortcut while speaking, then release to transcribe."
         case .toggle:
-            "Press once to start and again to finish."
+            "Start with a Fn hold or the shortcut, then press either again to finish."
         case .handsFree:
-            "Press once to start. Press again to finish, or Escape to cancel."
+            "Start with a Fn hold or the shortcut, then press either again to finish. Escape cancels."
         }
     }
 }
@@ -2457,6 +2465,34 @@ private struct ActionMessage: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .accessibilityLabel("Status: \(message)")
+        }
+    }
+}
+
+/// Shown while Fn activation is on and macOS Dictation is enabled, because a
+/// double Fn press can also start Apple's Dictation.
+struct MacOSDictationConflictNotice: View {
+    var body: some View {
+        if MacOSDictationConflict.macOSDictationEnabled() {
+            VStack(alignment: .leading, spacing: 6) {
+                Label(
+                    "macOS Dictation is on and can start when you press Fn twice.",
+                    systemImage: "exclamationmark.triangle"
+                )
+                .foregroundStyle(.orange)
+                Text(
+                    "In Keyboard settings, change the Dictation shortcut away from pressing Fn twice, or turn Dictation off."
+                )
+                .foregroundStyle(.secondary)
+                Button("Open Keyboard Settings") {
+                    if let url = URL(
+                        string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension"
+                    ) {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            }
+            .font(.caption)
         }
     }
 }

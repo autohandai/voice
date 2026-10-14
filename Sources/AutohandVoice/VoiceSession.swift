@@ -90,6 +90,8 @@ final class VoiceSession {
     @ObservationIgnored var onLocalDataReset: (() -> Void)?
     private(set) var state: State = .ready { didSet { onChange?() } }
     private(set) var audioLevel: Float = 0
+    private(set) var recordingStartedWithFunctionKey = false
+    @ObservationIgnored private(set) var audioInputRMS: Float = 0
     private(set) var audioInputHealth: AudioInputHealth = .idle
     private(set) var audioInputName = "System Default"
     private(set) var shortcutRegistrationState:
@@ -610,10 +612,15 @@ final class VoiceSession {
         isFileTranscriptionActive = false
     }
 
-    func beginRecording(origin: DictationOrigin = .shortcut) {
+    func beginRecording(
+        origin: DictationOrigin = .shortcut,
+        viaFunctionKey: Bool = false
+    ) {
         refreshActiveProfile()
         touchTemporaryStyleOverride()
         guard canStartRecording else { return }
+        recordingStartedWithFunctionKey = viaFunctionKey
+        audioInputRMS = 0
         clearCompletionPresentation()
         quickDictationTargetActive = origin == .scratchpad
         let configuration = activeConfiguration
@@ -2246,12 +2253,13 @@ final class VoiceSession {
 
     func handleFunctionKeyInputIntent(_ intent: DictationInputIntent) {
         guard preferences.functionKeyLongPressEnabled else { return }
-        performInputIntent(intent, origin: .shortcut)
+        performInputIntent(intent, origin: .shortcut, viaFunctionKey: true)
     }
 
     private func performInputIntent(
         _ intent: DictationInputIntent,
-        origin: DictationOrigin
+        origin: DictationOrigin,
+        viaFunctionKey: Bool = false
     ) {
         switch intent {
         case .none:
@@ -2260,10 +2268,10 @@ final class VoiceSession {
             if isRecordingOrStarting {
                 finishRecording()
             } else {
-                beginRecording(origin: origin)
+                beginRecording(origin: origin, viaFunctionKey: viaFunctionKey)
             }
         case .start:
-            beginRecording(origin: origin)
+            beginRecording(origin: origin, viaFunctionKey: viaFunctionKey)
         case .finish:
             finishRecording()
         case .cancel:
@@ -3356,6 +3364,7 @@ final class VoiceSession {
     }
 
     private func observeAudioLevel(_ level: Float) {
+        audioInputRMS = level
         audioLevel = min(max(level * 8, 0), 1)
         audioInputHealth = audioHealthMonitor.observe(
             level: level,

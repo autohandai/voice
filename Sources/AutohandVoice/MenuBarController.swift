@@ -28,6 +28,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private var lastRuntimeRestoreAt: TimeInterval = 0
     private var statusAnimationTask: Task<Void, Never>?
     private var statusAnimationFrame = 0
+    private var statusAnimationIsLive = false
     private var statusAnimationStartedAt: TimeInterval?
     private lazy var statusAnimationImages =
         StatusBarWaveformRenderer.frames()
@@ -116,6 +117,12 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         let functionKeyMonitor = FunctionKeyLongPressMonitor()
         functionKeyMonitor.onIntent = { [weak session] intent in
             session?.handleFunctionKeyInputIntent(intent)
+        }
+        functionKeyMonitor.recordingContext = { [weak session] in
+            (
+                session?.effectiveRecordingMode ?? .pressAndHold,
+                session?.isRecordingOrStarting ?? false
+            )
         }
         functionKeyLongPressMonitor = functionKeyMonitor
         session.onFunctionKeyMonitoringChange = {
@@ -599,9 +606,26 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         )
     }
 
+    /// While recording, the menu bar icon becomes a waveform that follows the
+    /// microphone level.
+    private var shouldShowLiveWaveform: Bool {
+        session.state == .recording
+            && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
+
     private func updateStatusItemAppearance() {
         guard let button = statusItem.button else { return }
         button.toolTip = "Autohand Voice — \(session.statusLabel)"
+
+        if shouldShowLiveWaveform {
+            if !statusAnimationIsLive {
+                startLiveWaveform()
+            }
+            return
+        }
+        if statusAnimationIsLive {
+            stopStatusAnimation()
+        }
 
         guard shouldAnimateStatusItem else {
             stopStatusAnimation()
@@ -640,6 +664,39 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func startLiveWaveform() {
+        stopStatusAnimation()
+        statusAnimationIsLive = true
+        applyLiveWaveformFrame()
+        statusAnimationTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(
+                        for: StatusBarWaveformAnimation.liveFrameInterval
+                    )
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled, let self else { return }
+                guard self.shouldShowLiveWaveform else {
+                    self.updateStatusItemAppearance()
+                    return
+                }
+                self.statusAnimationFrame += 1
+                self.applyLiveWaveformFrame()
+            }
+        }
+    }
+
+    private func applyLiveWaveformFrame() {
+        statusItem.button?.image = StatusBarWaveformRenderer.liveFrame(
+            level: StatusBarWaveformAnimation.meterLevel(
+                rms: session.audioInputRMS
+            ),
+            frame: statusAnimationFrame
+        )
+    }
+
     private func advanceStatusAnimationFrame() {
         guard shouldAnimateStatusItem else {
             updateStatusItemAppearance()
@@ -662,6 +719,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     private func stopStatusAnimation() {
         statusAnimationTask?.cancel()
         statusAnimationTask = nil
+        statusAnimationIsLive = false
         statusAnimationFrame = 0
         statusAnimationStartedAt = nil
     }

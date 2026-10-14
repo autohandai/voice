@@ -514,14 +514,17 @@ private struct RecordingHUDView: View {
     }
 
     private var recordingInstruction: String {
+        let key = session.recordingStartedWithFunctionKey
+            ? "Fn"
+            : session.preferences.shortcut.displayName
         let instruction: String
         switch session.effectiveRecordingMode {
         case .pressAndHold:
-            instruction =
-                "Release \(session.preferences.shortcut.displayName)"
-        case .toggle, .handsFree:
-            instruction =
-                "\(session.preferences.shortcut.displayName) to finish"
+            instruction = "Release \(key)"
+        case .toggle:
+            instruction = "Press \(key) to finish"
+        case .handsFree:
+            instruction = "Press \(key) to finish · Esc cancels"
         }
         return "\(session.activeStyleLabel) · \(instruction)"
     }
