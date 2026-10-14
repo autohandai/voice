@@ -84,14 +84,19 @@ final class RecordingHUDController: NSWindowController, NSWindowDelegate {
         let displayID = displayID(for: screen)
         let placement = session.recordingHUDPlacement(for: displayID)
         layoutState.anchor = placement.anchor
+        let isFlow = session.preferences.recordingHUDTheme == .flow
+        // Flow draws its own soft shadow inside a fixed transparent window.
+        window.hasShadow = !isFlow
         window.setContentSize(
-            RecordingHUDPlacement.contentSize(
-                mode: session.effectiveHUDPresentationMode,
-                anchor: placement.anchor,
-                livePreviewEnabled: session.effectiveLivePreviewEnabled,
-                hasPreviewContent:
-                    session.shouldShowHUDPreviewContent
-            )
+            isFlow
+                ? RecordingHUDPlacement.flowContentSize
+                : RecordingHUDPlacement.contentSize(
+                    mode: session.effectiveHUDPresentationMode,
+                    anchor: placement.anchor,
+                    livePreviewEnabled: session.effectiveLivePreviewEnabled,
+                    hasPreviewContent:
+                        session.shouldShowHUDPreviewContent
+                )
         )
         let frame = RecordingHUDPlacement.frame(
             visibleFrame: screen.visibleFrame,
@@ -220,16 +225,24 @@ private struct RecordingHUDView: View {
     let layoutState: RecordingHUDLayoutState
 
     var body: some View {
-        Group {
-            if session.effectiveHUDPresentationMode == .dot {
-                dotContent
-            } else {
-                standardContent
+        if session.preferences.recordingHUDTheme == .flow {
+            FlowRecordingHUDView(session: session)
+                .frame(
+                    width: RecordingHUDPlacement.flowContentSize.width,
+                    height: RecordingHUDPlacement.flowContentSize.height
+                )
+        } else {
+            Group {
+                if session.effectiveHUDPresentationMode == .dot {
+                    dotContent
+                } else {
+                    standardContent
+                }
             }
+            .frame(width: contentSize.width, height: contentSize.height)
+            .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
+            .accessibilityElement(children: .contain)
         }
-        .frame(width: contentSize.width, height: contentSize.height)
-        .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
-        .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder
@@ -514,17 +527,19 @@ private struct RecordingHUDView: View {
     }
 
     private var recordingInstruction: String {
-        let key = session.recordingStartedWithFunctionKey
-            ? "Fn"
-            : session.preferences.shortcut.displayName
+        let key = session.preferences.shortcut.displayName
         let instruction: String
-        switch session.effectiveRecordingMode {
-        case .pressAndHold:
-            instruction = "Release \(key)"
-        case .toggle:
-            instruction = "Press \(key) to finish"
-        case .handsFree:
-            instruction = "Press \(key) to finish · Esc cancels"
+        if session.recordingStartedWithFunctionKey {
+            instruction = "Release Fn"
+        } else {
+            switch session.effectiveRecordingMode {
+            case .pressAndHold:
+                instruction = "Release \(key)"
+            case .toggle:
+                instruction = "Press \(key) to finish"
+            case .handsFree:
+                instruction = "Press \(key) to finish · Esc cancels"
+            }
         }
         return "\(session.activeStyleLabel) · \(instruction)"
     }

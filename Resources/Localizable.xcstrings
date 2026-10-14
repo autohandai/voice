@@ -1,6 +1,40 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "A slim pill whose bars follow your voice. Hover it for cancel and stop. The live preview shows only in Classic." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine schmale Leiste, deren Balken Ihrer Stimme folgen. Bewegen Sie den Zeiger darauf, um abzubrechen oder zu stoppen. Die Live-Vorschau gibt es nur in Klassisch."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A slim pill whose bars follow your voice. Hover it for cancel and stop. The live preview shows only in Classic."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una píldora delgada cuyas barras siguen su voz. Pase el puntero por encima para cancelar o detener. La vista previa en vivo solo aparece en Clásico."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una pillola sottile le cui barre seguono la tua voce. Passaci sopra il puntatore per annullare o fermare. L'anteprima dal vivo appare solo in Classico."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma pílula fina cujas barras acompanham sua voz. Passe o ponteiro sobre ela para cancelar ou parar. A prévia ao vivo aparece apenas no Clássico."
+          }
+        }
+      }
+    },
     "Autohand" : {
       "localizations" : {
         "de" : {
@@ -31,6 +65,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Autohand"
+          }
+        }
+      }
+    },
+    "Classic" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klassisch"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clásico"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classico"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clássico"
           }
         }
       }
@@ -69,70 +137,104 @@
         }
       }
     },
-    "Hold Fn for 0.4 seconds to start, then keep talking after you let go. Press Fn again to finish. Short presses keep their normal macOS behavior." : {
+    "Flow" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Halten Sie Fn 0,4 Sekunden lang gedrückt, um zu starten, und sprechen Sie nach dem Loslassen weiter. Drücken Sie Fn erneut, um zu beenden. Durch kurzes Drücken bleibt das normale macOS-Verhalten erhalten."
+            "value" : "Flow"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hold Fn for 0.4 seconds to start, then keep talking after you let go. Press Fn again to finish. Short presses keep their normal macOS behavior."
+            "value" : "Flow"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mantenga presionada la tecla Fn durante 0,4 segundos para comenzar y siga hablando después de soltarla. Presione Fn de nuevo para finalizar. Las pulsaciones breves mantienen el comportamiento normal de macOS."
+            "value" : "Flow"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tieni premuto Fn per 0,4 secondi per iniziare, poi continua a parlare dopo averlo rilasciato. Premi di nuovo Fn per terminare. Le pressioni brevi mantengono il normale comportamento di macOS."
+            "value" : "Flow"
           }
         },
         "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Segure Fn por 0,4 segundos para iniciar e continue falando depois de soltar. Pressione Fn novamente para terminar. Pressões curtas mantêm seu comportamento normal do macOS."
+            "value" : "Flow"
           }
         }
       }
     },
-    "Hold Fn or the shortcut while speaking, then release to transcribe." : {
+    "Hold Fn while you speak, then release to finish. Short presses keep their normal macOS behavior." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Halten Sie Fn oder das Tastenkürzel beim Sprechen gedrückt und lassen Sie los, um zu transkribieren."
+            "value" : "Halten Sie Fn beim Sprechen gedrückt und lassen Sie es los, um zu beenden. Durch kurzes Drücken bleibt das normale macOS-Verhalten erhalten."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hold Fn or the shortcut while speaking, then release to transcribe."
+            "value" : "Hold Fn while you speak, then release to finish. Short presses keep their normal macOS behavior."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mantenga presionada Fn o el atajo mientras habla y suéltelo para transcribir."
+            "value" : "Mantenga presionada la tecla Fn mientras habla y suéltela para finalizar. Las pulsaciones breves mantienen el comportamiento normal de macOS."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tieni premuto Fn o la scorciatoia mentre parli, poi rilascia per trascrivere."
+            "value" : "Tieni premuto Fn mentre parli, poi rilascia per terminare. Le pressioni brevi mantengono il normale comportamento di macOS."
           }
         },
         "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Segure Fn ou o atalho enquanto fala e solte para transcrever."
+            "value" : "Segure Fn enquanto fala e solte para terminar. Pressões curtas mantêm seu comportamento normal do macOS."
+          }
+        }
+      }
+    },
+    "Hold the shortcut while speaking, then release to transcribe. Fn is always hold to talk." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halten Sie das Tastenkürzel beim Sprechen gedrückt und lassen Sie los, um zu transkribieren. Fn funktioniert immer durch Gedrückthalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hold the shortcut while speaking, then release to transcribe. Fn is always hold to talk."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantenga presionado el atajo mientras habla y suéltelo para transcribir. Fn siempre funciona manteniéndola presionada."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tieni premuta la scorciatoia mentre parli, poi rilascia per trascrivere. Fn funziona sempre tenendolo premuto."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Segure o atalho enquanto fala e solte para transcrever. Fn sempre funciona mantendo pressionado."
           }
         }
       }
@@ -167,6 +269,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nos ajustes de Teclado, altere o atalho do Ditado para algo diferente de pressionar Fn duas vezes, ou desative o Ditado."
+          }
+        }
+      }
+    },
+    "Larger controls with the optional live preview." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Größere Bedienelemente mit optionaler Live-Vorschau."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Larger controls with the optional live preview."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controles más grandes con la vista previa en vivo opcional."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controlli più grandi con l'anteprima dal vivo facoltativa."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controles maiores com a prévia ao vivo opcional."
           }
         }
       }
@@ -239,6 +375,108 @@
         }
       }
     },
+    "Press the shortcut once to start and again to finish. Fn is always hold to talk." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drücken Sie das Tastenkürzel einmal zum Starten und erneut zum Beenden. Fn funktioniert immer durch Gedrückthalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Press the shortcut once to start and again to finish. Fn is always hold to talk."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Presione el atajo una vez para comenzar y otra vez para finalizar. Fn siempre funciona manteniéndola presionada."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premi la scorciatoia una volta per iniziare e di nuovo per terminare. Fn funziona sempre tenendolo premuto."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pressione o atalho uma vez para iniciar e novamente para terminar. Fn sempre funciona mantendo pressionado."
+          }
+        }
+      }
+    },
+    "Press the shortcut once to start, again to finish, or Escape to cancel. Fn is always hold to talk." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drücken Sie das Tastenkürzel einmal zum Starten, erneut zum Beenden oder Escape zum Abbrechen. Fn funktioniert immer durch Gedrückthalten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Press the shortcut once to start, again to finish, or Escape to cancel. Fn is always hold to talk."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Presione el atajo una vez para comenzar, otra vez para finalizar o Escape para cancelar. Fn siempre funciona manteniéndola presionada."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premi la scorciatoia una volta per iniziare, di nuovo per terminare o Esc per annullare. Fn funziona sempre tenendolo premuto."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pressione o atalho uma vez para iniciar, novamente para terminar ou Esc para cancelar. Fn sempre funciona mantendo pressionado."
+          }
+        }
+      }
+    },
+    "Recording Look" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aufnahme-Darstellung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording Look"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aspecto de la grabación"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aspetto della registrazione"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aparência da gravação"
+          }
+        }
+      }
+    },
     "Retry Last Recording" : {
       "localizations" : {
         "de" : {
@@ -269,74 +507,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tentar novamente a última gravação"
-          }
-        }
-      }
-    },
-    "Start with a Fn hold or the shortcut, then press either again to finish." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Starten Sie, indem Sie Fn gedrückt halten oder das Tastenkürzel drücken, und drücken Sie eines davon erneut, um zu beenden."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start with a Fn hold or the shortcut, then press either again to finish."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Comience manteniendo presionada Fn o con el atajo y presione cualquiera de los dos de nuevo para finalizar."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inizia tenendo premuto Fn o con la scorciatoia, poi premi di nuovo uno dei due per terminare."
-          }
-        },
-        "pt" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Comece segurando Fn ou com o atalho e pressione qualquer um deles novamente para terminar."
-          }
-        }
-      }
-    },
-    "Start with a Fn hold or the shortcut, then press either again to finish. Escape cancels." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Starten Sie, indem Sie Fn gedrückt halten oder das Tastenkürzel drücken, und drücken Sie eines davon erneut, um zu beenden. Escape bricht ab."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start with a Fn hold or the shortcut, then press either again to finish. Escape cancels."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Comience manteniendo presionada Fn o con el atajo y presione cualquiera de los dos de nuevo para finalizar. Escape cancela."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inizia tenendo premuto Fn o con la scorciatoia, poi premi di nuovo uno dei due per terminare. Esc annulla."
-          }
-        },
-        "pt" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Comece segurando Fn ou com o atalho e pressione qualquer um deles novamente para terminar. Esc cancela."
           }
         }
       }
@@ -4995,40 +5165,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Segure Fn por 0,4 segundos para iniciar e solte para terminar. Pressões curtas mantêm seu comportamento normal do macOS e Control–Option–Space permanece disponível."
-          }
-        }
-      }
-    },
-    "Hold Fn for 0.4 seconds to start, then release to finish. Short presses keep their normal macOS behavior." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Halten Sie Fn zum Starten 0,4 Sekunden lang gedrückt und lassen Sie es dann los, um den Vorgang zu beenden. Durch kurzes Drücken bleibt das normale macOS-Verhalten erhalten."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hold Fn for 0.4 seconds to start, then release to finish. Short presses keep their normal macOS behavior."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mantenga presionada la tecla Fn durante 0,4 segundos para comenzar y luego suéltela para finalizar. Las pulsaciones breves mantienen su comportamiento normal de macOS."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tieni premuto Fn per 0,4 secondi per iniziare, quindi rilascia per terminare. Le pressioni brevi mantengono il normale comportamento di macOS."
-          }
-        },
-        "pt" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Segure Fn por 0,4 segundos para iniciar e solte para terminar. Pressões curtas mantêm o comportamento normal do macOS."
           }
         }
       }

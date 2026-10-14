@@ -92,6 +92,8 @@ final class VoiceSession {
     private(set) var audioLevel: Float = 0
     private(set) var recordingStartedWithFunctionKey = false
     @ObservationIgnored private(set) var audioInputRMS: Float = 0
+    @ObservationIgnored private var functionKeyHoldConfirmed = false
+    @ObservationIgnored private var discardAudioWhenStarted = false
     private(set) var audioInputHealth: AudioInputHealth = .idle
     private(set) var audioInputName = "System Default"
     private(set) var shortcutRegistrationState:
@@ -741,9 +743,11 @@ final class VoiceSession {
                 recordingStartRequestedAt = nil
                 if cancelWhenStarted {
                     cancelWhenStarted = false
+                    let discardAudio = discardAudioWhenStarted
+                    discardAudioWhenStarted = false
                     let cancelledSamples =
                         capture.cancelRetainingSamples()
-                    if cancelledSamples.count >= Int(
+                    if !discardAudio, cancelledSamples.count >= Int(
                         AudioCapture.targetSampleRate * 0.1
                     ) {
                         retainAudioRecovery(
@@ -771,7 +775,12 @@ final class VoiceSession {
                     state = .recording
                     beginRecordingActivity()
                     startDurationTimer()
-                    if activeConfiguration.playSounds { NSSound.beep() }
+                    if activeConfiguration.playSounds,
+                       !recordingStartedWithFunctionKey
+                        || functionKeyHoldConfirmed
+                    {
+                        NSSound.beep()
+                    }
                 }
             } catch {
                 endRecordingActivity()
@@ -837,10 +846,11 @@ final class VoiceSession {
         finishStartedRecording()
     }
 
-    func cancelRecording() {
+    func cancelRecording(discardingAudio: Bool = false) {
         if state == .starting {
             stopWhenStarted = false
             cancelWhenStarted = true
+            discardAudioWhenStarted = discardingAudio
             Task {
                 _ = await dictationCoordinator.handle(.cancel)
             }
@@ -850,7 +860,7 @@ final class VoiceSession {
         endRecordingActivity()
         stopDurationTimer()
         let cancelledSamples = capture.cancelRetainingSamples()
-        if cancelledSamples.count >= Int(
+        if !discardingAudio, cancelledSamples.count >= Int(
             AudioCapture.targetSampleRate * 0.1
         ) {
             retainAudioRecovery(
@@ -2251,15 +2261,38 @@ final class VoiceSession {
         performInputIntent(intent, origin: .shortcut)
     }
 
-    func handleFunctionKeyInputIntent(_ intent: DictationInputIntent) {
+    /// Fn is hold-to-talk. Capture starts on press; Fn intents only act on a
+    /// recording that Fn itself started.
+    func handleFunctionKeyIntent(_ intent: FunctionKeyIntent) {
         guard preferences.functionKeyLongPressEnabled else { return }
-        performInputIntent(intent, origin: .shortcut, viaFunctionKey: true)
+        switch intent {
+        case .none:
+            break
+        case .start:
+            functionKeyHoldConfirmed = false
+            beginRecording(origin: .shortcut, viaFunctionKey: true)
+        case .confirmHold:
+            guard recordingStartedWithFunctionKey, isRecordingOrStarting
+            else { return }
+            functionKeyHoldConfirmed = true
+            if state == .recording, activeConfiguration.playSounds {
+                NSSound.beep()
+            }
+        case .finish:
+            guard recordingStartedWithFunctionKey else { return }
+            finishRecording()
+        case .discard:
+            guard recordingStartedWithFunctionKey else { return }
+            cancelRecording(discardingAudio: true)
+        case .cancel:
+            guard recordingStartedWithFunctionKey else { return }
+            cancelRecording()
+        }
     }
 
     private func performInputIntent(
         _ intent: DictationInputIntent,
-        origin: DictationOrigin,
-        viaFunctionKey: Bool = false
+        origin: DictationOrigin
     ) {
         switch intent {
         case .none:
@@ -2268,10 +2301,10 @@ final class VoiceSession {
             if isRecordingOrStarting {
                 finishRecording()
             } else {
-                beginRecording(origin: origin, viaFunctionKey: viaFunctionKey)
+                beginRecording(origin: origin)
             }
         case .start:
-            beginRecording(origin: origin, viaFunctionKey: viaFunctionKey)
+            beginRecording(origin: origin)
         case .finish:
             finishRecording()
         case .cancel:
@@ -2325,6 +2358,11 @@ final class VoiceSession {
 
     func setPlaySounds(_ value: Bool) {
         preferences.playSounds = value
+        persist()
+    }
+
+    func setRecordingHUDTheme(_ value: RecordingHUDTheme) {
+        preferences.recordingHUDTheme = value
         persist()
     }
 

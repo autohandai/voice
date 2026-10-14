@@ -17,8 +17,11 @@
 
 - The menu bar icon now shows a live waveform that follows the microphone
   while recording.
-- Fn now follows the Recording Mode: in Toggle and Hands-Free, hold Fn to
-  start, keep talking after letting go, and press Fn again to finish.
+- Fn is hold-to-talk in every Recording Mode and starts capturing the
+  moment it is pressed, so first words are no longer clipped; a quick Fn
+  tap is discarded silently. Recording Mode applies to the shortcut.
+- New Flow recording look, a slim pill whose bars follow the voice, is now
+  the default; the previous design stays available as Classic.
 - Warn when macOS Dictation is on, since pressing Fn twice can also start
   Apple's Dictation, with a shortcut to Keyboard settings.
 - Shipped a universal app that also runs on Intel Macs (CoreML on the CPU

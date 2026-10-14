@@ -18,6 +18,13 @@ public enum RecordingHUDPresentationMode:
     case dot
 }
 
+/// The look of the recording HUD. Flow is a slim waveform pill; Classic keeps
+/// the larger glass controls with the live preview.
+public enum RecordingHUDTheme: String, Codable, CaseIterable, Sendable {
+    case flow
+    case classic
+}
+
 public enum RecordingHUDIdlePresentation: Equatable, Sendable {
     case hidden
     case finalTranscript
@@ -91,6 +98,10 @@ public struct RecordingHUDPreferences: Codable, Equatable, Sendable {
 
 public enum RecordingHUDPlacement {
     public static let visualScale: CGFloat = 0.6
+
+    /// Fixed window for the Flow pill; the pill itself grows and shrinks
+    /// inside it so state changes never move the window.
+    public static let flowContentSize = CGSize(width: 340, height: 56)
 
     public static func contentSize(
         mode: RecordingHUDPresentationMode = .automatic,

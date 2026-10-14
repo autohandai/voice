@@ -16,10 +16,7 @@ enum FunctionKeyMonitorResult {
 final class FunctionKeyLongPressMonitor {
     static let holdDuration: TimeInterval = 0.4
 
-    var onIntent: ((DictationInputIntent) -> Void)?
-    var recordingContext: () -> (mode: RecordingMode, isRecording: Bool) = {
-        (.pressAndHold, false)
-    }
+    var onIntent: ((FunctionKeyIntent) -> Void)?
 
     private var globalMonitor: Any?
     private var localMonitor: Any?
@@ -70,12 +67,7 @@ final class FunctionKeyLongPressMonitor {
         thresholdWorkItem?.cancel()
         thresholdWorkItem = nil
         functionKeyIsDown = false
-        let context = recordingContext()
-        let intent = reducer.reduce(
-            .cancelled,
-            mode: context.mode,
-            isRecording: context.isRecording
-        )
+        let intent = reducer.reduce(.cancelled)
         if deliverCancellation, intent != .none {
             onIntent?(intent)
         }
@@ -119,12 +111,7 @@ final class FunctionKeyLongPressMonitor {
     }
 
     private func emit(_ event: FunctionKeyLongPressEvent) {
-        let context = recordingContext()
-        let intent = reducer.reduce(
-            event,
-            mode: context.mode,
-            isRecording: context.isRecording
-        )
+        let intent = reducer.reduce(event)
         if intent != .none {
             onIntent?(intent)
         }

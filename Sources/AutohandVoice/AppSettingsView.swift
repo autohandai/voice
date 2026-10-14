@@ -1018,15 +1018,6 @@ private struct SetupStep: View {
 }
 
 private struct GeneralSettingsView: View {
-    private var functionKeyHelp: LocalizedStringKey {
-        switch model.session.preferences.recordingMode {
-        case .pressAndHold:
-            "Hold Fn for 0.4 seconds to start, then release to finish. Short presses keep their normal macOS behavior."
-        case .toggle, .handsFree:
-            "Hold Fn for 0.4 seconds to start, then keep talking after you let go. Press Fn again to finish. Short presses keep their normal macOS behavior."
-        }
-    }
-
     @Bindable var model: AppSettingsModel
     @State private var confirmsPointerMonitoring = false
 
@@ -1067,9 +1058,11 @@ private struct GeneralSettingsView: View {
                         )
                     )
 
-                    Text(functionKeyHelp)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text(
+                        "Hold Fn while you speak, then release to finish. Short presses keep their normal macOS behavior."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                     if model.session.preferences
                         .functionKeyLongPressEnabled
@@ -1280,8 +1273,32 @@ private struct GeneralSettingsView: View {
                         )
                     )
 
+                    if model.session.preferences.showRecordingHUD {
+                        Picker(
+                            "Recording Look",
+                            selection: Binding(
+                                get: {
+                                    model.session.preferences
+                                        .recordingHUDTheme
+                                },
+                                set: {
+                                    model.session.setRecordingHUDTheme($0)
+                                }
+                            )
+                        ) {
+                            Text("Flow").tag(RecordingHUDTheme.flow)
+                            Text("Classic").tag(RecordingHUDTheme.classic)
+                        }
+                        .pickerStyle(.segmented)
+
+                        Text(recordingLookHelp)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     if model.session.hudCustomizationEnabled,
-                       model.session.preferences.showRecordingHUD
+                       model.session.preferences.showRecordingHUD,
+                       model.session.preferences.recordingHUDTheme == .classic
                     {
                         Picker(
                             "HUD Style",
@@ -1601,14 +1618,23 @@ private struct GeneralSettingsView: View {
         )
     }
 
+    private var recordingLookHelp: LocalizedStringKey {
+        switch model.session.preferences.recordingHUDTheme {
+        case .flow:
+            "A slim pill whose bars follow your voice. Hover it for cancel and stop. The live preview shows only in Classic."
+        case .classic:
+            "Larger controls with the optional live preview."
+        }
+    }
+
     private var recordingModeHelp: LocalizedStringKey {
         switch model.session.preferences.recordingMode {
         case .pressAndHold:
-            "Hold Fn or the shortcut while speaking, then release to transcribe."
+            "Hold the shortcut while speaking, then release to transcribe. Fn is always hold to talk."
         case .toggle:
-            "Start with a Fn hold or the shortcut, then press either again to finish."
+            "Press the shortcut once to start and again to finish. Fn is always hold to talk."
         case .handsFree:
-            "Start with a Fn hold or the shortcut, then press either again to finish. Escape cancels."
+            "Press the shortcut once to start, again to finish, or Escape to cancel. Fn is always hold to talk."
         }
     }
 }

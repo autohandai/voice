@@ -2,86 +2,41 @@ import XCTest
 @testable import AutohandVoiceCore
 
 final class FunctionKeyLongPressTests: XCTestCase {
-    func testLongPressStartsOnceAndReleaseFinishes() {
+    func testCaptureStartsOnPressAndReleaseAfterHoldFinishes() {
         var reducer = FunctionKeyLongPressReducer()
 
-        XCTAssertEqual(reducer.reduce(.pressed), .none)
-        XCTAssertEqual(reducer.reduce(.thresholdReached), .start)
+        XCTAssertEqual(reducer.reduce(.pressed), .start)
+        XCTAssertEqual(reducer.reduce(.thresholdReached), .confirmHold)
         XCTAssertEqual(reducer.reduce(.thresholdReached), .none)
         XCTAssertEqual(reducer.reduce(.released), .finish)
         XCTAssertEqual(reducer.reduce(.released), .none)
     }
 
-    func testShortPressLeavesFnBehaviorUntouched() {
+    func testShortPressDiscardsTheProvisionalCapture() {
         var reducer = FunctionKeyLongPressReducer()
 
+        XCTAssertEqual(reducer.reduce(.pressed), .start)
+        XCTAssertEqual(reducer.reduce(.released), .discard)
+        XCTAssertEqual(reducer.reduce(.thresholdReached), .none)
+    }
+
+    func testCancellationDuringHoldCancelsAndBeforeHoldDiscards() {
+        var holding = FunctionKeyLongPressReducer()
+        _ = holding.reduce(.pressed)
+        _ = holding.reduce(.thresholdReached)
+        XCTAssertEqual(holding.reduce(.cancelled), .cancel)
+        XCTAssertEqual(holding.reduce(.released), .none)
+
+        var pending = FunctionKeyLongPressReducer()
+        _ = pending.reduce(.pressed)
+        XCTAssertEqual(pending.reduce(.cancelled), .discard)
+    }
+
+    func testRepeatedPressWhileDownIsIgnored() {
+        var reducer = FunctionKeyLongPressReducer()
+
+        XCTAssertEqual(reducer.reduce(.pressed), .start)
         XCTAssertEqual(reducer.reduce(.pressed), .none)
-        XCTAssertEqual(reducer.reduce(.released), .none)
-    }
-
-    func testCancellationAfterActivationCancelsDictation() {
-        var reducer = FunctionKeyLongPressReducer()
-
-        XCTAssertEqual(reducer.reduce(.pressed), .none)
-        XCTAssertEqual(reducer.reduce(.thresholdReached), .start)
-        XCTAssertEqual(reducer.reduce(.cancelled), .cancel)
-        XCTAssertEqual(reducer.reduce(.released), .none)
-    }
-}
-
-final class FunctionKeyRecordingModeTests: XCTestCase {
-    func testToggleKeepsRecordingAfterReleaseAndNextPressFinishes() {
-        for mode in [RecordingMode.toggle, .handsFree] {
-            var reducer = FunctionKeyLongPressReducer()
-
-            XCTAssertEqual(reducer.reduce(.pressed, mode: mode, isRecording: false), .none)
-            XCTAssertEqual(reducer.reduce(.thresholdReached, mode: mode, isRecording: false), .start)
-            XCTAssertEqual(reducer.reduce(.released, mode: mode, isRecording: true), .none)
-            XCTAssertEqual(reducer.reduce(.pressed, mode: mode, isRecording: true), .finish)
-            XCTAssertEqual(reducer.reduce(.thresholdReached, mode: mode, isRecording: false), .none)
-            XCTAssertEqual(reducer.reduce(.released, mode: mode, isRecording: false), .none)
-        }
-    }
-
-    func testToggleShortPressWhileIdleKeepsFnBehavior() {
-        var reducer = FunctionKeyLongPressReducer()
-
-        XCTAssertEqual(reducer.reduce(.pressed, mode: .toggle, isRecording: false), .none)
-        XCTAssertEqual(reducer.reduce(.released, mode: .toggle, isRecording: false), .none)
-    }
-
-    func testToggleStartsAgainAfterRecordingEndedElsewhere() {
-        var reducer = FunctionKeyLongPressReducer()
-
-        _ = reducer.reduce(.pressed, mode: .handsFree, isRecording: false)
-        _ = reducer.reduce(.thresholdReached, mode: .handsFree, isRecording: false)
-        _ = reducer.reduce(.released, mode: .handsFree, isRecording: true)
-        // Escape or the HUD ended the recording; the next hold starts anew.
-        XCTAssertEqual(reducer.reduce(.pressed, mode: .handsFree, isRecording: false), .none)
-        XCTAssertEqual(reducer.reduce(.thresholdReached, mode: .handsFree, isRecording: false), .start)
-    }
-
-    func testFnFinishesARecordingStartedByTheShortcutInToggleMode() {
-        var reducer = FunctionKeyLongPressReducer()
-
-        XCTAssertEqual(reducer.reduce(.pressed, mode: .toggle, isRecording: true), .finish)
-        XCTAssertEqual(reducer.reduce(.released, mode: .toggle, isRecording: false), .none)
-    }
-
-    func testPressAndHoldStillFinishesOnRelease() {
-        var reducer = FunctionKeyLongPressReducer()
-
-        _ = reducer.reduce(.pressed, mode: .pressAndHold, isRecording: false)
-        XCTAssertEqual(reducer.reduce(.thresholdReached, mode: .pressAndHold, isRecording: false), .start)
-        XCTAssertEqual(reducer.reduce(.released, mode: .pressAndHold, isRecording: true), .finish)
-    }
-
-    func testDisablingFnWhileToggleRecordingStartsCancelsIt() {
-        var reducer = FunctionKeyLongPressReducer()
-
-        _ = reducer.reduce(.pressed, mode: .toggle, isRecording: false)
-        _ = reducer.reduce(.thresholdReached, mode: .toggle, isRecording: false)
-        XCTAssertEqual(reducer.reduce(.cancelled, mode: .toggle, isRecording: true), .cancel)
     }
 }
 

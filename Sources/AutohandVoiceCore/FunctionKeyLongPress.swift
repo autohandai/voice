@@ -12,18 +12,29 @@ public enum FunctionKeyLongPressEvent: Sendable {
     case cancelled
 }
 
+public enum FunctionKeyIntent: Equatable, Sendable {
+    case none
+    /// Fn went down: begin capturing now so the first words are kept.
+    case start
+    /// Fn stayed down past the hold threshold: this is a real dictation.
+    case confirmHold
+    /// Fn was released after a hold: stop and transcribe.
+    case finish
+    /// Fn was released before the threshold: a normal Fn tap, drop the audio.
+    case discard
+    /// Monitoring stopped during a hold.
+    case cancel
+}
+
 /// Keeps modifier-only Fn handling deterministic and independent from AppKit.
-/// A short press intentionally produces no dictation intent so macOS retains
-/// its normal Globe/Fn behavior. Fn follows the recording mode: Press and Hold
-/// finishes on release; Toggle and Hands-Free keep recording after release and
-/// finish on the next Fn press.
+/// Fn is always hold-to-talk. Capture starts on press so nothing is clipped;
+/// a press shorter than the hold threshold is treated as a normal Fn tap and
+/// its audio is discarded, so macOS keeps its Globe/Fn behavior.
 public struct FunctionKeyLongPressReducer: Sendable {
     private enum State: Sendable {
         case idle
         case pending
         case holding
-        case latched
-        case finishing
     }
 
     private var state: State = .idle
@@ -31,35 +42,24 @@ public struct FunctionKeyLongPressReducer: Sendable {
     public init() {}
 
     public mutating func reduce(
-        _ event: FunctionKeyLongPressEvent,
-        mode: RecordingMode = .pressAndHold,
-        isRecording: Bool = false
-    ) -> DictationInputIntent {
+        _ event: FunctionKeyLongPressEvent
+    ) -> FunctionKeyIntent {
         switch (state, event) {
         case (.idle, .pressed):
-            if isRecording, mode != .pressAndHold {
-                state = .finishing
-                return .finish
-            }
             state = .pending
-            return .none
-        case (.pending, .thresholdReached):
-            state = mode == .pressAndHold ? .holding : .latched
             return .start
+        case (.pending, .thresholdReached):
+            state = .holding
+            return .confirmHold
         case (.pending, .released), (.pending, .cancelled):
             state = .idle
-            return .none
+            return .discard
         case (.holding, .released):
             state = .idle
             return .finish
-        case (.holding, .cancelled), (.latched, .cancelled):
+        case (.holding, .cancelled):
             state = .idle
             return .cancel
-        case (.latched, .released),
-             (.finishing, .released),
-             (.finishing, .cancelled):
-            state = .idle
-            return .none
         default:
             return .none
         }

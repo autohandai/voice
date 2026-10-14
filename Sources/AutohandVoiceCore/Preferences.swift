@@ -48,6 +48,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var hasCompletedOnboarding: Bool
     public var showRecordingHUD: Bool
     public var livePreviewEnabled: Bool
+    public var recordingHUDTheme: RecordingHUDTheme
     public var audioInputDeviceUID: String?
     public var audioInputDevicePriority: [String]
     public var automaticAudioHandoffEnabled: Bool
@@ -88,6 +89,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         hasCompletedOnboarding: Bool = false,
         showRecordingHUD: Bool = true,
         livePreviewEnabled: Bool = false,
+        recordingHUDTheme: RecordingHUDTheme = .flow,
         audioInputDeviceUID: String? = nil,
         audioInputDevicePriority: [String] = [],
         automaticAudioHandoffEnabled: Bool = false,
@@ -127,6 +129,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         self.hasCompletedOnboarding = hasCompletedOnboarding
         self.showRecordingHUD = showRecordingHUD
         self.livePreviewEnabled = livePreviewEnabled
+        self.recordingHUDTheme = recordingHUDTheme
         self.audioInputDeviceUID = audioInputDeviceUID
         self.audioInputDevicePriority = AudioRoutePolicy.normalized(
             audioInputDevicePriority.isEmpty
@@ -212,6 +215,7 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         case hasCompletedOnboarding
         case showRecordingHUD
         case livePreviewEnabled
+        case recordingHUDTheme
         case audioInputDeviceUID
         case audioInputDevicePriority
         case automaticAudioHandoffEnabled
@@ -265,6 +269,10 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
             Bool.self,
             forKey: .livePreviewEnabled
         ) ?? false
+        recordingHUDTheme = (try? container.decodeIfPresent(
+            RecordingHUDTheme.self,
+            forKey: .recordingHUDTheme
+        )) ?? .flow
         audioInputDeviceUID = try container.decodeIfPresent(
             String.self,
             forKey: .audioInputDeviceUID
