@@ -35,11 +35,11 @@ public struct AutohandEndpoints: Equatable, Sendable {
     }
 }
 
-/// Body of `POST /v1/auth/cli/initiate`. Autohand Voice signs in as a
-/// desktop client until the API accepts a dedicated `voice` client type.
+/// Body of `POST /v1/auth/cli/initiate`. `voice` is Autohand Voice's own
+/// presentation identity; the API rejects unknown client types with 400.
 public struct DeviceSignInRequest: Encodable, Sendable {
     public let clientId = "autohand-cli"
-    public let clientType = "desktop"
+    public let clientType = "voice"
     public let schemaVersion = 2
 
     public init() {}
