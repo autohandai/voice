@@ -36,9 +36,15 @@ Pressing Fn+Shift while it is speaking stops playback and starts listening
 
 - **v1 – push-to-talk turns.** Everything above. No open mic while speaking,
   so no echo handling needed.
-- **v2 – hands-free.** After the reply, listen again automatically. Detect end
-  of speech with Parakeet EOU 120M; allow voice barge-in using macOS voice
-  processing (echo cancellation) on the input.
+- **v2 – hands-free.** Implemented: Command + Shift + Fn (or Fn + Shift in the
+  Hands-Free recording mode) starts a conversation that listens again after
+  each reply. End of turn is detected locally from the microphone level
+  against an adaptive noise floor (`TalkEndpointer`): 1.2 s of pause after
+  speech sends the turn, 30 s of silence stops listening. The microphone is
+  closed while Fantail speaks, so no echo cancellation is needed yet. Escape,
+  Fn, or the card's close button ends it; Copy Conversation copies every turn.
+  Still open: Parakeet EOU for semantic end of turn, and voice barge-in using
+  macOS voice processing on the input.
 - **v3 – context.** Per conversation, opt in to send the selected text and the
   frontmost app name ("reply to this email"). Off by default.
 

@@ -157,12 +157,14 @@ final class HotKeyMonitor {
     }
 
     func synchronizeCancellationHotKey() {
-        // Escape cancels Hands-Free recordings and stops Fantail while it is
-        // thinking or speaking; it is never held globally otherwise.
+        // Escape cancels Hands-Free recordings, stops Fantail while it is
+        // thinking or speaking, and ends a hands-free Talk conversation; it
+        // is never held globally otherwise.
         let shouldRegister = (
             session.effectiveRecordingMode == .handsFree
                 && session.isRecordingOrStarting
         ) || (session.talk.isWorking && !session.isRecordingOrStarting)
+            || session.isTalkHandsFree
         if shouldRegister {
             let status = registerCancelHotKey()
             // Talk keeps its on-screen Stop button if Escape is unavailable.
@@ -181,7 +183,10 @@ final class HotKeyMonitor {
     fileprivate func handle(identifier: UInt32, eventKind: UInt32) {
         if identifier == autohandCancelHotKeyID {
             guard eventKind == UInt32(kEventHotKeyPressed) else { return }
-            if session.isRecordingOrStarting {
+            if session.isTalkHandsFree {
+                session.endHandsFreeTalk()
+                synchronizeCancellationHotKey()
+            } else if session.isRecordingOrStarting {
                 perform(.cancel)
             } else {
                 session.talk.stopSpeaking()

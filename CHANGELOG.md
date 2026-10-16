@@ -15,6 +15,11 @@
 
 ## Unreleased
 
+- Hands-free Talk: hold Command + Shift and press Fn (or use Fn + Shift with
+  the Hands-Free recording mode) to talk with Fantail without holding keys.
+  Voice sends each turn after a short pause, speaks the reply, then listens
+  again; Escape or Fn ends the conversation and Copy Conversation copies the
+  whole exchange.
 - The recording pill, the Talk card and the menu bar icon now draw the real
   recent voice level instead of an animated wobble: flat in silence, moving
   with each word. The level meter was recalibrated so normal speech no longer

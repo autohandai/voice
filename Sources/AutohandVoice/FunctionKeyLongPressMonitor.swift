@@ -16,16 +16,16 @@ enum FunctionKeyMonitorResult {
 final class FunctionKeyLongPressMonitor {
     static let holdDuration: TimeInterval = 0.4
 
-    /// Delivers each intent with whether Shift was held during the press
-    /// (Fn+Shift starts a Talk question instead of dictation).
-    var onIntent: ((FunctionKeyIntent, Bool) -> Void)?
+    /// Delivers each intent with the modifiers held during the press
+    /// (Fn+Shift talks to Fantail; adding Command keeps it hands-free).
+    var onIntent: ((FunctionKeyIntent, FunctionKeyModifiers) -> Void)?
 
     private var globalMonitor: Any?
     private var localMonitor: Any?
     private var thresholdWorkItem: DispatchWorkItem?
     private var reducer = FunctionKeyLongPressReducer()
     private var functionKeyIsDown = false
-    private var shiftSeenDuringPress = false
+    private var modifiersSeenDuringPress = FunctionKeyModifiers()
 
     func start(requestPermission: Bool) -> FunctionKeyMonitorResult {
         stop(deliverCancellation: false)
@@ -72,9 +72,9 @@ final class FunctionKeyLongPressMonitor {
         functionKeyIsDown = false
         let intent = reducer.reduce(.cancelled)
         if deliverCancellation, intent != .none {
-            onIntent?(intent, shiftSeenDuringPress)
+            onIntent?(intent, modifiersSeenDuringPress)
         }
-        shiftSeenDuringPress = false
+        modifiersSeenDuringPress = FunctionKeyModifiers()
         if let globalMonitor {
             NSEvent.removeMonitor(globalMonitor)
         }
@@ -89,7 +89,10 @@ final class FunctionKeyLongPressMonitor {
         let modifiers = flags.intersection(.deviceIndependentFlagsMask)
         let isDown = modifiers.contains(.function)
         if isDown, modifiers.contains(.shift) {
-            shiftSeenDuringPress = true
+            modifiersSeenDuringPress.shift = true
+        }
+        if isDown, modifiers.contains(.command) {
+            modifiersSeenDuringPress.command = true
         }
         if isDown {
             guard !functionKeyIsDown else { return }
@@ -113,14 +116,14 @@ final class FunctionKeyLongPressMonitor {
             thresholdWorkItem?.cancel()
             thresholdWorkItem = nil
             emit(.released)
-            shiftSeenDuringPress = false
+            modifiersSeenDuringPress = FunctionKeyModifiers()
         }
     }
 
     private func emit(_ event: FunctionKeyLongPressEvent) {
         let intent = reducer.reduce(event)
         if intent != .none {
-            onIntent?(intent, shiftSeenDuringPress)
+            onIntent?(intent, modifiersSeenDuringPress)
         }
     }
 }

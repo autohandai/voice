@@ -93,7 +93,17 @@ final class VoiceSession {
     private(set) var recordingStartedWithFunctionKey = false
     /// The current recording is a Talk question (Fn+Shift), not dictation.
     private(set) var isTalkRecording = false
+    /// A hands-free Talk conversation is running: Voice listens, sends the
+    /// turn after a pause, speaks the reply, then listens again.
+    private(set) var isTalkHandsFree = false
     @ObservationIgnored let talk: TalkController
+    @ObservationIgnored private var handsFreeEndpointer = TalkEndpointer()
+    @ObservationIgnored private var handsFreeNoiseFloorDB: Double?
+    @ObservationIgnored private var handsFreeEmptyTurns = 0
+    @ObservationIgnored private var handsFreeResumeTask: Task<Void, Never>?
+    /// The current Fn press started or ended a hands-free conversation, so
+    /// its remaining intents are ignored.
+    @ObservationIgnored private var functionKeyPressHandledByTalk = false
     @ObservationIgnored private(set) var audioInputRMS: Float = 0
     @ObservationIgnored private var functionKeyHoldConfirmed = false
     @ObservationIgnored private var discardAudioWhenStarted = false
@@ -375,6 +385,12 @@ final class VoiceSession {
         refreshActiveProfile()
         self.talk.onInsert = { [weak self] reply in
             self?.insertTalkReply(reply)
+        }
+        self.talk.onTurnEnded = { [weak self] keepListening in
+            self?.talkTurnEnded(keepListening: keepListening)
+        }
+        self.talk.onConversationEnded = { [weak self] in
+            self?.endHandsFreeTalk()
         }
     }
 
@@ -784,7 +800,9 @@ final class VoiceSession {
                     state = .recording
                     beginRecordingActivity()
                     startDurationTimer()
-                    if activeConfiguration.playSounds,
+                    // Hands-free Talk stays silent: the beep would reach the
+                    // microphone it just opened.
+                    if activeConfiguration.playSounds, !isTalkHandsFree,
                        !recordingStartedWithFunctionKey
                         || functionKeyHoldConfirmed
                     {
@@ -856,6 +874,11 @@ final class VoiceSession {
     }
 
     func cancelRecording(discardingAudio: Bool = false) {
+        if isTalkHandsFree {
+            // Cancelling during a hands-free conversation ends it.
+            endHandsFreeTalk()
+            return
+        }
         endTalkRecording()
         if state == .starting {
             stopWhenStarted = false
@@ -1229,6 +1252,12 @@ final class VoiceSession {
                 await stopProvisionalPreview()
                 await reportCoordinatorFailure(error)
                 insertionTarget = nil
+                if isTalkHandsFree, VoiceSession.isNoSpeech(error) {
+                    discardAudioRecovery()
+                    await resolvePersistentRecovery(as: .discarded)
+                    if resumeHandsFreeAfterEmptyTurn() { return }
+                }
+                endHandsFreeTalk()
                 endTalkRecording()
                 if !FailedCaptureRecoveryPolicy.retainsAudio(after: error) {
                     discardAudioRecovery()
@@ -2273,13 +2302,38 @@ final class VoiceSession {
     }
 
     /// Fn is hold-to-talk. Capture starts on press; Fn intents only act on a
-    /// recording that Fn itself started.
-    /// `withShift` is true when Shift was held with Fn: a Talk question.
+    /// recording that Fn itself started. Fn+Shift asks Fantail; Command, or
+    /// the Hands-Free recording mode, makes it a hands-free conversation,
+    /// and pressing Fn again ends that conversation.
     func handleFunctionKeyIntent(
         _ intent: FunctionKeyIntent,
-        withShift: Bool = false
+        modifiers: FunctionKeyModifiers = FunctionKeyModifiers()
     ) {
         guard preferences.functionKeyLongPressEnabled else { return }
+        if intent == .start {
+            functionKeyPressHandledByTalk = false
+            if isTalkHandsFree {
+                functionKeyPressHandledByTalk = true
+                endHandsFreeTalk()
+                return
+            }
+            if TalkTrigger.resolve(
+                shift: modifiers.shift,
+                command: modifiers.command,
+                recordingMode: activeConfiguration.recordingMode,
+                talkEnabled: preferences.talkEnabled
+            ) == .handsFreeTalk, !isRecordingOrStarting {
+                functionKeyPressHandledByTalk = true
+                startHandsFreeTalk()
+                return
+            }
+        } else if functionKeyPressHandledByTalk {
+            if intent != .confirmHold {
+                functionKeyPressHandledByTalk = false
+            }
+            return
+        }
+        let withShift = modifiers.shift
         switch intent {
         case .none:
             break
@@ -2324,6 +2378,108 @@ final class VoiceSession {
         talk.cancelListening()
     }
 
+    // MARK: - Hands-free Talk
+
+    func startHandsFreeTalk() {
+        guard preferences.talkEnabled, !isTalkHandsFree else { return }
+        isTalkHandsFree = true
+        handsFreeEmptyTurns = 0
+        talk.beginHandsFree()
+        listenForNextTalkTurn()
+        onChange?()
+    }
+
+    /// Ends the hands-free loop; the conversation stays on the card.
+    func endHandsFreeTalk() {
+        guard isTalkHandsFree else { return }
+        isTalkHandsFree = false
+        handsFreeResumeTask?.cancel()
+        handsFreeResumeTask = nil
+        if isRecordingOrStarting {
+            cancelRecording(discardingAudio: true)
+        }
+        talk.endHandsFree()
+        onChange?()
+    }
+
+    private func listenForNextTalkTurn() {
+        guard isTalkHandsFree, state == .ready || isFailedState else {
+            return
+        }
+        if isFailedState { state = .ready }
+        beginRecording(origin: .shortcut)
+        guard isRecordingOrStarting else {
+            endHandsFreeTalk()
+            return
+        }
+        handsFreeEndpointer = TalkEndpointer(
+            noiseFloorDB: handsFreeNoiseFloorDB
+        )
+        isTalkRecording = true
+        talk.beginListening()
+    }
+
+    static func isNoSpeech(_ error: Error) -> Bool {
+        switch error as? VoiceError {
+        case .emptyTranscript, .silentRecording: true
+        default: false
+        }
+    }
+
+    private var isFailedState: Bool {
+        if case .failed = state { return true }
+        return false
+    }
+
+    /// The reply finished. Listen again after a short beat so the end of the
+    /// voice is not picked up by the microphone.
+    private func talkTurnEnded(keepListening: Bool) {
+        guard isTalkHandsFree else { return }
+        guard keepListening else {
+            endHandsFreeTalk()
+            return
+        }
+        handsFreeResumeTask?.cancel()
+        handsFreeResumeTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled, let self, self.isTalkHandsFree else {
+                return
+            }
+            self.handsFreeResumeTask = nil
+            self.listenForNextTalkTurn()
+        }
+    }
+
+    private func observeHandsFreeLevel(_ level: Float) {
+        guard isTalkHandsFree, isTalkRecording, state == .recording else {
+            return
+        }
+        let decision = handsFreeEndpointer.observe(
+            rms: level,
+            at: ProcessInfo.processInfo.systemUptime
+        )
+        handsFreeNoiseFloorDB = handsFreeEndpointer.noiseFloorDB
+        switch decision {
+        case .endOfTurn:
+            finishRecording()
+        case .idleTimeout:
+            endHandsFreeTalk()
+        case .waiting, .speaking:
+            break
+        }
+    }
+
+    /// A hands-free turn that held no words (a cough, a door) just listens
+    /// again, a few times at most.
+    private func resumeHandsFreeAfterEmptyTurn() -> Bool {
+        guard isTalkHandsFree, handsFreeEmptyTurns < 3 else { return false }
+        handsFreeEmptyTurns += 1
+        isTalkRecording = false
+        state = .ready
+        listenForNextTalkTurn()
+        return true
+    }
+
     /// The HUD shows the Fantail card when Talk has something to show and no
     /// dictation is in progress.
     var showsTalkCard: Bool {
@@ -2356,6 +2512,7 @@ final class VoiceSession {
         pendingTranscript = nil
         insertionTarget = nil
         isTalkRecording = false
+        handsFreeEmptyTurns = 0
         state = .ready
         talk.ask(question)
     }
@@ -3497,6 +3654,7 @@ final class VoiceSession {
     private func observeAudioLevel(_ level: Float) {
         audioInputRMS = level
         audioLevel = min(max(level * 8, 0), 1)
+        observeHandsFreeLevel(level)
         audioInputHealth = audioHealthMonitor.observe(
             level: level,
             at: ProcessInfo.processInfo.systemUptime

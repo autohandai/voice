@@ -122,8 +122,8 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         recordingHUDController = RecordingHUDController(session: session)
         hotKeyMonitor = HotKeyMonitor(session: session)
         let functionKeyMonitor = FunctionKeyLongPressMonitor()
-        functionKeyMonitor.onIntent = { [weak session] intent, withShift in
-            session?.handleFunctionKeyIntent(intent, withShift: withShift)
+        functionKeyMonitor.onIntent = { [weak session] intent, modifiers in
+            session?.handleFunctionKeyIntent(intent, modifiers: modifiers)
         }
         functionKeyLongPressMonitor = functionKeyMonitor
         session.onFunctionKeyMonitoringChange = {

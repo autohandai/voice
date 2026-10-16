@@ -24,6 +24,11 @@ struct TalkSettingsView: View {
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                Text(
+                    "For a hands-free conversation, hold Command and Shift, then press Fn, or set Recording Mode to Hands-Free. Fantail listens again after each reply. Press Esc to end, then copy the conversation."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
 
             Section("Autohand Account") {

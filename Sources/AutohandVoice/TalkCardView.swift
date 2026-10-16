@@ -44,6 +44,14 @@ struct TalkCardView: View {
             Text("Fantail")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.9))
+            if talk.isHandsFree {
+                Text("Hands-free")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Color.talkAccent)
+                    .padding(.horizontal, 6)
+                    .frame(height: 16)
+                    .background(Color.talkAccent.opacity(0.16), in: Capsule())
+            }
             if talk.isWorking {
                 TalkVoiceBars(speaker: talk.speaker, isThinking: isThinking)
                     .accessibilityHidden(true)
@@ -131,16 +139,25 @@ struct TalkCardView: View {
             switch talk.phase {
             case .thinking:
                 pill("Stop", prominent: false) { talk.stopSpeaking() }
+                handsFreeHint
             case let .replying(_, _, isSpeaking):
                 if isSpeaking {
                     pill("Stop", prominent: false) { talk.stopSpeaking() }
+                    handsFreeHint
                 } else {
                     pill("Insert", prominent: true) { talk.insertReply() }
                     pill("Copy", prominent: false) { talk.copyReply() }
+                    if talk.history.turns.count > 1 {
+                        pill("Copy Conversation", prominent: false) {
+                            talk.copyConversation()
+                        }
+                    }
                     Spacer(minLength: 0)
-                    Text("Hold Fn + Shift to reply")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.45))
+                    if talk.isHandsFree {
+                        handsFreeHint
+                    } else {
+                        hint("Hold Fn + Shift to reply")
+                    }
                 }
             case .needsSignIn:
                 if case .signingIn = talk.account.status {
@@ -169,6 +186,21 @@ struct TalkCardView: View {
     }
 
     // MARK: - Pieces
+
+    @ViewBuilder
+    private var handsFreeHint: some View {
+        if talk.isHandsFree {
+            Spacer(minLength: 0)
+            hint("Listening after each reply. Esc ends")
+        }
+    }
+
+    private func hint(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(.system(size: 10))
+            .foregroundStyle(.white.opacity(0.45))
+            .lineLimit(1)
+    }
 
     private var isThinking: Bool {
         if case .thinking = talk.phase { return true }

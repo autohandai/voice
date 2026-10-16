@@ -13328,6 +13328,142 @@
           }
         }
       }
+    },
+    "Hands-free" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freihändig"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hands-free"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manos libres"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mani libere"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mãos livres"
+          }
+        }
+      }
+    },
+    "Copy Conversation" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unterhaltung kopieren"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy Conversation"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar conversación"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia conversazione"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copiar conversa"
+          }
+        }
+      }
+    },
+    "Listening after each reply. Esc ends" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hört nach jeder Antwort zu. Esc beendet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listening after each reply. Esc ends"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escucha tras cada respuesta. Esc termina"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ascolta dopo ogni risposta. Esc termina"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouve após cada resposta. Esc encerra"
+          }
+        }
+      }
+    },
+    "For a hands-free conversation, hold Command and Shift, then press Fn, or set Recording Mode to Hands-Free. Fantail listens again after each reply. Press Esc to end, then copy the conversation." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Für eine freihändige Unterhaltung Befehl und Umschalt halten und dann Fn drücken, oder den Aufnahmemodus auf Freihändig stellen. Fantail hört nach jeder Antwort wieder zu. Mit Esc beenden und dann die Unterhaltung kopieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For a hands-free conversation, hold Command and Shift, then press Fn, or set Recording Mode to Hands-Free. Fantail listens again after each reply. Press Esc to end, then copy the conversation."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para una conversación manos libres, mantenga Comando y Mayúsculas y pulse Fn, o elija Manos libres como modo de grabación. Fantail vuelve a escuchar tras cada respuesta. Pulse Esc para terminar y copie la conversación."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Per una conversazione a mani libere, tieni premuti Comando e Maiusc e premi Fn, oppure imposta la modalità di registrazione su Mani libere. Fantail torna ad ascoltare dopo ogni risposta. Premi Esc per terminare, poi copia la conversazione."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para uma conversa mãos livres, segure Command e Shift e pressione Fn, ou defina o modo de gravação como Mãos livres. Fantail volta a ouvir após cada resposta. Pressione Esc para encerrar e depois copie a conversa."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

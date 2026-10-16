@@ -141,6 +141,13 @@ on screen and is spoken with the local Kokoro voice (`af_heart`). Hold Fn + Shif
 again to follow up; the conversation is kept in memory for two minutes of
 inactivity. Escape or Stop interrupts a reply; Insert types it at the cursor.
 
+For a hands-free conversation, hold **Command + Shift** and press **Fn** (or set
+Recording Mode to Hands-Free and use Fn + Shift). Voice listens, sends your turn
+after a short pause, speaks the reply, then listens again; the microphone stays
+closed while Fantail speaks. Press Escape or Fn to end it, then use **Copy
+Conversation** on the card to copy the whole exchange. Listening stops by itself
+after 30 seconds of silence.
+
 Talk needs a free Autohand account (Settings → Talk → Sign In with Autohand,
 using the same browser sign-in as the Autohand CLI). The API key is stored in
 Keychain. When the free plan's limit is reached, Talk shows when it resets and
@@ -319,7 +326,7 @@ security, legal, billing, and delivery gates pass; see
 - Speech recognition runs in the local CoreML process.
 - Dictation never sends speech, text, or cleanup requests to a remote endpoint.
 - Talk is the only networked feature. It runs only when you hold Fn + Shift
-  and are signed in, sends only the final transcript text and the recent
+  or start a hands-free conversation, and are signed in, sends only the final transcript text and the recent
   conversation (never audio) to Autohand, and speaks replies locally.
 - There is no silent engine fallback.
 - Permission, microphone, model, and focused-control failures remain visible in

@@ -28,11 +28,20 @@ final class TalkController {
     }
     private(set) var voiceNotice: String?
     private(set) var isPreparingVoice = false
+    /// Every turn of this conversation, for Copy Conversation.
+    private(set) var history = TalkHistory()
+    /// The conversation keeps listening between replies (no keys held).
+    private(set) var isHandsFree = false
 
     let account: AutohandAccount
     @ObservationIgnored let speaker: TalkSpeaker
     @ObservationIgnored var onChange: (() -> Void)?
     @ObservationIgnored var onInsert: ((String) -> Void)?
+    /// A turn is over. `keepListening` is false when the conversation cannot
+    /// continue on its own (a failure or sign-in is needed).
+    @ObservationIgnored var onTurnEnded: ((_ keepListening: Bool) -> Void)?
+    /// The person closed the conversation from the card.
+    @ObservationIgnored var onConversationEnded: (() -> Void)?
 
     @ObservationIgnored private let client: FantailClient
     @ObservationIgnored private var conversation = TalkConversation()
@@ -113,6 +122,7 @@ final class TalkController {
         voiceNotice = nil
         guard let token = account.token, account.isSignedIn else {
             phase = .needsSignIn(question: question)
+            onTurnEnded?(false)
             return
         }
         conversation.appendUser(question)
@@ -148,14 +158,25 @@ final class TalkController {
         replyTask?.cancel()
         replyTask = nil
         speaker.stop()
-        if case let .replying(question, reply, _) = phase {
-            conversation.appendAssistant(reply)
+        let wasAnswering: Bool
+        if case let .replying(question, reply, isSpeaking) = phase {
+            wasAnswering = isSpeaking
+            if isSpeaking {
+                conversation.appendAssistant(reply)
+                history.append(TalkTurn(question: question, reply: reply))
+            }
             phase = .replying(question: question, reply: reply, isSpeaking: false)
         } else if case .thinking = phase {
+            wasAnswering = true
             conversation.withdrawUnansweredQuestion()
             phase = .idle
+        } else {
+            wasAnswering = false
         }
         scheduleExpiry()
+        if wasAnswering {
+            onTurnEnded?(true)
+        }
     }
 
     /// Hides the card but keeps the conversation for a quick follow-up.
@@ -174,8 +195,58 @@ final class TalkController {
         expiryTask?.cancel()
         speaker.stop()
         conversation = TalkConversation()
+        history.removeAll()
+        isHandsFree = false
         voiceNotice = nil
         phase = .idle
+        onConversationEnded?()
+    }
+
+    // MARK: - Hands-free
+
+    func beginHandsFree() {
+        isHandsFree = true
+        expiryTask?.cancel()
+    }
+
+    /// Stops the hands-free loop but keeps the conversation on screen so it
+    /// can be copied.
+    func endHandsFree() {
+        guard isHandsFree else { return }
+        isHandsFree = false
+        replyTask?.cancel()
+        replyTask = nil
+        speaker.stop()
+        switch phase {
+        case .listening, .thinking:
+            if let last = history.turns.last {
+                phase = .replying(
+                    question: last.question,
+                    reply: last.reply,
+                    isSpeaking: false
+                )
+            } else {
+                phase = .idle
+            }
+        case let .replying(question, reply, true):
+            conversation.appendAssistant(reply)
+            history.append(TalkTurn(question: question, reply: reply))
+            phase = .replying(question: question, reply: reply, isSpeaking: false)
+        default:
+            break
+        }
+        scheduleExpiry()
+    }
+
+    var conversationText: String {
+        TalkTranscript.text(history.turns)
+    }
+
+    func copyConversation() {
+        let text = conversationText
+        guard !text.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     /// Speaks a short sample so people can hear the voice; the first call
@@ -255,6 +326,7 @@ final class TalkController {
             let spoken = SpokenText.clean(reply)
             guard !spoken.isEmpty else { throw TalkFailure.unavailable }
             conversation.appendAssistant(spoken)
+            history.append(TalkTurn(question: question, reply: spoken))
             let stillSpeaking = speaker.isSpeaking
             phase = .replying(
                 question: question,
@@ -263,6 +335,7 @@ final class TalkController {
             )
             if !stillSpeaking {
                 scheduleExpiry()
+                onTurnEnded?(true)
             }
         } catch is CancellationError {
             return
@@ -277,6 +350,7 @@ final class TalkController {
             } else {
                 phase = .failed(failure, question: question)
             }
+            onTurnEnded?(false)
         }
     }
 
@@ -295,6 +369,7 @@ final class TalkController {
         else { return }
         phase = .replying(question: question, reply: reply, isSpeaking: false)
         scheduleExpiry()
+        onTurnEnded?(true)
     }
 
     private func resumeAfterSignIn() {
@@ -321,7 +396,7 @@ final class TalkController {
         expiryTask = Task { [weak self] in
             try? await Task.sleep(for: Self.conversationIdleTimeout)
             guard !Task.isCancelled, let self else { return }
-            if !self.isWorking, self.phase != .listening {
+            if !self.isWorking, !self.isHandsFree, self.phase != .listening {
                 self.endConversation()
             }
         }
