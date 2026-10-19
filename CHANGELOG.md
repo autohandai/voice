@@ -15,6 +15,13 @@
 
 ## Unreleased
 
+- Talk can answer on this Mac: choose Settings → Talk → Answered By → On this
+  Mac to use Ternary Bonsai 2 (2B) through llama.cpp. No account, nothing
+  leaves the Mac; the model downloads once and is checksum-verified.
+- Autohand Voice no longer reads Keychain at launch, so macOS stops asking for
+  the login password every time an update starts. The Talk key is read when
+  Talk first needs it.
+- Launch at Login is re-applied at every launch, so it survives updates.
 - Hands-free Talk: hold Command + Shift and press Fn (or use Fn + Shift with
   the Hands-Free recording mode) to talk with Fantail without holding keys.
   Voice sends each turn after a short pause, speaks the reply, then listens

@@ -148,7 +148,14 @@ closed while Fantail speaks. Press Escape or Fn to end it, then use **Copy
 Conversation** on the card to copy the whole exchange. Listening stops by itself
 after 30 seconds of silence.
 
-Talk needs a free Autohand account (Settings → Talk → Sign In with Autohand,
+Talk can also answer entirely on this Mac: Settings → Talk → Answered By →
+**On this Mac** runs PrismML's Ternary Bonsai 2 (2B, Apache-2.0) with
+llama.cpp. The 547 MB model downloads once, from a pinned Hugging Face revision,
+and is checked against its SHA-256 before it is used. It loads while you speak,
+needs no account, and nothing leaves the Mac. Metal makes it fast on Apple
+Silicon; on Intel it runs on the CPU and is much slower.
+
+With Fantail, Talk needs a free Autohand account (Settings → Talk → Sign In with Autohand,
 using the same browser sign-in as the Autohand CLI). The API key is stored in
 Keychain. When the free plan's limit is reached, Talk shows when it resets and
 offers an upgrade. Turn Talk off in Settings → Talk.
@@ -325,7 +332,8 @@ security, legal, billing, and delivery gates pass; see
   transcribed directly to the clipboard.
 - Speech recognition runs in the local CoreML process.
 - Dictation never sends speech, text, or cleanup requests to a remote endpoint.
-- Talk is the only networked feature. It runs only when you hold Fn + Shift
+- Talk with Fantail is the only networked feature (Talk answered on this Mac
+  is fully local). It runs only when you hold Fn + Shift
   or start a hands-free conversation, and are signed in, sends only the final transcript text and the recent
   conversation (never audio) to Autohand, and speaks replies locally.
 - There is no silent engine fallback.
