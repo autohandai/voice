@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import AutohandVoiceCore
 import AutohandVoiceLLM
 import Foundation
@@ -21,6 +22,7 @@ private func printUsage() {
       autohand-voice run
       autohand-voice transcribe <audio-file>
       autohand-voice talk-local <question>
+      autohand-voice talk-endpoint <audio-file> [--reply]
       autohand-voice check [--json]
       autohand-voice model-check [--json]
       autohand-voice reliability [show|path|reset|export <file>] [--json]
@@ -292,6 +294,77 @@ private func runLocalTalk(_ question: String) async throws {
     )
 }
 
+/// Replays an audio file through hands-free Talk's end-of-turn detector in
+/// 50 ms windows, like the microphone tap, and prints where turns end. With
+/// `--reply` (16 kHz files), each turn is transcribed locally and answered
+/// by the on-device model, carrying the conversation, like a hands-free chat.
+private func runTalkEndpoint(_ url: URL, reply: Bool) async throws {
+    let file = try AVAudioFile(forReading: url)
+    let format = file.processingFormat
+    let window = AVAudioFrameCount(format.sampleRate / 20)
+    guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: window)
+    else { return }
+    if reply, format.sampleRate != 16_000 {
+        throw CommandError.invalidArguments("--reply needs a 16 kHz audio file")
+    }
+    let recognizer = LocalSpeechRecognizer(
+        modelVersion: PreferencesStore().load().modelVersion
+    )
+    let talk = LocalTalkEngine()
+    var conversation = TalkConversation()
+    var turnSamples: [Float] = []
+    var endpointer = TalkEndpointer()
+    var time = 0.0
+    var last = TalkEndpointer.Decision.waiting
+    while file.framePosition < file.length {
+        try file.read(into: buffer, frameCount: window)
+        guard let channel = buffer.floatChannelData?[0], buffer.frameLength > 0
+        else { break }
+        var sum: Float = 0
+        for index in 0..<Int(buffer.frameLength) {
+            sum += channel[index] * channel[index]
+        }
+        let rms = (sum / Float(buffer.frameLength)).squareRoot()
+        if reply {
+            turnSamples += UnsafeBufferPointer(
+                start: channel,
+                count: Int(buffer.frameLength)
+            )
+        }
+        let decision = endpointer.observe(rms: rms, at: time)
+        if decision != last {
+            print(String(format: "%6.2fs %@", time, "\(decision)"))
+            last = decision
+        }
+        if decision == .endOfTurn, reply {
+            let question = try await recognizer.transcribe(samples: turnSamples)
+                .finalText()
+            print("  You: \(question)")
+            conversation.appendUser(question)
+            try await talk.prepare()
+            var answer = ""
+            for try await piece in talk.reply(
+                to: conversation.requestMessages(
+                    systemPrompt: FantailChatRequest.spokenSystemPrompt
+                ),
+                maxTokens: FantailChatRequest.spokenMaxTokens
+            ) {
+                answer += piece
+            }
+            conversation.appendAssistant(answer)
+            print("  Model: \(answer)")
+            turnSamples.removeAll()
+        }
+        if decision == .endOfTurn {
+            // The app starts a new turn after sending; do the same here.
+            endpointer = TalkEndpointer(noiseFloorDB: endpointer.noiseFloorDB)
+            last = .waiting
+        }
+        time += Double(buffer.frameLength) / format.sampleRate
+    }
+    print(String(format: "%6.2fs end of file", time))
+}
+
 @main
 struct AutohandVoiceCommand {
     static func main() async {
@@ -324,6 +397,15 @@ struct AutohandVoiceCommand {
                     exit(EXIT_FAILURE)
                 }
                 try await runLocalTalk(question)
+            case "talk-endpoint":
+                guard let path = arguments.dropFirst().first else {
+                    printUsage()
+                    exit(EXIT_FAILURE)
+                }
+                try await runTalkEndpoint(
+                    URL(fileURLWithPath: path),
+                    reply: arguments.contains("--reply")
+                )
             case "check", "doctor":
                 let check = SystemCheck()
                 let preferences = PreferencesStore().load()
