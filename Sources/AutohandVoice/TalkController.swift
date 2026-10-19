@@ -169,13 +169,15 @@ final class TalkController {
 
     /// Stops the voice and the rest of the reply; keeps what was received.
     func stopSpeaking() {
+        let wasStreaming = replyTask != nil
         replyTask?.cancel()
         replyTask = nil
         speaker.stop()
         let wasAnswering: Bool
         if case let .replying(question, reply, isSpeaking) = phase {
             wasAnswering = isSpeaking
-            if isSpeaking {
+            // A finished reply was recorded when its stream ended.
+            if isSpeaking, wasStreaming {
                 conversation.appendAssistant(reply)
                 history.append(TalkTurn(question: question, reply: reply))
             }
@@ -228,6 +230,7 @@ final class TalkController {
     func endHandsFree() {
         guard isHandsFree else { return }
         isHandsFree = false
+        let wasStreaming = replyTask != nil
         replyTask?.cancel()
         replyTask = nil
         speaker.stop()
@@ -243,8 +246,10 @@ final class TalkController {
                 phase = .idle
             }
         case let .replying(question, reply, true):
-            conversation.appendAssistant(reply)
-            history.append(TalkTurn(question: question, reply: reply))
+            if wasStreaming {
+                conversation.appendAssistant(reply)
+                history.append(TalkTurn(question: question, reply: reply))
+            }
             phase = .replying(question: question, reply: reply, isSpeaking: false)
         default:
             break
@@ -253,7 +258,10 @@ final class TalkController {
     }
 
     var conversationText: String {
-        TalkTranscript.text(history.turns)
+        TalkTranscript.text(
+            history.turns,
+            assistantName: engine() == .local ? "Bonsai" : "Fantail"
+        )
     }
 
     func copyConversation() {

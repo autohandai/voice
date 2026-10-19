@@ -190,6 +190,14 @@ final class TalkTranscriptTests: XCTestCase {
         )
     }
 
+    func testTheAnswerIsCreditedToWhoeverAnswered() {
+        let turns = [TalkTurn(question: "Hi", reply: "Hello!")]
+        XCTAssertEqual(
+            TalkTranscript.text(turns, assistantName: "Bonsai"),
+            "You: Hi\n\nBonsai: Hello!"
+        )
+    }
+
     func testEmptyConversationIsEmptyText() {
         XCTAssertEqual(TalkTranscript.text([]), "")
     }

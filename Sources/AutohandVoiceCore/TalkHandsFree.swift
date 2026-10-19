@@ -193,9 +193,12 @@ public struct TalkHistory: Equatable, Sendable {
 }
 
 public enum TalkTranscript {
-    public static func text(_ turns: [TalkTurn]) -> String {
+    public static func text(
+        _ turns: [TalkTurn],
+        assistantName: String = "Fantail"
+    ) -> String {
         turns
-            .flatMap { ["You: \($0.question)", "Fantail: \($0.reply)"] }
+            .flatMap { ["You: \($0.question)", "\(assistantName): \($0.reply)"] }
             .joined(separator: "\n\n")
     }
 }
