@@ -15,6 +15,10 @@
 
 ## Unreleased
 
+- Talk "On this Mac" can run Ternary Bonsai 2 natively on MLX on Apple
+  Silicon (PrismML's 2-bit Hadamard pack, 1.2 GB, pinned and checksum-
+  verified). MLX is preferred when installed; llama.cpp remains the runtime on
+  Intel and under Rosetta. Try it with `autohand-voice talk-local --runtime mlx`.
 - Optional Qwen3-ASR 0.6B (MLX, 4-bit) dictation engine on Apple Silicon:
   Settings → Dictation Engine. Downloads 713 MB once from a pinned revision,
   checksum-verified; Parakeet stays the default and is never swapped silently.

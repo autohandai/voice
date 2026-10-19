@@ -31,8 +31,13 @@ Ternary Bonsai 2 2B (optional on-device Talk model, downloaded on request)
 Copyright (c) PrismML. Based on Qwen3.5-2B by the Qwen team.
 Licensed under the Apache License, Version 2.0.
 Source: https://huggingface.co/prism-ml/Ternary-Bonsai-2-2B-gguf
+MLX build (Apple Silicon, downloaded on request):
+https://huggingface.co/prism-ml/Ternary-Bonsai-2-2B-mlx-2bit
+Created using Bonsai by Prism ML. Copyright 2026-present Prism ML, Inc.
+Built from Qwen3.5-2B, Copyright 2026 Alibaba Cloud, Apache License 2.0.
 
-MLX Swift 0.31.4 (optional Qwen3-ASR engine, Apple Silicon only)
+MLX Swift 0.31.4 (optional Qwen3-ASR engine and Talk MLX runtime, Apple
+Silicon only)
 Copyright (c) 2023 ml-explore
 Licensed under the MIT License. Includes the third-party software listed at
 the end of this file.
@@ -47,6 +52,11 @@ Copyright 2025 Ivan Digital
 Licensed under the Apache License, Version 2.0.
 Source: https://github.com/soniqo/speech-swift
 
+mlx-swift-lm (ported subset for the Talk MLX runtime, modified)
+Copyright (c) 2024 ml-explore
+Licensed under the MIT License.
+Source: https://github.com/ml-explore/mlx-swift-lm (PR #630, a3596e4)
+
 Qwen3-ASR 0.6B (aufklarer/Qwen3-ASR-0.6B-MLX-4bit, quantized from
 Qwen/Qwen3-ASR-0.6B). Downloaded on demand; not bundled with the app.
 Licensed under the Apache License, Version 2.0.
@@ -58,7 +68,8 @@ Autohand Voice.
 ===============================================================================
 MIT LICENSE
 Applies to Autohand Voice, Dictate and llama.cpp. MLX Swift (Copyright (c)
-2023 ml-explore) is distributed under the same MIT License terms.
+2023 ml-explore) and mlx-swift-lm (Copyright (c) 2024 ml-explore) are
+distributed under the same MIT License terms.
 ===============================================================================
 
 MIT License
@@ -88,7 +99,7 @@ SOFTWARE.
 ===============================================================================
 APACHE LICENSE 2.0
 Applies to FluidAudio, NVIDIA Parakeet TDT 0.6B v3, Swift Numerics,
-speech-swift and Qwen3-ASR 0.6B
+speech-swift, Qwen3-ASR 0.6B and Ternary Bonsai 2 2B
 ===============================================================================
 
                                  Apache License
