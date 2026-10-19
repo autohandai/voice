@@ -23,7 +23,7 @@ public struct TalkEndpointer: Sendable {
         /// not turn breathing into speech.
         public var minimumSpeechDB = -45.0
         /// Continuous speech needed before a turn starts (ignores clicks).
-        public var minimumSpeech: TimeInterval = 0.5
+        public var minimumSpeech: TimeInterval = 0.3
         /// A pause this long after speech ends the turn.
         public var endSilence: TimeInterval = 1.2
         /// Stop listening if nobody speaks for this long.

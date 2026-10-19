@@ -4,6 +4,7 @@ import AutohandVoiceBonsaiMLX
 import AutohandVoiceCore
 import AutohandVoiceLLM
 import Foundation
+import ServiceManagement
 
 private enum CommandError: LocalizedError {
     case invalidArguments(String)
@@ -546,6 +547,18 @@ struct AutohandVoiceCommand {
                     print(
                         "Recent operational issue categories: "
                             + "\(issues.count)"
+                    )
+                    let loginStatus: String
+                    switch SMAppService.mainApp.status {
+                    case .enabled: loginStatus = "enabled"
+                    case .requiresApproval: loginStatus = "needs approval in System Settings"
+                    case .notRegistered: loginStatus = "not registered"
+                    case .notFound: loginStatus = "unavailable for this build"
+                    @unknown default: loginStatus = "unknown"
+                    }
+                    print(
+                        "Launch at login: \(loginStatus) (setting "
+                            + (preferences.launchAtLogin ? "on" : "off") + ")"
                     )
                     print(
                         "Talk sign-in storage: "
