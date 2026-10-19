@@ -101,6 +101,8 @@ final class VoiceSession {
     @ObservationIgnored private var handsFreeEndpointer = TalkEndpointer()
     @ObservationIgnored private var handsFreeNoiseFloorDB: Double?
     @ObservationIgnored private var handsFreeEmptyTurns = 0
+    @ObservationIgnored private var handsFreeLastDecision: TalkEndpointer.Decision?
+    @ObservationIgnored private var handsFreeModelWaitStarted: TimeInterval?
     @ObservationIgnored private var handsFreeResumeTask: Task<Void, Never>?
     /// The current Fn press started or ended a hands-free conversation, so
     /// its remaining intents are ignored.
@@ -2395,6 +2397,10 @@ final class VoiceSession {
         guard preferences.talkEnabled, !isTalkHandsFree else { return }
         isTalkHandsFree = true
         handsFreeEmptyTurns = 0
+        handsFreeModelWaitStarted = nil
+        // Measure this room afresh; a level from another time can mislead.
+        handsFreeNoiseFloorDB = nil
+        Self.logger.notice("Hands-free Talk started")
         talk.beginHandsFree()
         listenForNextTalkTurn()
         onChange?()
@@ -2404,12 +2410,15 @@ final class VoiceSession {
     func endHandsFreeTalk() {
         guard isTalkHandsFree else { return }
         isTalkHandsFree = false
+        Self.logger.notice("Hands-free Talk ended")
         handsFreeResumeTask?.cancel()
         handsFreeResumeTask = nil
+        // Put the last reply back on the card first; cancelling the recording
+        // would otherwise reset Talk to idle and hide Copy Conversation.
+        talk.endHandsFree()
         if isRecordingOrStarting {
             cancelRecording(discardingAudio: true)
         }
-        talk.endHandsFree()
         onChange?()
     }
 
@@ -2418,14 +2427,45 @@ final class VoiceSession {
             return
         }
         if isFailedState { state = .ready }
+        // Right after launch the speech model may still be loading; wait for
+        // it (up to a minute) instead of giving up.
+        if !canStartRecording, modelState != .ready,
+           handsFreeModelWaitStarted.map({
+               ProcessInfo.processInfo.systemUptime - $0 < 60
+           }) ?? true
+        {
+            if handsFreeModelWaitStarted == nil {
+                handsFreeModelWaitStarted = ProcessInfo.processInfo.systemUptime
+            }
+            handsFreeResumeTask?.cancel()
+            handsFreeResumeTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled, let self, self.isTalkHandsFree else {
+                    return
+                }
+                self.handsFreeResumeTask = nil
+                self.listenForNextTalkTurn()
+            }
+            return
+        }
+        handsFreeModelWaitStarted = nil
         beginRecording(origin: .shortcut)
         guard isRecordingOrStarting else {
+            Self.logger.error(
+                "Hands-free Talk could not start: enabled \(self.isEnabled, privacy: .public), model \(String(describing: self.modelState), privacy: .public), recoverable \(self.hasRecoverableAudio, privacy: .public), checking recovery \(self.isCheckingPersistentRecovery, privacy: .public), pending recovery \(self.persistentRecoverySummaries.count, privacy: .public), file \(self.isFileTranscriptionActive, privacy: .public), testing mic \(self.isTestingMicrophone, privacy: .public)"
+            )
             endHandsFreeTalk()
+            if state == .ready {
+                reportFailure(
+                    "Talk couldn't start listening. Wait for the speech model to finish loading, then try again."
+                )
+            }
             return
         }
         handsFreeEndpointer = TalkEndpointer(
             noiseFloorDB: handsFreeNoiseFloorDB
         )
+        handsFreeLastDecision = nil
         isTalkRecording = true
         talk.beginListening()
     }
@@ -2470,6 +2510,13 @@ final class VoiceSession {
             at: ProcessInfo.processInfo.systemUptime
         )
         handsFreeNoiseFloorDB = handsFreeEndpointer.noiseFloorDB
+        if decision != handsFreeLastDecision {
+            handsFreeLastDecision = decision
+            let floor = handsFreeNoiseFloorDB ?? .nan
+            Self.logger.notice(
+                "Hands-free turn: \(String(describing: decision), privacy: .public), room \(floor, format: .fixed(precision: 1), privacy: .public) dB"
+            )
+        }
         switch decision {
         case .endOfTurn:
             finishRecording()

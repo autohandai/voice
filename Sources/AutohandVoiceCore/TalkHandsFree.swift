@@ -18,7 +18,7 @@ public struct TalkEndpointer: Sendable {
 
     public struct Policy: Equatable, Sendable {
         /// How far above the noise floor counts as speech.
-        public var speechMarginDB = 10.0
+        public var speechMarginDB = 7.0
         /// Speech must also be louder than this, so a very quiet room does
         /// not turn breathing into speech.
         public var minimumSpeechDB = -45.0
@@ -32,6 +32,12 @@ public struct TalkEndpointer: Sendable {
         public var calibration: TimeInterval = 0.3
         /// How quickly the floor may rise while it is quiet.
         public var floorRiseDBPerSecond = 1.0
+        /// The floor never sits above this, so a level learned while
+        /// something loud was playing can't make speech undetectable.
+        public var maximumFloorDB = -33.0
+        /// Buffers quieter than this are the microphone warming up (digital
+        /// silence), not the room; they are ignored.
+        public var digitalSilenceDB = -100.0
 
         public init() {}
     }
@@ -49,7 +55,7 @@ public struct TalkEndpointer: Sendable {
     /// again, so someone who answers straight away is heard.
     public init(policy: Policy = Policy(), noiseFloorDB: Double? = nil) {
         self.policy = policy
-        floorDB = noiseFloorDB
+        floorDB = noiseFloorDB.map { min($0, policy.maximumFloorDB) }
     }
 
     public var hasHeardSpeech: Bool { turnStarted }
@@ -59,6 +65,14 @@ public struct TalkEndpointer: Sendable {
 
     public mutating func observe(rms: Float, at time: TimeInterval) -> Decision {
         let decibels = 20 * log10(Double(max(rms, 1e-7)))
+        if decibels < policy.digitalSilenceDB {
+            // Warm-up silence: let time pass but learn nothing from it.
+            if startedAt == nil { return .waiting }
+            lastTime = time
+            if turnStarted { return .speaking }
+            return time - (startedAt ?? time) >= policy.idleTimeout
+                ? .idleTimeout : .waiting
+        }
         let elapsedSinceLast = lastTime.map { max(0, time - $0) } ?? 0
         lastTime = time
         guard let startedAt else {
@@ -70,7 +84,7 @@ public struct TalkEndpointer: Sendable {
         guard let floor = floorDB else {
             calibrationMinimum = min(calibrationMinimum, decibels)
             if time - startedAt >= policy.calibration {
-                floorDB = calibrationMinimum
+                floorDB = min(calibrationMinimum, policy.maximumFloorDB)
             }
             return .waiting
         }
@@ -93,7 +107,8 @@ public struct TalkEndpointer: Sendable {
             } else {
                 floorDB = min(
                     decibels,
-                    floor + policy.floorRiseDBPerSecond * elapsedSinceLast
+                    floor + policy.floorRiseDBPerSecond * elapsedSinceLast,
+                    policy.maximumFloorDB
                 )
             }
             if turnStarted {

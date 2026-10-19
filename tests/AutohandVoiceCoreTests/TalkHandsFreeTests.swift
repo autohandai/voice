@@ -68,6 +68,43 @@ final class TalkEndpointerTests: XCTestCase {
         XCTAssertEqual(decision, .speaking)
     }
 
+    func testAFloorLearnedDuringLoudSoundCannotHideSpeech() {
+        // Carried over from a moment when speech or a reply was playing.
+        var endpointer = TalkEndpointer(noiseFloorDB: -12)
+        var (decision, time) = feed(&endpointer, speech, seconds: 1, from: 0)
+        XCTAssertEqual(decision, .speaking)
+        (decision, _) = feed(&endpointer, room, seconds: 3, from: time)
+        XCTAssertEqual(decision, .endOfTurn)
+    }
+
+    func testSilentWarmUpBuffersDoNotMakeRoomToneLookLikeSpeech() {
+        var endpointer = TalkEndpointer()
+        var (decision, time) = feed(&endpointer, 0, seconds: 0.4, from: 0)
+        (decision, time) = feed(&endpointer, room, seconds: 3, from: time)
+        XCTAssertEqual(decision, .waiting)
+        (decision, time) = feed(&endpointer, speech, seconds: 1, from: time)
+        XCTAssertEqual(decision, .speaking)
+        (decision, _) = feed(&endpointer, room, seconds: 3, from: time)
+        XCTAssertEqual(decision, .endOfTurn)
+    }
+
+    func testQuietSpeechAFewDecibelsAboveTheRoomIsHeard() {
+        var endpointer = TalkEndpointer()
+        // Room about -43 dBFS with its usual wobble; speech about -35 dBFS.
+        var time = 0.0
+        var decision = TalkEndpointer.Decision.waiting
+        for index in 0..<60 {
+            let wobble: Float = index % 7 == 0 ? 0.0125 : 0.007
+            decision = endpointer.observe(rms: wobble, at: time)
+            time += step
+        }
+        XCTAssertEqual(decision, .waiting)
+        var (next, after) = feed(&endpointer, 0.018, seconds: 1, from: time)
+        XCTAssertEqual(next, .speaking)
+        (next, _) = feed(&endpointer, room, seconds: 3, from: after)
+        XCTAssertEqual(next, .endOfTurn)
+    }
+
     func testABriefClickIsNotSpeech() {
         var endpointer = TalkEndpointer()
         var (_, time) = feed(&endpointer, room, seconds: 1, from: 0)

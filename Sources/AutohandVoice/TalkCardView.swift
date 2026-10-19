@@ -171,7 +171,9 @@ struct TalkCardView: View {
                     Spacer(minLength: 0)
                     if talk.isHandsFree {
                         handsFreeHint
-                    } else {
+                    } else if talk.history.turns.count <= 1 {
+                        // With Copy Conversation the row is full; keep the
+                        // buttons whole rather than squeeze them.
                         hint("Hold Fn + Shift to reply")
                     }
                 }
@@ -247,6 +249,8 @@ struct TalkCardView: View {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(prominent ? Color.black : Color.white)
+                .lineLimit(1)
+                .fixedSize()
                 .padding(.horizontal, 12)
                 .frame(height: 26)
                 .background(
