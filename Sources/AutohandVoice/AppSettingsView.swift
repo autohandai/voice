@@ -1959,6 +1959,43 @@ private struct LanguageModelSettingsView: View {
                     .foregroundStyle(.secondary)
                 }
 
+                Section("Dictation Engine") {
+                    Picker(
+                        "Engine",
+                        selection: Binding(
+                            get: { model.session.preferences.dictationModel },
+                            set: { model.session.setDictationModel($0) }
+                        )
+                    ) {
+                        Text("Parakeet (Core ML)").tag(DictationModel.parakeet)
+                        Text("Qwen3-ASR 0.6B (MLX)").tag(DictationModel.qwen3)
+                            .disabled(!model.session.qwenSupportedOnThisMac)
+                    }
+                    .pickerStyle(.radioGroup)
+                    .disabled(
+                        model.session.isRecordingOrStarting
+                            || model.session.state == .processing
+                    )
+                    if model.session.preferences.dictationModel == .qwen3 {
+                        if let status = model.session.qwenStatus {
+                            LabeledContent("Status", value: status)
+                        }
+                        if let progress = model.session.qwenPreparationProgress {
+                            ProgressView(value: progress)
+                                .accessibilityLabel("Qwen3-ASR preparation progress")
+                        }
+                        Text(
+                            "Qwen3-ASR runs on this Mac's GPU with MLX. It downloads 713 MB once and understands about 30 languages. Live preview still uses Parakeet."
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    } else if let reason = model.session.qwenUnsupportedReason {
+                        Text(reason)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Section("Local Speech Model") {
                     Picker(
                         "Model",

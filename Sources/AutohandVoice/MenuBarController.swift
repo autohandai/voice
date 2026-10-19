@@ -40,6 +40,9 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         installMainMenu()
         LaunchAtLoginReconciler.reconcile(session: session)
+        if session.preferences.dictationModel == .qwen3 {
+            session.prepareQwen()
+        }
         session.onChange = { [weak self] in
             self?.rebuildMenu()
             self?.recordingHUDController?.update()

@@ -138,7 +138,7 @@ public enum ModelPreparationPhase: Equatable, Sendable {
                 : "Loading local speech engine…"
         case .compiling:
             "Loading local speech engine…"
-        case .loading: "Loading on the Neural Engine…"
+        case .loading: "Loading the speech model…"
         case .validating: "Validating offline readiness…"
         }
     }

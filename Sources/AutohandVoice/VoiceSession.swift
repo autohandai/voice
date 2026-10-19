@@ -1,5 +1,6 @@
 import AppKit
 import AutohandVoiceCore
+import AutohandVoiceQwenASR
 import Foundation
 import Observation
 import OSLog
@@ -284,6 +285,12 @@ final class VoiceSession {
         any ClamshellStateChecking
     @ObservationIgnored private let inserter = TextInserter()
     @ObservationIgnored private var recognizer: LocalSpeechRecognizer
+    /// Optional Qwen3-ASR engine (MLX, Apple Silicon), used when chosen.
+    @ObservationIgnored private let qwenRecognizer = Qwen3SpeechRecognizer()
+    /// Qwen3-ASR download/load progress while it prepares, 0...1.
+    private(set) var qwenPreparationProgress: Double?
+    private(set) var qwenStatus: String?
+    @ObservationIgnored private var qwenPreparationTask: Task<Void, Never>?
     @ObservationIgnored private var recognizerModelVersion: String
     @ObservationIgnored private var stopWhenStarted = false
     @ObservationIgnored private var cancelWhenStarted = false
@@ -2501,6 +2508,46 @@ final class VoiceSession {
         guard preferences.dictationModel != value else { return }
         preferences.dictationModel = value
         persist()
+        if value == .qwen3 {
+            prepareQwen()
+        } else {
+            qwenPreparationTask?.cancel()
+            qwenPreparationProgress = nil
+            Task { await qwenRecognizer.unload() }
+        }
+    }
+
+    var qwenSupportedOnThisMac: Bool { Qwen3SpeechRecognizer.isSupportedOnThisMac }
+    var qwenUnsupportedReason: String? { Qwen3SpeechRecognizer.unsupportedReason }
+
+    /// Downloads (once) and loads Qwen3-ASR so the first dictation doesn't
+    /// wait for it.
+    func prepareQwen() {
+        guard qwenPreparationTask == nil else { return }
+        guard Qwen3SpeechRecognizer.isSupportedOnThisMac else {
+            qwenStatus = Qwen3SpeechRecognizer.unsupportedReason
+            return
+        }
+        qwenStatus = String(localized: "Preparing Qwen3-ASR…")
+        qwenPreparationProgress = 0
+        qwenPreparationTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await qwenRecognizer.prepare { progress in
+                    Task { @MainActor [weak self] in
+                        self?.qwenPreparationProgress = progress.fractionCompleted
+                        self?.qwenStatus = progress.phase.label
+                    }
+                }
+                qwenStatus = String(localized: "Ready offline")
+            } catch is CancellationError {
+                qwenStatus = nil
+            } catch {
+                qwenStatus = "Qwen3-ASR couldn't load: \(error.localizedDescription)"
+            }
+            qwenPreparationProgress = nil
+            qwenPreparationTask = nil
+        }
     }
 
     func setTalkEnabled(_ value: Bool) {
@@ -3088,12 +3135,25 @@ final class VoiceSession {
         let outputMode = outputModeOverride ?? configuration.outputMode
         let recognizedText: String
         do {
-            try await prepareModelForUse()
             try await throwInjectedFailure(at: .recognition)
-            let transcript = try await recognizer.transcribe(
-                samples: samples,
-                languageCode: configuration.dictationLanguageCode
-            )
+            let transcript: Transcript
+            if preferences.dictationModel == .qwen3 {
+                // Chosen explicitly; never fall back to another engine.
+                if let reason = Qwen3SpeechRecognizer.unsupportedReason {
+                    throw VoiceError.modelUnavailable(reason)
+                }
+                transcript = try await qwenRecognizer.transcribe(
+                    samples: samples,
+                    sampleRate: AudioCapture.targetSampleRate,
+                    languageCode: configuration.dictationLanguageCode
+                )
+            } else {
+                try await prepareModelForUse()
+                transcript = try await recognizer.transcribe(
+                    samples: samples,
+                    languageCode: configuration.dictationLanguageCode
+                )
+            }
             recognizedText = try transcript.finalText()
             recordReliability(
                 category: .transcription,
