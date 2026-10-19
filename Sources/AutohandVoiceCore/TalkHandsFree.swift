@@ -202,3 +202,40 @@ public enum TalkTranscript {
             .joined(separator: "\n\n")
     }
 }
+
+/// Joins the pieces of one hands-free question. Listening continues while a
+/// piece is transcribed, so a pause mid-thought doesn't split the question
+/// and a noise with no words never interrupts listening.
+public struct HandsFreeTurnAssembler: Equatable, Sendable {
+    public enum Outcome: Equatable, Sendable {
+        /// Nothing to send yet; keep listening.
+        case keepListening
+        /// The complete question.
+        case send(String)
+    }
+
+    public private(set) var pending = ""
+
+    public init() {}
+
+    /// `stillTalking` is true when speech was heard again while this piece
+    /// was being transcribed.
+    public mutating func transcribed(
+        _ text: String,
+        stillTalking: Bool
+    ) -> Outcome {
+        let piece = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let combined = [pending, piece].filter { !$0.isEmpty }.joined(separator: " ")
+        if combined.isEmpty { return .keepListening }
+        if stillTalking {
+            pending = combined
+            return .keepListening
+        }
+        pending = ""
+        return .send(combined)
+    }
+
+    public mutating func reset() {
+        pending = ""
+    }
+}

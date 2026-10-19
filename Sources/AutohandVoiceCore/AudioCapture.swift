@@ -199,6 +199,17 @@ public final class AudioCapture: @unchecked Sendable {
         return captured
     }
 
+    /// Returns the samples captured so far and keeps recording, so a
+    /// hands-free conversation can hand one turn to transcription without a
+    /// gap in listening.
+    public func takeSamples() -> [Float] {
+        lock.lock()
+        defer { lock.unlock() }
+        let captured = samples
+        samples.removeAll(keepingCapacity: true)
+        return captured
+    }
+
     /// Ends capture without committing anything and returns only valid local
     /// samples for a short-lived explicit Undo Cancel action.
     public func cancelRetainingSamples() -> [Float] {

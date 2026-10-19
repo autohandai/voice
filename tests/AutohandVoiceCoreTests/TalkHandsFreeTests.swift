@@ -213,3 +213,48 @@ final class TalkTranscriptTests: XCTestCase {
         XCTAssertTrue(history.turns.isEmpty)
     }
 }
+
+final class HandsFreeTurnAssemblerTests: XCTestCase {
+    func testANoiseTurnKeepsListeningWithoutSending() {
+        var assembler = HandsFreeTurnAssembler()
+        XCTAssertEqual(assembler.transcribed("", stillTalking: false), .keepListening)
+        XCTAssertEqual(assembler.pending, "")
+    }
+
+    func testAFinishedQuestionIsSent() {
+        var assembler = HandsFreeTurnAssembler()
+        XCTAssertEqual(
+            assembler.transcribed("What's the weather?", stillTalking: false),
+            .send("What's the weather?")
+        )
+        XCTAssertEqual(assembler.pending, "")
+    }
+
+    func testAPauseMidThoughtJoinsBothParts() {
+        var assembler = HandsFreeTurnAssembler()
+        XCTAssertEqual(
+            assembler.transcribed("I'm planning a trip to Rotorua", stillTalking: true),
+            .keepListening
+        )
+        XCTAssertEqual(
+            assembler.transcribed("what should I pack?", stillTalking: false),
+            .send("I'm planning a trip to Rotorua what should I pack?")
+        )
+    }
+
+    func testWordsAlreadyHeardAreSentEvenIfTheNextPieceIsSilence() {
+        var assembler = HandsFreeTurnAssembler()
+        _ = assembler.transcribed("Remind me to call Mum", stillTalking: true)
+        XCTAssertEqual(
+            assembler.transcribed("", stillTalking: false),
+            .send("Remind me to call Mum")
+        )
+    }
+
+    func testEndingTheConversationForgetsUnsentWords() {
+        var assembler = HandsFreeTurnAssembler()
+        _ = assembler.transcribed("half a thought", stillTalking: true)
+        assembler.reset()
+        XCTAssertEqual(assembler.pending, "")
+    }
+}

@@ -103,6 +103,8 @@ final class VoiceSession {
     @ObservationIgnored private var handsFreeEmptyTurns = 0
     @ObservationIgnored private var handsFreeLastDecision: TalkEndpointer.Decision?
     @ObservationIgnored private var handsFreeModelWaitStarted: TimeInterval?
+    @ObservationIgnored private var handsFreeAssembler = HandsFreeTurnAssembler()
+    @ObservationIgnored private var handsFreeTranscribing = false
     @ObservationIgnored private var handsFreeResumeTask: Task<Void, Never>?
     /// The current Fn press started or ended a hands-free conversation, so
     /// its remaining intents are ignored.
@@ -2404,6 +2406,8 @@ final class VoiceSession {
         guard preferences.talkEnabled, !isTalkHandsFree else { return }
         isTalkHandsFree = true
         handsFreeEmptyTurns = 0
+        handsFreeAssembler.reset()
+        handsFreeTranscribing = false
         handsFreeModelWaitStarted = nil
         // Measure this room afresh; a level from another time can mislead.
         handsFreeNoiseFloorDB = nil
@@ -2417,6 +2421,7 @@ final class VoiceSession {
     func endHandsFreeTalk() {
         guard isTalkHandsFree else { return }
         isTalkHandsFree = false
+        handsFreeAssembler.reset()
         Self.logger.notice("Hands-free Talk ended")
         handsFreeResumeTask?.cancel()
         handsFreeResumeTask = nil
@@ -2526,12 +2531,99 @@ final class VoiceSession {
         }
         switch decision {
         case .endOfTurn:
-            finishRecording()
+            handsFreeTurnEnded()
         case .idleTimeout:
             endHandsFreeTalk()
         case .waiting, .speaking:
             break
         }
+    }
+
+    /// Hands a finished piece of speech to transcription while the microphone
+    /// keeps listening, so nothing said in the meantime is lost. Listening
+    /// stops only once there is a real question to send.
+    private func handsFreeTurnEnded() {
+        guard !handsFreeTranscribing, handsFreeEndpointer.hasHeardSpeech else {
+            return
+        }
+        let samples = capture.takeSamples()
+        handsFreeTranscribing = true
+        handsFreeEndpointer = TalkEndpointer(noiseFloorDB: handsFreeNoiseFloorDB)
+        handsFreeLastDecision = nil
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let text = await self.transcribeTalkPiece(samples)
+            self.handsFreeTranscribing = false
+            guard self.isTalkHandsFree, self.isTalkRecording,
+                  self.state == .recording
+            else { return }
+            switch self.handsFreeAssembler.transcribed(
+                text,
+                stillTalking: self.handsFreeEndpointer.hasHeardSpeech
+            ) {
+            case .keepListening:
+                Self.logger.notice("Hands-free piece kept; still listening")
+            case let .send(question):
+                await self.stopListeningForReply()
+                self.isTalkRecording = false
+                self.handsFreeEmptyTurns = 0
+                self.talk.ask(question)
+            }
+        }
+    }
+
+    /// Transcribes one hands-free piece with the chosen dictation engine.
+    /// Returns "" for silence or noise without words.
+    private func transcribeTalkPiece(_ samples: [Float]) async -> String {
+        guard samples.count >= Int(AudioCapture.targetSampleRate * 0.25),
+              !CapturedAudioLevel.isSilent(samples)
+        else { return "" }
+        let language = activeConfiguration.dictationLanguageCode
+        do {
+            let transcript: Transcript
+            if preferences.dictationModel == .qwen3,
+               Qwen3SpeechRecognizer.isSupportedOnThisMac {
+                transcript = try await qwenRecognizer.transcribe(
+                    samples: samples,
+                    sampleRate: AudioCapture.targetSampleRate,
+                    languageCode: language
+                )
+            } else {
+                try await prepareModelForUse()
+                transcript = try await recognizer.transcribe(
+                    samples: samples,
+                    languageCode: language
+                )
+            }
+            return (try? transcript.finalText()) ?? ""
+        } catch {
+            Self.logger.error(
+                "Hands-free piece could not be transcribed: \(error.localizedDescription, privacy: .public)"
+            )
+            return ""
+        }
+    }
+
+    /// Closes the microphone for the reply without ending the conversation
+    /// or keeping any recovery audio.
+    private func stopListeningForReply() async {
+        guard state == .recording else { return }
+        endRecordingActivity()
+        stopDurationTimer()
+        _ = capture.cancelRetainingSamples()
+        finishAudioRouteTimeline(as: .cancelled)
+        currentAudioDeviceUID = nil
+        _ = await dictationCoordinator.handle(.cancel)
+        state = .processing
+        await stopProvisionalPreview()
+        await discardPersistentRecoverySpool()
+        recordingStartRequestedAt = nil
+        insertionTarget = nil
+        quickDictationTargetActive = false
+        audioLevel = 0
+        audioHealthMonitor.reset()
+        audioInputHealth = .idle
+        state = .ready
     }
 
     /// A hands-free turn that held no words (a cough, a door) just listens
