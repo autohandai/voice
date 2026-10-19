@@ -15,6 +15,9 @@
 
 ## Unreleased
 
+- Optional Qwen3-ASR 0.6B (MLX, 4-bit) dictation engine on Apple Silicon:
+  Settings → Dictation Engine. Downloads 713 MB once from a pinned revision,
+  checksum-verified; Parakeet stays the default and is never swapped silently.
 - Talk can answer on this Mac: choose Settings → Talk → Answered By → On this
   Mac to use Ternary Bonsai 2 (2B) through llama.cpp. No account, nothing
   leaves the Mac; the model downloads once and is checksum-verified.
