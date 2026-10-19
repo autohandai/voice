@@ -653,7 +653,8 @@ final class VoiceSession {
 
     func beginRecording(
         origin: DictationOrigin = .shortcut,
-        viaFunctionKey: Bool = false
+        viaFunctionKey: Bool = false,
+        forTalk: Bool = false
     ) {
         refreshActiveProfile()
         touchTemporaryStyleOverride()
@@ -673,8 +674,10 @@ final class VoiceSession {
         insertionTarget = nil
         commitEnterTarget = nil
         commitEnterExpiresAtUptime = nil
+        // Talk answers on its card, so it needs no text field to type into.
         if configuration.outputMode == .type,
-           !quickDictationTargetActive {
+           !quickDictationTargetActive,
+           !forTalk {
             guard inserter.hasAccessibilityPermission(prompt: true) else {
                 recordOperationalIssue(.accessibility)
                 recordReliability(
@@ -2352,7 +2355,11 @@ final class VoiceSession {
             break
         case .start:
             functionKeyHoldConfirmed = false
-            beginRecording(origin: .shortcut, viaFunctionKey: true)
+            beginRecording(
+                origin: .shortcut,
+                viaFunctionKey: true,
+                forTalk: withShift && preferences.talkEnabled
+            )
         case .confirmHold:
             guard recordingStartedWithFunctionKey, isRecordingOrStarting
             else { return }
@@ -2449,7 +2456,7 @@ final class VoiceSession {
             return
         }
         handsFreeModelWaitStarted = nil
-        beginRecording(origin: .shortcut)
+        beginRecording(origin: .shortcut, forTalk: true)
         guard isRecordingOrStarting else {
             Self.logger.error(
                 "Hands-free Talk could not start: enabled \(self.isEnabled, privacy: .public), model \(String(describing: self.modelState), privacy: .public), recoverable \(self.hasRecoverableAudio, privacy: .public), checking recovery \(self.isCheckingPersistentRecovery, privacy: .public), pending recovery \(self.persistentRecoverySummaries.count, privacy: .public), file \(self.isFileTranscriptionActive, privacy: .public), testing mic \(self.isTestingMicrophone, privacy: .public)"
