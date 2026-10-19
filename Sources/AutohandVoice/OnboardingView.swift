@@ -454,7 +454,7 @@ private struct OnboardingDictationTestStep: View {
                     MacOSDictationConflictNotice()
                 }
 
-                if passed {
+                if passed, TalkAvailability.onThisMac {
                     TalkOnboardingOffer(account: model.session.talk.account)
                 }
 

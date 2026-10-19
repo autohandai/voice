@@ -561,6 +561,12 @@ struct AutohandVoiceCommand {
                             + (preferences.launchAtLogin ? "on" : "off") + ")"
                     )
                     print(
+                        "Talk: "
+                            + (TalkAvailability.onThisMac
+                                ? (preferences.talkEnabled ? "on" : "off")
+                                : "unavailable (needs Apple Silicon)")
+                    )
+                    print(
                         "Talk sign-in storage: "
                             + (CodeSignature.isAdHoc
                                 ? "owner-only file (ad-hoc signed build)"

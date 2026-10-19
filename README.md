@@ -153,6 +153,9 @@ quitting during capture requires explicit discard confirmation.
 
 ### Talk with Fantail (optional)
 
+Talk is available on Macs with Apple Silicon. On Intel Macs, Fn + Shift is
+ordinary dictation and the Talk settings explain why.
+
 Hold **Fn + Shift**, ask a question, and let go. Your speech is transcribed on
 this Mac, the text goes to Autohand's Fantail model, and the reply streams back
 on screen and is spoken with the local Kokoro voice (`af_heart`). Hold Fn + Shift
@@ -167,8 +170,7 @@ Conversation** on the card to copy the whole exchange. Listening stops by itself
 after 30 seconds of silence.
 
 Talk can also answer entirely on this Mac: Settings → Talk → Answered By →
-**On this Mac** runs PrismML's Ternary Bonsai 2 (2B, Apache-2.0) with
-llama.cpp. The 547 MB model downloads once, from a pinned Hugging Face revision,
+**On this Mac** runs PrismML's Ternary Bonsai 2 (2B, Apache-2.0) on MLX. The 547 MB model downloads once, from a pinned Hugging Face revision,
 and is checked against its SHA-256 before it is used. It loads while you speak,
 needs no account, and nothing leaves the Mac. Metal makes it fast on Apple
 Silicon; on Intel it runs on the CPU and is much slower.

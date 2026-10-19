@@ -19,3 +19,18 @@ public enum DictationModel: String, Codable, CaseIterable, Sendable {
 
     public var usesNetwork: Bool { false }
 }
+
+/// Talk (Fn + Shift) is offered only on Macs with Apple Silicon. On Intel,
+/// Fn + Shift stays plain dictation.
+public enum TalkAvailability {
+    public static let unavailableReason =
+        "Talk needs a Mac with Apple Silicon. Dictation works as usual on this Mac."
+
+    public static func isAvailable(architecture: String) -> Bool {
+        architecture == "arm64"
+    }
+
+    public static var onThisMac: Bool {
+        SystemCheck.isAppleSilicon
+    }
+}

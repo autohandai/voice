@@ -12,6 +12,7 @@ private voice input. Work as a critical staff-level Swift engineer.
   alternative on Apple Silicon only; Intel reports it unavailable.
 - Never silently fall back to remote speech, cleanup, or another engine. A
   chosen engine that cannot run fails visibly.
+- Talk is offered only on Apple Silicon; on Intel, Fn + Shift is dictation.
 - Talk (Fn + Shift; Command + Shift + Fn for hands-free) answered by Fantail
   is the only networked feature: explicit, opt-in, signed in to Autohand. It
   sends final transcript text and recent conversation to the `fantail` model,

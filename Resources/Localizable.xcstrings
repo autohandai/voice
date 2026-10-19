@@ -14212,6 +14212,40 @@
           }
         }
       }
+    },
+    "Talk needs a Mac with Apple Silicon. Dictation works as usual on this Mac." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk braucht einen Mac mit Apple Silicon. Das Diktieren funktioniert auf diesem Mac wie gewohnt."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk needs a Mac with Apple Silicon. Dictation works as usual on this Mac."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk necesita un Mac con Apple Silicon. El dictado funciona como siempre en este Mac."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk richiede un Mac con Apple Silicon. La dettatura funziona come sempre su questo Mac."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talk precisa de um Mac com Apple Silicon. O ditado funciona normalmente neste Mac."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

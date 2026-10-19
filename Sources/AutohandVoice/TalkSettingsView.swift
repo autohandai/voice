@@ -11,6 +11,24 @@ struct TalkSettingsView: View {
     private var account: AutohandAccount { session.talk.account }
 
     var body: some View {
+        if TalkAvailability.onThisMac {
+            talkSettings
+        } else {
+            Form {
+                Section {
+                    Label {
+                        Text(LocalizedStringKey(TalkAvailability.unavailableReason))
+                    } icon: {
+                        Image(systemName: "cpu")
+                    }
+                    .font(.callout)
+                }
+            }
+            .formStyle(.grouped)
+        }
+    }
+
+    private var talkSettings: some View {
         Form {
             Section {
                 Toggle(

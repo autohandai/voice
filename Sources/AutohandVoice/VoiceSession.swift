@@ -2339,7 +2339,7 @@ final class VoiceSession {
                 shift: modifiers.shift,
                 command: modifiers.command,
                 recordingMode: activeConfiguration.recordingMode,
-                talkEnabled: preferences.talkEnabled
+                talkEnabled: isTalkAvailable
             ) == .handsFreeTalk, !isRecordingOrStarting {
                 functionKeyPressHandledByTalk = true
                 startHandsFreeTalk()
@@ -2360,7 +2360,7 @@ final class VoiceSession {
             beginRecording(
                 origin: .shortcut,
                 viaFunctionKey: true,
-                forTalk: withShift && preferences.talkEnabled
+                forTalk: withShift && isTalkAvailable
             )
         case .confirmHold:
             guard recordingStartedWithFunctionKey, isRecordingOrStarting
@@ -2386,7 +2386,7 @@ final class VoiceSession {
     private func markTalkRecordingIfNeeded(_ withShift: Bool) {
         guard
             withShift,
-            preferences.talkEnabled,
+            isTalkAvailable,
             !isTalkRecording,
             !quickDictationTargetActive
         else { return }
@@ -2403,7 +2403,7 @@ final class VoiceSession {
     // MARK: - Hands-free Talk
 
     func startHandsFreeTalk() {
-        guard preferences.talkEnabled, !isTalkHandsFree else { return }
+        guard isTalkAvailable, !isTalkHandsFree else { return }
         isTalkHandsFree = true
         handsFreeEmptyTurns = 0
         handsFreeAssembler.reset()
@@ -2694,6 +2694,11 @@ final class VoiceSession {
             qwenPreparationProgress = nil
             qwenPreparationTask = nil
         }
+    }
+
+    /// Talk is switched on and this Mac can run it (Apple Silicon only).
+    var isTalkAvailable: Bool {
+        preferences.talkEnabled && TalkAvailability.onThisMac
     }
 
     func setTalkEnabled(_ value: Bool) {

@@ -64,3 +64,15 @@ final class EngineChoiceTests: XCTestCase {
         XCTAssertNil(failure.upgradeURL)
     }
 }
+
+final class TalkAvailabilityTests: XCTestCase {
+    func testTalkIsOnlyOfferedOnAppleSilicon() {
+        XCTAssertTrue(TalkAvailability.isAvailable(architecture: "arm64"))
+        XCTAssertFalse(TalkAvailability.isAvailable(architecture: "x86_64"))
+        XCTAssertFalse(TalkAvailability.isAvailable(architecture: "unsupported"))
+        XCTAssertEqual(
+            TalkAvailability.onThisMac,
+            SystemCheck.isAppleSilicon
+        )
+    }
+}

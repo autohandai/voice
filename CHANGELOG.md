@@ -15,6 +15,8 @@
 
 ## Unreleased
 
+- Talk is now available only on Macs with Apple Silicon. On Intel Macs,
+  Fn + Shift is ordinary dictation and Settings explains why.
 - Talk "On this Mac" can run Ternary Bonsai 2 natively on MLX on Apple
   Silicon (PrismML's 2-bit Hadamard pack, 1.2 GB, pinned and checksum-
   verified). MLX is preferred when installed; llama.cpp remains the runtime on
