@@ -1,5 +1,6 @@
 import AppKit
 import AVFoundation
+import AutohandVoiceBonsaiMLX
 import AutohandVoiceCore
 import AutohandVoiceLLM
 import Foundation
@@ -21,7 +22,9 @@ private func printUsage() {
     Usage:
       autohand-voice run
       autohand-voice transcribe <audio-file>
-      autohand-voice talk-local <question>
+      autohand-voice talk-local [--runtime mlx|llama] [--temperature <t>]
+                                [--presence-penalty <p>] [--max-tokens <n>]
+                                [--seed <n>] <question>
       autohand-voice talk-endpoint <audio-file> [--reply]
       autohand-voice check [--json]
       autohand-voice model-check [--json]
@@ -255,11 +258,115 @@ private func runHotKeyCheck() -> Never {
 
 /// Asks the on-device Talk model one question and prints the reply as it
 /// streams, with load and generation timings on stderr.
-private func runLocalTalk(_ question: String) async throws {
-    let engine = LocalTalkEngine()
+/// `talk-local` options. Anything that is not an option is the question.
+private struct LocalTalkOptions {
+    var runtime: LocalTalkRuntime?
+    var temperature: Float?
+    var presencePenalty: Float?
+    var maxTokens = FantailChatRequest.spokenMaxTokens
+    var seed: UInt64?
+    var question = ""
+
+    init(_ arguments: ArraySlice<String>) throws {
+        var words: [String] = []
+        var iterator = arguments.makeIterator()
+        func value(for flag: String) throws -> String {
+            guard let value = iterator.next() else {
+                throw CommandError.invalidArguments("\(flag) needs a value")
+            }
+            return value
+        }
+        while let argument = iterator.next() {
+            switch argument {
+            case "--runtime":
+                let name = try value(for: argument)
+                guard let runtime = LocalTalkRuntime(argument: name) else {
+                    throw CommandError.invalidArguments("--runtime must be mlx or llama")
+                }
+                self.runtime = runtime
+            case "--temperature":
+                guard let number = Float(try value(for: argument)), number >= 0 else {
+                    throw CommandError.invalidArguments("--temperature must be a number >= 0")
+                }
+                temperature = number
+            case "--presence-penalty":
+                guard let number = Float(try value(for: argument)) else {
+                    throw CommandError.invalidArguments("--presence-penalty must be a number")
+                }
+                presencePenalty = number
+            case "--max-tokens":
+                guard let number = Int(try value(for: argument)), (1...2_048).contains(number) else {
+                    throw CommandError.invalidArguments("--max-tokens must be 1 to 2048")
+                }
+                maxTokens = number
+            case "--seed":
+                guard let number = UInt64(try value(for: argument)) else {
+                    throw CommandError.invalidArguments("--seed must be a whole number")
+                }
+                seed = number
+            default:
+                words.append(argument)
+            }
+        }
+        question = words.joined(separator: " ")
+    }
+}
+
+private func runLocalTalk(_ arguments: ArraySlice<String>) async throws {
+    let options = try LocalTalkOptions(arguments)
+    guard !options.question.isEmpty else {
+        printUsage()
+        exit(EXIT_FAILURE)
+    }
+    let mlxCandidate = BonsaiMLXEngine()
+    let runtime = LocalTalkRuntime.resolve(
+        requested: options.runtime,
+        mlxSupported: mlxCandidate.unavailableReason == nil,
+        mlxInstalled: mlxCandidate.isInstalled
+    )
+    let messages = [
+        TalkMessage(role: .system, content: FantailChatRequest.spokenSystemPrompt),
+        TalkMessage(role: .user, content: options.question),
+    ]
+    let statistics = StatisticsBox()
+    let engine: any OnDeviceTalkEngine
+    let reply: () -> AsyncThrowingStream<String, Error>
+    switch runtime {
+    case .mlx:
+        var sampling = BonsaiSamplingSettings()
+        if let temperature = options.temperature { sampling.temperature = temperature }
+        if let penalty = options.presencePenalty { sampling.presencePenalty = penalty }
+        let mlx = BonsaiMLXEngine(sampling: sampling)
+        engine = mlx
+        reply = {
+            mlx.reply(
+                to: messages,
+                maxTokens: options.maxTokens,
+                seed: options.seed,
+                onFinish: { statistics.set($0) }
+            )
+        }
+    case .llamaCpp:
+        var sampling = LlamaChatRuntime.Sampling()
+        if let temperature = options.temperature { sampling.temperature = temperature }
+        if let penalty = options.presencePenalty { sampling.presencePenalty = penalty }
+        let llama = LocalTalkEngine(sampling: sampling)
+        engine = llama
+        reply = {
+            llama.reply(
+                to: messages,
+                maxTokens: options.maxTokens,
+                onFinish: { statistics.set($0) }
+            )
+        }
+    }
+    if let reason = engine.unavailableReason {
+        throw CommandError.invalidArguments(reason)
+    }
+    fputs("Runtime: \(runtime.displayName) (\(engine.displayName))\n", stderr)
     let started = Date()
     if !engine.isInstalled {
-        fputs("Downloading \(engine.manifest.displayName)…\n", stderr)
+        fputs("Downloading \(engine.displayName)…\n", stderr)
     }
     try await engine.prepare { progress in
         if progress < 1 {
@@ -268,30 +375,46 @@ private func runLocalTalk(_ question: String) async throws {
     }
     let loaded = Date()
     fputs(
-        String(format: "\nLoaded in %.1fs\n", loaded.timeIntervalSince(started)),
+        String(format: "\nLoaded in %.2fs\n", loaded.timeIntervalSince(started)),
         stderr
     )
-    var pieces = 0
-    for try await text in engine.reply(
-        to: [
-            TalkMessage(role: .system, content: FantailChatRequest.spokenSystemPrompt),
-            TalkMessage(role: .user, content: question),
-        ],
-        maxTokens: FantailChatRequest.spokenMaxTokens
-    ) {
+    for try await text in reply() {
         print(text, terminator: "")
         fflush(stdout)
-        pieces += 1
     }
     print()
-    fputs(
-        String(
-            format: "%d pieces in %.1fs\n",
-            pieces,
-            Date().timeIntervalSince(loaded)
-        ),
-        stderr
-    )
+    fflush(stdout)
+    if let stats = statistics.value {
+        fputs(
+            String(
+                format: "%d prompt tokens in %.2fs (%.0f tok/s); %d tokens in %.2fs (%.1f tok/s)\n",
+                stats.promptTokens,
+                stats.prefillSeconds,
+                stats.prefillTokensPerSecond,
+                stats.generatedTokens,
+                stats.decodeSeconds,
+                stats.decodeTokensPerSecond
+            ),
+            stderr
+        )
+    }
+}
+
+private final class StatisticsBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: LocalTalkGenerationStatistics?
+
+    func set(_ value: LocalTalkGenerationStatistics) {
+        lock.lock()
+        stored = value
+        lock.unlock()
+    }
+
+    var value: LocalTalkGenerationStatistics? {
+        lock.lock()
+        defer { lock.unlock() }
+        return stored
+    }
 }
 
 /// Replays an audio file through hands-free Talk's end-of-turn detector in
@@ -391,12 +514,7 @@ struct AutohandVoiceCommand {
                 )
                 try printJSON(["text": try transcript.finalText()])
             case "talk-local":
-                let question = arguments.dropFirst().joined(separator: " ")
-                guard !question.isEmpty else {
-                    printUsage()
-                    exit(EXIT_FAILURE)
-                }
-                try await runLocalTalk(question)
+                try await runLocalTalk(arguments.dropFirst())
             case "talk-endpoint":
                 guard let path = arguments.dropFirst().first else {
                     printUsage()

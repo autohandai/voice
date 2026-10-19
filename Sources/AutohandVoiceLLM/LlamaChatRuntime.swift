@@ -97,19 +97,21 @@ public final class LlamaChatRuntime: @unchecked Sendable {
     /// consuming task stops generation at the next token.
     public func generate(
         prompt: String,
-        maxTokens: Int
+        maxTokens: Int,
+        onFinish: (@Sendable (LocalTalkGenerationStatistics) -> Void)? = nil
     ) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             let cancelled = CancellationFlag()
             continuation.onTermination = { _ in cancelled.set() }
             queue.async { [self] in
                 do {
-                    try generateOnQueue(
+                    let statistics = try generateOnQueue(
                         prompt: prompt,
                         maxTokens: maxTokens,
                         isCancelled: { cancelled.isSet },
                         emit: { continuation.yield($0) }
                     )
+                    onFinish?(statistics)
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -150,8 +152,9 @@ public final class LlamaChatRuntime: @unchecked Sendable {
         maxTokens: Int,
         isCancelled: () -> Bool,
         emit: (String) -> Void
-    ) throws {
+    ) throws -> LocalTalkGenerationStatistics {
         guard let model, let context else { throw Failure.loadFailed }
+        let started = Date()
         let vocab = llama_model_get_vocab(model)
         llama_memory_clear(llama_get_memory(context), true)
 
@@ -165,10 +168,21 @@ public final class LlamaChatRuntime: @unchecked Sendable {
         let sampler = makeSampler(vocab: vocab)
         defer { llama_sampler_free(sampler) }
 
+        let promptCount = tokens.count
+        func statistics(generated: Int, firstToken: Date?) -> LocalTalkGenerationStatistics {
+            let first = firstToken ?? Date()
+            return LocalTalkGenerationStatistics(
+                promptTokens: promptCount,
+                generatedTokens: generated,
+                prefillSeconds: first.timeIntervalSince(started),
+                decodeSeconds: Date().timeIntervalSince(first)
+            )
+        }
+
         // Feed the prompt in batch-sized pieces.
         var offset = 0
         while offset < tokens.count {
-            if isCancelled() { return }
+            if isCancelled() { return statistics(generated: 0, firstToken: nil) }
             let count = min(512, tokens.count - offset)
             let status = tokens.withUnsafeMutableBufferPointer { buffer in
                 llama_decode(
@@ -182,9 +196,11 @@ public final class LlamaChatRuntime: @unchecked Sendable {
 
         var pendingBytes: [UInt8] = []
         var generated = 0
+        var firstToken: Date?
         tokens.removeAll(keepingCapacity: true)
         while generated < budget, !isCancelled() {
             var token = llama_sampler_sample(sampler, context, -1)
+            if firstToken == nil { firstToken = Date() }
             if llama_vocab_is_eog(vocab, token) { break }
             pendingBytes += piece(for: token, vocab: vocab)
             if let text = Self.takeValidUTF8(&pendingBytes), !text.isEmpty {
@@ -197,6 +213,7 @@ public final class LlamaChatRuntime: @unchecked Sendable {
         if !pendingBytes.isEmpty, !isCancelled() {
             emit(String(decoding: pendingBytes, as: UTF8.self))
         }
+        return statistics(generated: generated, firstToken: firstToken)
     }
 
     private func makeSampler(vocab: OpaquePointer?) -> UnsafeMutablePointer<llama_sampler> {
