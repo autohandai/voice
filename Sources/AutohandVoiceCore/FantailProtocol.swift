@@ -102,6 +102,8 @@ public enum TalkFailure: Error, Equatable, Sendable {
     case blocked(message: String)
     case unavailable
     case connectionLost
+    /// The on-device model could not load or answer.
+    case localModelUnavailable(String)
 
     public var message: String {
         switch self {
@@ -127,13 +129,16 @@ public enum TalkFailure: Error, Equatable, Sendable {
             "Fantail is unavailable right now."
         case .connectionLost:
             "The connection to Fantail was lost."
+        case let .localModelUnavailable(reason):
+            "The on-device model couldn't answer: \(reason)"
         }
     }
 
     /// Whether trying the same question again can succeed soon.
     public var isRetryable: Bool {
         switch self {
-        case .slowDown, .busy, .unavailable, .connectionLost:
+        case .slowDown, .busy, .unavailable, .connectionLost,
+             .localModelUnavailable:
             true
         case .signInRequired, .verifyEmail, .quotaReached, .blocked:
             false

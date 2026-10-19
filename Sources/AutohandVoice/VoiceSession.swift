@@ -392,6 +392,10 @@ final class VoiceSession {
         self.talk.onConversationEnded = { [weak self] in
             self?.endHandsFreeTalk()
         }
+        self.talk.engine = { [weak self] in
+            self?.preferences.talkEngine ?? .fantail
+        }
+        self.talk.localModel = BonsaiTalkModel()
     }
 
     var activeProfileLabel: String {
@@ -2484,6 +2488,19 @@ final class VoiceSession {
     /// dictation is in progress.
     var showsTalkCard: Bool {
         talk.showsCard && state == .ready
+    }
+
+    func setTalkEngine(_ value: TalkEngine) {
+        guard preferences.talkEngine != value else { return }
+        talk.endConversation()
+        preferences.talkEngine = value
+        persist()
+    }
+
+    func setDictationModel(_ value: DictationModel) {
+        guard preferences.dictationModel != value else { return }
+        preferences.dictationModel = value
+        persist()
     }
 
     func setTalkEnabled(_ value: Bool) {

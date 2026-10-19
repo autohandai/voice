@@ -10,7 +10,7 @@ Copyright (c) 2026 brando
 Autohand Voice is based on Dictate and retains its MIT license notice.
 Source: https://github.com/0xbrando/dictate
 
-FluidAudio 0.14.4
+FluidAudio 0.15.8
 Licensed under the Apache License, Version 2.0.
 Source: https://github.com/FluidInference/FluidAudio
 
@@ -18,18 +18,33 @@ NVIDIA Parakeet TDT 0.6B v3
 Licensed under the Apache License, Version 2.0.
 Source: https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3
 
+Kokoro-82M (voice for Talk replies, downloaded on first use)
+Licensed under the Apache License, Version 2.0.
+Source: https://huggingface.co/hexgrad/Kokoro-82M
+
+llama.cpp b11721
+Copyright (c) 2023-2026 The ggml authors
+Licensed under the MIT License.
+Source: https://github.com/ggml-org/llama.cpp
+
+Ternary Bonsai 2 2B (optional on-device Talk model, downloaded on request)
+Copyright (c) PrismML. Based on Qwen3.5-2B by the Qwen team.
+Licensed under the Apache License, Version 2.0.
+Source: https://huggingface.co/prism-ml/Ternary-Bonsai-2-2B-gguf
+
 Apple system frameworks are supplied by macOS and are not redistributed with
 Autohand Voice.
 
 ===============================================================================
 MIT LICENSE
-Applies to Autohand Voice and Dictate
+Applies to Autohand Voice, Dictate and llama.cpp
 ===============================================================================
 
 MIT License
 
 Copyright (c) 2026 brando
 Copyright (c) 2026 Autohand AI LLC
+Copyright (c) 2023-2026 The ggml authors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

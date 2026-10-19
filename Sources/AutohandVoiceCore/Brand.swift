@@ -28,6 +28,14 @@ public enum Brand {
         )[0].appendingPathComponent("Autohand Voice", isDirectory: true)
     }
 
+    /// Optional on-device models (the Talk model); never backed up.
+    public static var localModelsDirectory: URL {
+        applicationSupportDirectory.appendingPathComponent(
+            "Models",
+            isDirectory: true
+        )
+    }
+
     public static var preferencesURL: URL {
         applicationSupportDirectory.appendingPathComponent("preferences.json")
     }

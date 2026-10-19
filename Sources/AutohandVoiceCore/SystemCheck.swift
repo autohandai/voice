@@ -10,6 +10,16 @@ public struct SystemCheck: Codable, Equatable, Sendable {
     public let accessibilityPermission: Bool
     public let remoteFallbackEnabled: Bool
 
+    /// True for the Apple Silicon build; MLX and Metal-accelerated local
+    /// models need it.
+    public static var isAppleSilicon: Bool {
+        #if arch(arm64)
+        true
+        #else
+        false
+        #endif
+    }
+
     public init() {
         let version = ProcessInfo.processInfo.operatingSystemVersion
         #if arch(arm64)

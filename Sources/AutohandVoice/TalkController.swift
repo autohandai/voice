@@ -32,6 +32,9 @@ final class TalkController {
     private(set) var history = TalkHistory()
     /// The conversation keeps listening between replies (no keys held).
     private(set) var isHandsFree = false
+    /// Download (below 1) or loading (1) progress of the on-device model
+    /// while a question waits for it.
+    private(set) var localModelProgress: Double?
 
     let account: AutohandAccount
     @ObservationIgnored let speaker: TalkSpeaker
@@ -44,6 +47,10 @@ final class TalkController {
     @ObservationIgnored var onConversationEnded: (() -> Void)?
 
     @ObservationIgnored private let client: FantailClient
+    /// Answers on this Mac when the person picked the local model.
+    @ObservationIgnored var localModel: LocalTalkModel?
+    /// The engine chosen in Settings, read when each question is asked.
+    @ObservationIgnored var engine: () -> TalkEngine = { .fantail }
     @ObservationIgnored private var conversation = TalkConversation()
     @ObservationIgnored private var replyTask: Task<Void, Never>?
     @ObservationIgnored private var expiryTask: Task<Void, Never>?
@@ -96,6 +103,9 @@ final class TalkController {
 
     /// Fn+Shift is down: interrupt any reply and listen for the next question.
     func beginListening() {
+        if engine() == .local {
+            localModel?.prepareInBackground()
+        }
         replyTask?.cancel()
         replyTask = nil
         speaker.stop()
@@ -120,6 +130,10 @@ final class TalkController {
         speaker.stop()
         expiryTask?.cancel()
         voiceNotice = nil
+        if engine() == .local {
+            askLocally(question)
+            return
+        }
         guard account.isSignedIn, let token = account.currentToken() else {
             phase = .needsSignIn(question: question)
             onTurnEnded?(false)
@@ -291,9 +305,86 @@ final class TalkController {
 
     // MARK: - Streaming
 
+    private func askLocally(_ question: String) {
+        guard let localModel else {
+            phase = .failed(.localModelUnavailable(
+                "The on-device model isn't available in this build."
+            ), question: question)
+            onTurnEnded?(false)
+            return
+        }
+        if let reason = localModel.unavailableReason {
+            phase = .failed(.localModelUnavailable(reason), question: question)
+            onTurnEnded?(false)
+            return
+        }
+        conversation.appendUser(question)
+        phase = .thinking(question: question)
+        let messages = conversation.requestMessages(
+            systemPrompt: FantailChatRequest.spokenSystemPrompt
+        )
+        replyTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                if !localModel.isReady {
+                    self.localModelProgress = 0
+                    defer { self.localModelProgress = nil }
+                    try await localModel.prepare { progress in
+                        Task { @MainActor [weak self] in
+                            guard let self, self.localModelProgress != nil else {
+                                return
+                            }
+                            self.localModelProgress = progress
+                        }
+                    }
+                }
+                try Task.checkCancellation()
+                let updates = localModel.reply(
+                    to: messages,
+                    maxTokens: FantailChatRequest.spokenMaxTokens
+                )
+                await self.consumeReply(
+                    AsyncThrowingStream { continuation in
+                        let task = Task {
+                            do {
+                                for try await text in updates {
+                                    continuation.yield(.text(text))
+                                }
+                                continuation.finish()
+                            } catch {
+                                continuation.finish(throwing: error)
+                            }
+                        }
+                        continuation.onTermination = { _ in task.cancel() }
+                    },
+                    question: question
+                )
+            } catch is CancellationError {
+                return
+            } catch {
+                await self.consumeReply(
+                    AsyncThrowingStream { $0.finish(throwing: error) },
+                    question: question
+                )
+            }
+        }
+        onChange?()
+        prepareVoiceInBackground()
+    }
+
     private func streamReply(
         _ request: FantailChatRequest,
         token: String,
+        question: String
+    ) async {
+        await consumeReply(
+            client.reply(to: request, token: token),
+            question: question
+        )
+    }
+
+    private func consumeReply(
+        _ updates: AsyncThrowingStream<FantailClient.Update, Error>,
         question: String
     ) async {
         var reply = ""
@@ -305,7 +396,7 @@ final class TalkController {
             }
         }
         do {
-            for try await update in client.reply(to: request, token: token) {
+            for try await update in updates {
                 switch update {
                 case let .quota(quota):
                     account.update(quota: quota)
@@ -340,7 +431,10 @@ final class TalkController {
         } catch is CancellationError {
             return
         } catch {
-            let failure = error as? TalkFailure ?? .connectionLost
+            let failure = error as? TalkFailure
+                ?? (engine() == .local
+                    ? .localModelUnavailable(error.localizedDescription)
+                    : .connectionLost)
             Self.logger.error("Talk turn failed: \(failure.message)")
             conversation.withdrawUnansweredQuestion()
             speaker.stop()

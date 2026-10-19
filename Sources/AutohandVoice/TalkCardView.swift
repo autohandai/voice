@@ -41,7 +41,7 @@ struct TalkCardView: View {
             Image(systemName: "sparkles")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Color.talkAccent)
-            Text("Fantail")
+            Text(talk.engine() == .local ? "On this Mac" : "Fantail")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.9))
             if talk.isHandsFree {
@@ -82,9 +82,25 @@ struct TalkCardView: View {
         switch talk.phase {
         case let .thinking(question):
             questionLine(question)
-            Text("Thinking…")
-                .font(.system(size: 13))
-                .foregroundStyle(.white.opacity(0.6))
+            if let progress = talk.localModelProgress {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(
+                        progress < 1
+                            ? "Downloading the on-device model (one time only)…"
+                            : "Loading the on-device model…"
+                    )
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.75))
+                    if progress < 1 {
+                        ProgressView(value: progress)
+                            .tint(Color.talkAccent)
+                    }
+                }
+            } else {
+                Text("Thinking…")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.6))
+            }
         case let .replying(question, reply, _):
             questionLine(question)
             Text(reply)

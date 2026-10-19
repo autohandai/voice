@@ -39,6 +39,15 @@ cp "$REPO_ROOT/Resources/Brand/"* "$CONTENTS/Resources/Brand/"
 cp "$REPO_ROOT/Resources/Brand/autohand-voice.icns" "$CONTENTS/Resources/autohand-voice.icns"
 cp "$REPO_ROOT/Resources/Legal/"* "$CONTENTS/Resources/Legal/"
 
+# Dynamic frameworks from binary dependencies (llama.cpp for the optional
+# on-device Talk model). The executables look in Contents/Frameworks.
+# Universal (multi-arch) builds don't copy them next to the executables, so
+# take the checksum-verified macOS slice from the resolved artifact.
+mkdir -p "$CONTENTS/Frameworks"
+LLAMA_FRAMEWORK="$(find "$REPO_ROOT/.build/artifacts" -path '*/llama.xcframework/macos-*/llama.framework' -maxdepth 5 -print -quit)"
+test -n "$LLAMA_FRAMEWORK"
+cp -R "$LLAMA_FRAMEWORK" "$CONTENTS/Frameworks/"
+
 /usr/libexec/PlistBuddy \
     -c "Set :CFBundleShortVersionString $VERSION" \
     "$INFO_PLIST"
@@ -68,6 +77,10 @@ SIGNING_ARGUMENTS=(
 if [[ "$CODESIGN_IDENTITY" != "-" && "${AUTOHAND_VOICE_CODESIGN_SELF_SIGNED:-0}" != "1" ]]; then
     SIGNING_ARGUMENTS+=(--options runtime --timestamp)
 fi
+
+for framework in "$CONTENTS/Frameworks"/*.framework; do
+    codesign "${SIGNING_ARGUMENTS[@]}" "$framework"
+done
 
 codesign \
     "${SIGNING_ARGUMENTS[@]}" \

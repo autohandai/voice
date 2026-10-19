@@ -50,6 +50,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var livePreviewEnabled: Bool
     public var recordingHUDTheme: RecordingHUDTheme
     public var talkEnabled: Bool
+    public var talkEngine: TalkEngine
+    public var dictationModel: DictationModel
     public var audioInputDeviceUID: String?
     public var audioInputDevicePriority: [String]
     public var automaticAudioHandoffEnabled: Bool
@@ -92,6 +94,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         livePreviewEnabled: Bool = false,
         recordingHUDTheme: RecordingHUDTheme = .flow,
         talkEnabled: Bool = true,
+        talkEngine: TalkEngine = .fantail,
+        dictationModel: DictationModel = .parakeet,
         audioInputDeviceUID: String? = nil,
         audioInputDevicePriority: [String] = [],
         automaticAudioHandoffEnabled: Bool = false,
@@ -133,6 +137,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         self.livePreviewEnabled = livePreviewEnabled
         self.recordingHUDTheme = recordingHUDTheme
         self.talkEnabled = talkEnabled
+        self.talkEngine = talkEngine
+        self.dictationModel = dictationModel
         self.audioInputDeviceUID = audioInputDeviceUID
         self.audioInputDevicePriority = AudioRoutePolicy.normalized(
             audioInputDevicePriority.isEmpty
@@ -220,6 +226,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         case livePreviewEnabled
         case recordingHUDTheme
         case talkEnabled
+        case talkEngine
+        case dictationModel
         case audioInputDeviceUID
         case audioInputDevicePriority
         case automaticAudioHandoffEnabled
@@ -281,6 +289,14 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
             Bool.self,
             forKey: .talkEnabled
         ) ?? true
+        talkEngine = (try? container.decodeIfPresent(
+            TalkEngine.self,
+            forKey: .talkEngine
+        )) ?? .fantail
+        dictationModel = (try? container.decodeIfPresent(
+            DictationModel.self,
+            forKey: .dictationModel
+        )) ?? .parakeet
         audioInputDeviceUID = try container.decodeIfPresent(
             String.self,
             forKey: .audioInputDeviceUID

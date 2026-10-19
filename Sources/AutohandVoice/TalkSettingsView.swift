@@ -5,6 +5,7 @@ import SwiftUI
 /// and what leaves the Mac.
 struct TalkSettingsView: View {
     let model: AppSettingsModel
+    @State private var localModelRevision = 0
 
     private var session: VoiceSession { model.session }
     private var account: AutohandAccount { session.talk.account }
@@ -31,12 +32,37 @@ struct TalkSettingsView: View {
                 .foregroundStyle(.secondary)
             }
 
-            Section("Autohand Account") {
-                accountContent
-                if let error = account.signInError {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+            Section("Answered By") {
+                Picker(
+                    "Answered by",
+                    selection: Binding(
+                        get: { session.preferences.talkEngine },
+                        set: { session.setTalkEngine($0) }
+                    )
+                ) {
+                    Text("Fantail (Autohand)").tag(TalkEngine.fantail)
+                    Text("On this Mac").tag(TalkEngine.local)
+                }
+                .pickerStyle(.radioGroup)
+                if session.preferences.talkEngine == .local {
+                    localModelContent
+                } else {
+                    Text(
+                        "Fantail is Autohand's model. It needs a free Autohand account."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            }
+
+            if session.preferences.talkEngine == .fantail {
+                Section("Autohand Account") {
+                    accountContent
+                    if let error = account.signInError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
 
@@ -69,7 +95,9 @@ struct TalkSettingsView: View {
             Section("Privacy") {
                 Label {
                     Text(
-                        "Your audio never leaves this Mac. Talk sends the text of your question and the recent conversation to Autohand to create a reply. Dictation stays fully on this Mac."
+                        session.preferences.talkEngine == .local
+                            ? "Talk runs entirely on this Mac. Your audio, questions and replies never leave it. Dictation stays fully on this Mac too."
+                            : "Your audio never leaves this Mac. Talk sends the text of your question and the recent conversation to Autohand to create a reply. Dictation stays fully on this Mac."
                     )
                 } icon: {
                     Image(systemName: "lock.shield")
@@ -78,6 +106,41 @@ struct TalkSettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    @ViewBuilder
+    private var localModelContent: some View {
+        if let bonsai = session.talk.localModel as? BonsaiTalkModel {
+            LabeledContent("Model") {
+                Text(bonsai.displayName)
+            }
+            LabeledContent("Status") {
+                if bonsai.isInstalled {
+                    HStack(spacing: 8) {
+                        Text("Downloaded")
+                        Button("Remove") {
+                            try? bonsai.removeDownloadedModel()
+                            localModelRevision += 1
+                        }
+                    }
+                } else {
+                    Text(
+                        "Downloads \(ByteCountFormatter.string(fromByteCount: bonsai.downloadSize, countStyle: .file)) the first time you ask"
+                    )
+                }
+            }
+            .id(localModelRevision)
+            Text(
+                "A small open model from PrismML runs on this Mac with llama.cpp. No account needed, and nothing you say leaves your Mac. Answers are simpler than Fantail's."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            if !SystemCheck.isAppleSilicon {
+                Text("On Intel Macs the model runs on the processor and replies take much longer.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
     }
 
     @ViewBuilder

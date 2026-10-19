@@ -13464,6 +13464,380 @@
           }
         }
       }
+    },
+    "A small open model from PrismML runs on this Mac with llama.cpp. No account needed, and nothing you say leaves your Mac. Answers are simpler than Fantail's." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein kleines offenes Modell von PrismML läuft mit llama.cpp auf diesem Mac. Kein Konto nötig, und nichts, was du sagst, verlässt deinen Mac. Die Antworten sind einfacher als die von Fantail."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A small open model from PrismML runs on this Mac with llama.cpp. No account needed, and nothing you say leaves your Mac. Answers are simpler than Fantail's."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un modelo abierto pequeño de PrismML se ejecuta en este Mac con llama.cpp. No necesita cuenta y nada de lo que diga sale de su Mac. Las respuestas son más sencillas que las de Fantail."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un piccolo modello aperto di PrismML funziona su questo Mac con llama.cpp. Non serve un account e nulla di ciò che dici lascia il tuo Mac. Le risposte sono più semplici di quelle di Fantail."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um pequeno modelo aberto da PrismML roda neste Mac com llama.cpp. Não precisa de conta, e nada do que você diz sai do seu Mac. As respostas são mais simples que as do Fantail."
+          }
+        }
+      }
+    },
+    "Answered By" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antwort von"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Answered By"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Responde"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Risponde"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Respondido por"
+          }
+        }
+      }
+    },
+    "Answered by" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antwort von"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Answered by"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Responde"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Risponde"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Respondido por"
+          }
+        }
+      }
+    },
+    "Downloaded" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heruntergeladen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloaded"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargado"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scaricato"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baixado"
+          }
+        }
+      }
+    },
+    "Fantail (Autohand)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fantail (Autohand)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fantail (Autohand)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fantail (Autohand)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fantail (Autohand)"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fantail (Autohand)"
+          }
+        }
+      }
+    },
+    "Fantail is Autohand's model. It needs a free Autohand account." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fantail ist das Modell von Autohand. Es braucht ein kostenloses Autohand-Konto."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fantail is Autohand's model. It needs a free Autohand account."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fantail es el modelo de Autohand. Necesita una cuenta gratuita de Autohand."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fantail è il modello di Autohand. Richiede un account Autohand gratuito."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fantail é o modelo da Autohand. Ele precisa de uma conta gratuita da Autohand."
+          }
+        }
+      }
+    },
+    "On this Mac" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf diesem Mac"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On this Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En este Mac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Su questo Mac"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neste Mac"
+          }
+        }
+      }
+    },
+    "Downloading the on-device model (one time only)…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Modell auf dem Gerät wird geladen (nur einmal)…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloading the on-device model (one time only)…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargando el modelo local (solo una vez)…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download del modello locale (solo la prima volta)…"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Baixando o modelo local (só uma vez)…"
+          }
+        }
+      }
+    },
+    "Loading the on-device model…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Modell auf dem Gerät wird gestartet…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading the on-device model…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cargando el modelo local…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Caricamento del modello locale…"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carregando o modelo local…"
+          }
+        }
+      }
+    },
+    "Talk runs entirely on this Mac. Your audio, questions and replies never leave it. Dictation stays fully on this Mac too." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk läuft vollständig auf diesem Mac. Audio, Fragen und Antworten verlassen ihn nie. Auch das Diktieren bleibt vollständig auf diesem Mac."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk runs entirely on this Mac. Your audio, questions and replies never leave it. Dictation stays fully on this Mac too."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk se ejecuta por completo en este Mac. Su audio, sus preguntas y las respuestas nunca salen de él. El dictado también se queda por completo en este Mac."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk funziona interamente su questo Mac. Audio, domande e risposte non lo lasciano mai. Anche la dettatura resta interamente su questo Mac."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talk roda inteiramente neste Mac. Seu áudio, perguntas e respostas nunca saem dele. O ditado também fica inteiramente neste Mac."
+          }
+        }
+      }
+    },
+    "On Intel Macs the model runs on the processor and replies take much longer." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auf Intel-Macs läuft das Modell auf dem Prozessor, und Antworten dauern deutlich länger."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On Intel Macs the model runs on the processor and replies take much longer."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En los Mac con Intel el modelo se ejecuta en el procesador y las respuestas tardan mucho más."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sui Mac Intel il modello funziona sul processore e le risposte richiedono molto più tempo."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Em Macs Intel o modelo roda no processador e as respostas demoram bem mais."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

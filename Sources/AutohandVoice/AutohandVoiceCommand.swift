@@ -1,5 +1,6 @@
 import AppKit
 import AutohandVoiceCore
+import AutohandVoiceLLM
 import Foundation
 
 private enum CommandError: LocalizedError {
@@ -19,6 +20,7 @@ private func printUsage() {
     Usage:
       autohand-voice run
       autohand-voice transcribe <audio-file>
+      autohand-voice talk-local <question>
       autohand-voice check [--json]
       autohand-voice model-check [--json]
       autohand-voice reliability [show|path|reset|export <file>] [--json]
@@ -249,6 +251,47 @@ private func runHotKeyCheck() -> Never {
     exit(EXIT_SUCCESS)
 }
 
+/// Asks the on-device Talk model one question and prints the reply as it
+/// streams, with load and generation timings on stderr.
+private func runLocalTalk(_ question: String) async throws {
+    let engine = LocalTalkEngine()
+    let started = Date()
+    if !engine.isInstalled {
+        fputs("Downloading \(engine.manifest.displayName)…\n", stderr)
+    }
+    try await engine.prepare { progress in
+        if progress < 1 {
+            fputs(String(format: "\r%3.0f%%", progress * 100), stderr)
+        }
+    }
+    let loaded = Date()
+    fputs(
+        String(format: "\nLoaded in %.1fs\n", loaded.timeIntervalSince(started)),
+        stderr
+    )
+    var pieces = 0
+    for try await text in engine.reply(
+        to: [
+            TalkMessage(role: .system, content: FantailChatRequest.spokenSystemPrompt),
+            TalkMessage(role: .user, content: question),
+        ],
+        maxTokens: FantailChatRequest.spokenMaxTokens
+    ) {
+        print(text, terminator: "")
+        fflush(stdout)
+        pieces += 1
+    }
+    print()
+    fputs(
+        String(
+            format: "%d pieces in %.1fs\n",
+            pieces,
+            Date().timeIntervalSince(loaded)
+        ),
+        stderr
+    )
+}
+
 @main
 struct AutohandVoiceCommand {
     static func main() async {
@@ -274,6 +317,13 @@ struct AutohandVoiceCommand {
                     languageCode: preferences.dictationLanguageCode
                 )
                 try printJSON(["text": try transcript.finalText()])
+            case "talk-local":
+                let question = arguments.dropFirst().joined(separator: " ")
+                guard !question.isEmpty else {
+                    printUsage()
+                    exit(EXIT_FAILURE)
+                }
+                try await runLocalTalk(question)
             case "check", "doctor":
                 let check = SystemCheck()
                 let preferences = PreferencesStore().load()
