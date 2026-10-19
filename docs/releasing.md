@@ -112,4 +112,6 @@ last round of approvals; later updates keep them.
 
 Autohand Voice also avoids reading Keychain at launch: the Talk key is read
 the first time Talk needs it, and crash recovery reads its key only when a
-recording is waiting to be recovered.
+recording is waiting to be recovered. Ad-hoc builds don't use Keychain for the
+Talk key at all; they keep it in an owner-only file, so no password prompt
+appears after an update. Signing with a stable identity moves it to Keychain.

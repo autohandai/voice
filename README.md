@@ -192,8 +192,11 @@ from the command line (MLX needs its kernels next to the binary, as above):
 prints load time and tokens per second to stderr.
 
 With Fantail, Talk needs a free Autohand account (Settings → Talk → Sign In with Autohand,
-using the same browser sign-in as the Autohand CLI). The API key is stored in
-Keychain. When the free plan's limit is reached, Talk shows when it resets and
+using the same browser sign-in as the Autohand CLI). Builds signed with a stable
+identity store the API key in Keychain. Ad-hoc signed builds (nightlies) keep it
+in an owner-only file (`talk-credential.json`, mode 0600, excluded from backups),
+the same way the Autohand CLI stores its token, because Keychain would ask for
+the login password after every update. `autohand-voice check` shows which. When the free plan's limit is reached, Talk shows when it resets and
 offers an upgrade. Turn Talk off in Settings → Talk.
 
 The menu supports:

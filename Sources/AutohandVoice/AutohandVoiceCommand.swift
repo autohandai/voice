@@ -547,6 +547,12 @@ struct AutohandVoiceCommand {
                         "Recent operational issue categories: "
                             + "\(issues.count)"
                     )
+                    print(
+                        "Talk sign-in storage: "
+                            + (CodeSignature.isAdHoc
+                                ? "owner-only file (ad-hoc signed build)"
+                                : "Keychain")
+                    )
                 }
                 if !check.supported { exit(EXIT_FAILURE) }
             case "model-check":

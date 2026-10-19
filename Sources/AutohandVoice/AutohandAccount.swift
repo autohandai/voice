@@ -26,9 +26,8 @@ final class AutohandAccount {
 
     @ObservationIgnored private let endpoints: AutohandEndpoints
     @ObservationIgnored private let urlSession: URLSession
-    @ObservationIgnored private let vault = KeychainAccountCredentialVault(
-        service: Brand.bundleIdentifier + ".autohand-api-key",
-        account: "talk"
+    @ObservationIgnored private let vault = TalkCredentialVault(
+        storage: CredentialStorage.choose(isAdHocSigned: CodeSignature.isAdHoc)
     )
     /// Read from Keychain only when Talk first needs it: reading at launch
     /// makes macOS ask for the login password after each ad-hoc update.
@@ -266,5 +265,40 @@ final class AutohandAccount {
         request.setValue(Brand.productName, forHTTPHeaderField: "x-source")
         request.httpBody = try JSONEncoder().encode(body)
         return request
+    }
+}
+
+/// Keychain for builds with a stable signature; an owner-only file for
+/// ad-hoc builds, which Keychain would challenge after every update.
+private struct TalkCredentialVault: Sendable {
+    let storage: CredentialStorage
+    private let keychain = KeychainAccountCredentialVault(
+        service: Brand.bundleIdentifier + ".autohand-api-key",
+        account: "talk"
+    )
+    private let file = FileAccountCredentialVault(
+        url: Brand.applicationSupportDirectory
+            .appendingPathComponent("talk-credential.json")
+    )
+
+    func store(_ credential: AccountCredential) throws {
+        switch storage {
+        case .keychain: try keychain.store(credential)
+        case .ownerOnlyFile: try file.store(credential)
+        }
+    }
+
+    func load() throws -> AccountCredential? {
+        switch storage {
+        case .keychain: try keychain.load()
+        case .ownerOnlyFile: try file.load()
+        }
+    }
+
+    func delete() throws {
+        switch storage {
+        case .keychain: try keychain.delete()
+        case .ownerOnlyFile: try file.delete()
+        }
     }
 }
