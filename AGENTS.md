@@ -16,9 +16,10 @@ private voice input. Work as a critical staff-level Swift engineer.
   is the only networked feature: explicit, opt-in, signed in to Autohand. It
   sends final transcript text and recent conversation to the `fantail` model,
   never audio, and speaks replies with local Kokoro. Talk answered "On this
-  Mac" runs Ternary Bonsai 2 in llama.cpp and sends nothing. Dictation must
+  Mac" runs Ternary Bonsai 2 (llama.cpp GGUF, or MLX on Apple Silicon) and
+  sends nothing. Dictation must
   never use the network or fall back to Talk.
-- Optional models (Bonsai GGUF, Qwen3-ASR) download on request from pinned
+- Optional models (Bonsai GGUF, Bonsai MLX, Qwen3-ASR) download on request from pinned
   Hugging Face revisions and are checked against hardcoded SHA-256s before
   use. Never bundle or commit them.
 - Preserve user typing, selection, clipboard, and cursor state.
@@ -36,9 +37,10 @@ private voice input. Work as a critical staff-level Swift engineer.
 
 The runtime is native Swift. Do not introduce Python, a web runtime, or a
 remote inference dependency beyond the opt-in Talk feature above. The only
-in-process ML runtimes are CoreML, MLX (mlx-swift, for Qwen3-ASR; its
-metallib is built by `scripts/build-mlx-metallib.sh`) and llama.cpp (prebuilt
-xcframework, for the local Talk model). Do not read Keychain at launch. Preserve upstream legal attribution.
+in-process ML runtimes are CoreML, MLX (mlx-swift, for Qwen3-ASR and the
+Talk model's Apple Silicon runtime; its metallib is built by
+`scripts/build-mlx-metallib.sh`) and llama.cpp (prebuilt xcframework, for the
+local Talk model on every Mac). Do not read Keychain at launch. Preserve upstream legal attribution.
 
 ## Engineering workflow
 

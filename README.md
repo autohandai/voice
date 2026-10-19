@@ -173,6 +173,24 @@ and is checked against its SHA-256 before it is used. It loads while you speak,
 needs no account, and nothing leaves the Mac. Metal makes it fast on Apple
 Silicon; on Intel it runs on the CPU and is much slower.
 
+On Apple Silicon the same model can also run natively on MLX, from PrismML's
+2-bit MLX pack (1.2 GB download: the pack's single weights file also carries
+an unused vision tower, which is never loaded). It is pinned and
+SHA-256-checked the same way and installs beside the GGUF in
+`~/Library/Application Support/Autohand Voice/Models/ternary-bonsai-2-2b-mlx`.
+When it is installed, MLX is preferred; otherwise, and always on Intel or under
+Rosetta, llama.cpp answers. An explicit runtime choice is never swapped
+silently: asking for MLX on an Intel Mac fails with a clear message. Try both
+from the command line (MLX needs its kernels next to the binary, as above):
+
+```bash
+./.build/release/autohand-voice talk-local --runtime mlx "Why is the sky blue?"
+./.build/release/autohand-voice talk-local --runtime llama --temperature 0 "Why is the sky blue?"
+```
+
+`talk-local` also takes `--presence-penalty`, `--max-tokens` and `--seed`, and
+prints load time and tokens per second to stderr.
+
 With Fantail, Talk needs a free Autohand account (Settings → Talk → Sign In with Autohand,
 using the same browser sign-in as the Autohand CLI). The API key is stored in
 Keychain. When the free plan's limit is reached, Talk shows when it resets and

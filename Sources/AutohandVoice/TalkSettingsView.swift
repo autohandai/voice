@@ -112,7 +112,7 @@ struct TalkSettingsView: View {
     private var localModelContent: some View {
         if let bonsai = session.talk.localModel as? BonsaiTalkModel {
             LabeledContent("Model") {
-                Text(bonsai.displayName)
+                Text("\(bonsai.displayName) · \(bonsai.runtimeName)")
             }
             LabeledContent("Status") {
                 if bonsai.isInstalled {
@@ -131,7 +131,7 @@ struct TalkSettingsView: View {
             }
             .id(localModelRevision)
             Text(
-                "A small open model from PrismML runs on this Mac with llama.cpp. No account needed, and nothing you say leaves your Mac. Answers are simpler than Fantail's."
+                "A small open model from PrismML runs on this Mac (MLX on Apple Silicon, llama.cpp on Intel). No account needed, and nothing you say leaves your Mac. Answers are simpler than Fantail's."
             )
             .font(.caption)
             .foregroundStyle(.secondary)

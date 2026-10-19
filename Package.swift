@@ -12,6 +12,10 @@ let package = Package(
             name: "AutohandVoiceQwenASR",
             targets: ["AutohandVoiceQwenASR"]
         ),
+        .library(
+            name: "AutohandVoiceBonsaiMLX",
+            targets: ["AutohandVoiceBonsaiMLX"]
+        ),
         .executable(name: "autohand-voice", targets: ["AutohandVoice"]),
         .executable(name: "autohand-voice-stt", targets: ["AutohandVoiceSTT"]),
     ],
@@ -58,9 +62,31 @@ let package = Package(
                 "Vendor/SpeechSwift/NOTICE.md",
             ]
         ),
+        // Ternary Bonsai 2 on MLX (Apple Silicon only): the Talk model's
+        // native runtime. Reuses the Qwen3-ASR target's pinned downloader
+        // and MLX platform checks.
+        .target(
+            name: "AutohandVoiceBonsaiMLX",
+            dependencies: [
+                "AutohandVoiceCore",
+                "AutohandVoiceQwenASR",
+                .product(name: "MLX", package: "mlx-swift"),
+                .product(name: "MLXNN", package: "mlx-swift"),
+                .product(name: "MLXFast", package: "mlx-swift"),
+            ],
+            exclude: [
+                "Vendor/MLXSwiftLM/LICENSE",
+                "Vendor/MLXSwiftLM/NOTICE.md",
+            ]
+        ),
         .executableTarget(
             name: "AutohandVoice",
-            dependencies: ["AutohandVoiceCore", "AutohandVoiceLLM", "AutohandVoiceQwenASR"],
+            dependencies: [
+                "AutohandVoiceCore",
+                "AutohandVoiceLLM",
+                "AutohandVoiceQwenASR",
+                "AutohandVoiceBonsaiMLX",
+            ],
             linkerSettings: [
                 .unsafeFlags([
                     "-Xlinker", "-rpath",
@@ -79,6 +105,15 @@ let package = Package(
         .testTarget(
             name: "AutohandVoiceQwenASRTests",
             dependencies: ["AutohandVoiceQwenASR", "AutohandVoiceCore"]
+        ),
+        .testTarget(
+            name: "AutohandVoiceBonsaiMLXTests",
+            dependencies: [
+                "AutohandVoiceBonsaiMLX",
+                "AutohandVoiceQwenASR",
+                "AutohandVoiceCore",
+            ],
+            exclude: ["Fixtures"]
         ),
     ]
 )
