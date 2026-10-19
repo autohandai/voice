@@ -30,10 +30,13 @@ final class AutohandAccount {
         service: Brand.bundleIdentifier + ".autohand-api-key",
         account: "talk"
     )
-    @ObservationIgnored private var cachedToken: String?
+    /// Read from Keychain only when Talk first needs it: reading at launch
+    /// makes macOS ask for the login password after each ad-hoc update.
+    @ObservationIgnored private var credential: DeferredCredential<String>
     @ObservationIgnored private var signInTask: Task<Void, Never>?
 
     private static let emailDefaultsKey = "autohandAccountEmail"
+    private static let signedInDefaultsKey = "autohandAccountSignedIn"
     private static let logger = Logger(
         subsystem: Brand.bundleIdentifier,
         category: "account"
@@ -45,18 +48,15 @@ final class AutohandAccount {
     ) {
         self.endpoints = endpoints
         self.urlSession = urlSession
-        do {
-            if let credential = try vault.load() {
-                cachedToken = credential.accessToken
-                status = .signedIn(
-                    email: UserDefaults.standard.string(
-                        forKey: Self.emailDefaultsKey
-                    )
-                )
-            }
-        } catch {
-            Self.logger.error(
-                "Autohand credential could not be read: \(error.localizedDescription)"
+        let vault = vault
+        credential = DeferredCredential { try vault.load()?.accessToken }
+        let defaults = UserDefaults.standard
+        // Earlier builds only recorded the email; treat it as signed in too.
+        if defaults.bool(forKey: Self.signedInDefaultsKey)
+            || defaults.string(forKey: Self.emailDefaultsKey) != nil
+        {
+            status = .signedIn(
+                email: defaults.string(forKey: Self.emailDefaultsKey)
             )
         }
     }
@@ -66,7 +66,24 @@ final class AutohandAccount {
         return false
     }
 
-    var token: String? { cachedToken }
+    /// The API key, read from Keychain the first time it is needed. Returns
+    /// nil (and shows signed out) when there is no key or it can't be read.
+    func currentToken() -> String? {
+        do {
+            if let token = try credential.value() { return token }
+        } catch {
+            Self.logger.error(
+                "Autohand credential could not be read: \(error.localizedDescription)"
+            )
+            signInError = "Autohand Voice couldn't read your sign-in from Keychain. Sign in again to keep talking."
+        }
+        if isSignedIn {
+            UserDefaults.standard.removeObject(forKey: Self.signedInDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: Self.emailDefaultsKey)
+            status = .signedOut
+        }
+        return nil
+    }
 
     func signIn() {
         guard signInTask == nil, !isSignedIn else { return }
@@ -98,7 +115,8 @@ final class AutohandAccount {
             )
         }
         UserDefaults.standard.removeObject(forKey: Self.emailDefaultsKey)
-        cachedToken = nil
+        UserDefaults.standard.removeObject(forKey: Self.signedInDefaultsKey)
+        credential.clear()
         quota = nil
         status = .signedOut
     }
@@ -217,7 +235,8 @@ final class AutohandAccount {
         if let email {
             UserDefaults.standard.set(email, forKey: Self.emailDefaultsKey)
         }
-        cachedToken = token
+        UserDefaults.standard.set(true, forKey: Self.signedInDefaultsKey)
+        credential.store(token)
         signInError = nil
         status = .signedIn(email: email)
         onSignedIn?()

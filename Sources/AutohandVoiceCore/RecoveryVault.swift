@@ -419,6 +419,8 @@ public actor RecoveryVault {
 
     public func list() throws -> [RecoverySummary] {
         let urls = try artifactURLs()
+        // Nothing to recover: leave the Keychain alone (see DeferredCredential).
+        guard !urls.isEmpty else { return [] }
         let keyData = try keyProvider.keyData(createIfMissing: false)
         let summaries = urls.compactMap { url -> RecoverySummary? in
             guard let id = UUID(uuidString: url.deletingPathExtension()

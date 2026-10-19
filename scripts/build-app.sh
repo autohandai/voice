@@ -61,7 +61,11 @@ SIGNING_ARGUMENTS=(
     --sign "$CODESIGN_IDENTITY"
 )
 
-if [[ "$CODESIGN_IDENTITY" != "-" ]]; then
+# Developer ID builds get the hardened runtime and a secure timestamp for
+# notarization. A self-signed identity (AUTOHAND_VOICE_CODESIGN_SELF_SIGNED=1)
+# only gives builds a stable signature, so macOS keeps Keychain, Accessibility
+# and login-item approvals across updates; it is not notarized.
+if [[ "$CODESIGN_IDENTITY" != "-" && "${AUTOHAND_VOICE_CODESIGN_SELF_SIGNED:-0}" != "1" ]]; then
     SIGNING_ARGUMENTS+=(--options runtime --timestamp)
 fi
 

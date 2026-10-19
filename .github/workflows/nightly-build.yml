@@ -38,6 +38,34 @@ jobs:
       - name: Verify local-only system contract
         run: ./.build/release/autohand-voice check --json
 
+      - name: Import stable signing identity
+        # Optional. Without it the build is ad-hoc signed, and every update
+        # looks like a new app to macOS (Keychain password prompts, and
+        # Accessibility and login items need approving again).
+        env:
+          SIGNING_P12_BASE64: ${{ secrets.AUTOHAND_VOICE_SIGNING_P12_BASE64 }}
+          SIGNING_P12_PASSWORD: ${{ secrets.AUTOHAND_VOICE_SIGNING_P12_PASSWORD }}
+        run: |
+          if [ -z "$SIGNING_P12_BASE64" ]; then
+            echo "No stable signing identity configured; using ad-hoc signing."
+            exit 0
+          fi
+          keychain="$RUNNER_TEMP/autohand-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+          p12="$RUNNER_TEMP/autohand-signing.p12"
+          printf '%s' "$SIGNING_P12_BASE64" | base64 --decode > "$p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$p12" -k "$keychain" -P "$SIGNING_P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm -f "$p12"
+          identity="$(security find-certificate -a -Z -c "Autohand Voice" "$keychain" | awk '/SHA-1 hash:/ {print $3; exit}')"
+          test -n "$identity"
+          echo "AUTOHAND_VOICE_CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          echo "AUTOHAND_VOICE_CODESIGN_SELF_SIGNED=1" >> "$GITHUB_ENV"
+
       - name: Build app bundle
         run: ./scripts/build-app.sh
 

@@ -73,3 +73,43 @@ codesign --verify --deep --strict --verbose=2 "dist/Autohand Voice.app"
 Local artifacts are ad-hoc signed and are not a substitute for the notarized
 tagged release. The downloaded model, caches, recordings, certificates, and
 credentials must never be committed or uploaded as build artifacts.
+
+## Stable signing for nightly builds
+
+Ad-hoc signed builds get a new code signature every time, so macOS treats
+each update as a different app: it asks for the login password before
+Autohand Voice can read its Keychain items, and Accessibility, Input
+Monitoring and the login item need approving again. Signing nightly builds
+with one long-lived self-signed certificate keeps the signature stable, so
+those approvals survive updates. It does not notarize the app; Gatekeeper
+still warns on first launch.
+
+Create the certificate once, on a trusted Mac, and store it only as GitHub
+secrets:
+
+```bash
+umask 077
+openssl req -x509 -newkey rsa:3072 -sha256 -days 3650 -nodes \
+  -keyout key.pem -out cert.pem \
+  -subj "/CN=Autohand Voice Self-Signed Code Signing/O=Autohand AI" \
+  -addext "keyUsage=critical,digitalSignature" \
+  -addext "extendedKeyUsage=critical,codeSigning" \
+  -addext "basicConstraints=critical,CA:false"
+password="$(openssl rand -hex 24)"
+openssl pkcs12 -export -legacy -inkey key.pem -in cert.pem \
+  -name "Autohand Voice Self-Signed Code Signing" \
+  -out signing.p12 -passout "pass:$password"
+base64 -i signing.p12 | gh secret set AUTOHAND_VOICE_SIGNING_P12_BASE64 --repo autohandai/voice
+printf '%s' "$password" | gh secret set AUTOHAND_VOICE_SIGNING_P12_PASSWORD --repo autohandai/voice
+rm -P key.pem signing.p12
+```
+
+The nightly workflow imports it into a temporary keychain when the secrets
+exist and falls back to ad-hoc signing when they don't. Anyone holding the
+private key can sign builds that macOS will treat as Autohand Voice, so keep
+it only in the repository secrets. The first build signed with it needs one
+last round of approvals; later updates keep them.
+
+Autohand Voice also avoids reading Keychain at launch: the Talk key is read
+the first time Talk needs it, and crash recovery reads its key only when a
+recording is waiting to be recovered.

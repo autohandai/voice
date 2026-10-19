@@ -120,7 +120,7 @@ final class TalkController {
         speaker.stop()
         expiryTask?.cancel()
         voiceNotice = nil
-        guard let token = account.token, account.isSignedIn else {
+        guard account.isSignedIn, let token = account.currentToken() else {
             phase = .needsSignIn(question: question)
             onTurnEnded?(false)
             return

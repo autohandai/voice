@@ -39,6 +39,7 @@ final class MenuBarController: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         installMainMenu()
+        LaunchAtLoginReconciler.reconcile(session: session)
         session.onChange = { [weak self] in
             self?.rebuildMenu()
             self?.recordingHUDController?.update()
