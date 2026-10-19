@@ -16,3 +16,5 @@ DerivedData/
 /*.o
 /*.d
 /*.swiftdeps
+*.metallib
+*.safetensors

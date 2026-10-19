@@ -26,6 +26,9 @@ public struct AboutMetadata: Equatable, Sendable {
             "Dictate",
             "FluidAudio",
             "NVIDIA Parakeet TDT 0.6B v3",
+            "MLX Swift",
+            "speech-swift",
+            "Qwen3-ASR 0.6B",
         ]
     )
 }
