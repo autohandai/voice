@@ -56,6 +56,17 @@ for bundle in "$BIN_PATH"/*.bundle; do
     fi
 done
 
+# MLX GPU kernels for the optional Qwen3-ASR engine (Apple Silicon only).
+# `swift build` does not compile mlx-swift's .metal sources, so the cached
+# metallib is placed where MLX looks for a SwiftPM resource bundle:
+# <main bundle resources>/mlx-swift_Cmlx.bundle/default.metallib. Both
+# executables in Contents/MacOS resolve the app as their main bundle.
+MLX_METALLIB="$("$REPO_ROOT/scripts/build-mlx-metallib.sh")"
+MLX_BUNDLE="$CONTENTS/Resources/mlx-swift_Cmlx.bundle"
+rm -rf "$MLX_BUNDLE"
+mkdir -p "$MLX_BUNDLE"
+cp "$MLX_METALLIB" "$MLX_BUNDLE/default.metallib"
+
 SIGNING_ARGUMENTS=(
     --force \
     --sign "$CODESIGN_IDENTITY"

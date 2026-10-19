@@ -21,6 +21,9 @@ final class AboutMetadataTests: XCTestCase {
                 "Dictate",
                 "FluidAudio",
                 "NVIDIA Parakeet TDT 0.6B v3",
+                "MLX Swift",
+                "speech-swift",
+                "Qwen3-ASR 0.6B",
             ]
         )
         XCTAssertEqual(

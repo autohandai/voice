@@ -110,6 +110,24 @@ swift run autohand-voice transcribe recording.wav
 swift run autohand-voice-stt check
 ```
 
+The optional Qwen3-ASR 0.6B engine (MLX 4-bit, Apple Silicon only) can be
+smoke-tested from the helper. The first run downloads about 713 MB from a
+pinned Hugging Face commit into
+`~/Library/Application Support/FluidAudio/Models/qwen3-asr-0.6b-mlx-4bit`
+and verifies every file by SHA-256. MLX needs its GPU kernels, which
+`swift build` does not compile; `scripts/build-mlx-metallib.sh` builds and
+caches them and `scripts/build-app.sh` bundles them:
+
+```bash
+swift build -c release
+ln -sf "$(./scripts/build-mlx-metallib.sh)" .build/release/mlx.metallib
+./.build/release/autohand-voice-stt engines
+./.build/release/autohand-voice-stt transcribe --engine qwen3 --language en recording.wav
+```
+
+On Intel Macs and under Rosetta, Qwen3-ASR reports itself unavailable and
+Parakeet remains the engine.
+
 ## Use
 
 Launch the app and hold Fn while you speak, then release it to finish.
@@ -324,6 +342,9 @@ security, legal, billing, and delivery gates pass; see
   24-hour policy. Recovery is never retried automatically and can always be
   transcribed directly to the clipboard.
 - Speech recognition runs in the local CoreML process.
+- The optional Qwen3-ASR engine also runs locally, in-process on the Apple
+  Silicon GPU through MLX. Its only network use is the one-time model download
+  from a pinned commit with per-file SHA-256 checks; audio is never uploaded.
 - Dictation never sends speech, text, or cleanup requests to a remote endpoint.
 - Talk is the only networked feature. It runs only when you hold Fn + Shift
   or start a hands-free conversation, and are signed in, sends only the final transcript text and the recent
