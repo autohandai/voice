@@ -260,6 +260,14 @@ final class AutohandDeviceSignInTests: XCTestCase {
         XCTAssertEqual(start.expiresIn, 300)
     }
 
+    func testInitiationRequestIdentifiesAsVoice() throws {
+        let body = try JSONSerialization.jsonObject(with: JSONEncoder().encode(DeviceSignInRequest())) as? [String: Any]
+        XCTAssertEqual(body?["clientId"] as? String, "autohand-cli")
+        XCTAssertEqual(body?["clientType"] as? String, "voice")
+        XCTAssertEqual(body?["schemaVersion"] as? Int, 2)
+        XCTAssertEqual(body?.count, 3)
+    }
+
     func testInitiationRejectsNonHTTPSVerificationLinks() {
         XCTAssertThrowsError(try DeviceSignInStart.decode(Data(#"""
         {"deviceCode":"d","userCode":"U","verificationUri":"http://x","verificationUriComplete":"http://x","expiresIn":300,"interval":5}

@@ -124,9 +124,11 @@ the CLI).
 
 ## Changes needed in the Autohand API
 
-1. Accept `clientType: "voice"` in device sign-in (zod schema, DB CHECK
-   migration, site allowlist), so devices show as "Autohand Voice". Until then,
-   v1 can use `desktop`.
+1. Done: device sign-in accepts `clientType: "voice"` (API zod schema and
+   migration 101, site proxy allowlist and sign-in page, contract golden
+   vectors), and Voice sends it, so the confirmation shows "Autohand Voice"
+   without the site's Desktop feature flag. The API and site must deploy
+   before a Voice build sending `voice` ships.
 2. Accept `voice` in `x-autohand-client-type` for analytics.
 3. Let `upgradeUrl` carry `from=voice` (currently hard-coded `from=cli`).
 4. Optional: a lower default `max_tokens` for voice clients, or document the
