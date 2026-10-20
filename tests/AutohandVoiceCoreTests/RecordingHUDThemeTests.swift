@@ -77,3 +77,13 @@ final class TalkPreferenceTests: XCTestCase {
         )
     }
 }
+
+final class TalkCardLayoutTests: XCTestCase {
+    func testTheWindowFitsTheLargestCardSoLongRepliesNeverSpill() {
+        XCTAssertGreaterThanOrEqual(
+            RecordingHUDPlacement.talkContentSize.height,
+            TalkCardLayout.maximumCardHeight
+        )
+        XCTAssertGreaterThan(TalkCardLayout.replyMaximumHeight, 100)
+    }
+}

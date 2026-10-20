@@ -76,3 +76,36 @@ final class TalkAvailabilityTests: XCTestCase {
         )
     }
 }
+
+final class TalkAgentPreferenceTests: XCTestCase {
+    func testWorkspaceDefaultsToTheDesktopAndComputerUseStartsOff() throws {
+        let preferences = VoicePreferences()
+        XCTAssertNil(preferences.talkWorkspacePath)
+        XCTAssertEqual(preferences.talkWorkspaceURL.lastPathComponent, "Desktop")
+        XCTAssertFalse(preferences.talkComputerUseEnabled)
+
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(preferences)) as? [String: Any]
+        )
+        object.removeValue(forKey: "talkWorkspacePath")
+        object.removeValue(forKey: "talkComputerUseEnabled")
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+        XCTAssertNil(decoded.talkWorkspacePath)
+        XCTAssertFalse(decoded.talkComputerUseEnabled)
+    }
+
+    func testAChosenWorkspaceSurvivesARoundTrip() throws {
+        var preferences = VoicePreferences()
+        preferences.talkWorkspacePath = "/Users/someone/Projects"
+        preferences.talkComputerUseEnabled = true
+        let decoded = try JSONDecoder().decode(
+            VoicePreferences.self,
+            from: JSONEncoder().encode(preferences)
+        )
+        XCTAssertEqual(decoded.talkWorkspaceURL.path, "/Users/someone/Projects")
+        XCTAssertTrue(decoded.talkComputerUseEnabled)
+    }
+}

@@ -114,7 +114,10 @@ public enum RecordingHUDPlacement {
     public static let flowContentSize = CGSize(width: 340, height: 56)
 
     /// Window for the Talk reply card; the card sits at its bottom edge.
-    public static let talkContentSize = CGSize(width: 460, height: 220)
+    public static let talkContentSize = CGSize(
+        width: 460,
+        height: TalkCardLayout.maximumCardHeight
+    )
 
     public static func contentSize(
         mode: RecordingHUDPresentationMode = .automatic,
@@ -268,5 +271,17 @@ public enum RecordingHUDPlacement {
                 height: frame.minY - base.minY
             )
         )
+    }
+}
+
+/// Sizes for the Talk card. Long replies scroll inside a capped area, so the
+/// card never grows past the window that hosts it.
+public enum TalkCardLayout {
+    /// The reply text scrolls beyond this height.
+    public static let replyMaximumHeight: CGFloat = 168
+    /// Header, question, actions, padding and shadow around the reply.
+    public static let chromeHeight: CGFloat = 148
+    public static var maximumCardHeight: CGFloat {
+        replyMaximumHeight + chromeHeight
     }
 }

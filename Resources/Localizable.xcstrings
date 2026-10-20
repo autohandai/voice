@@ -14246,6 +14246,550 @@
           }
         }
       }
+    },
+    "Choose…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auswählen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elegir…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli…"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolher…"
+          }
+        }
+      }
+    },
+    "Grant cua-driver Permissions…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cua-driver-Berechtigungen erteilen …"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grant cua-driver Permissions…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conceder permisos a cua-driver…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Concedi permessi a cua-driver…"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conceder permissões ao cua-driver…"
+          }
+        }
+      }
+    },
+    "Install cua-driver to let Talk use apps on this Mac." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installiere cua-driver, damit Talk Apps auf diesem Mac bedienen kann."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install cua-driver to let Talk use apps on this Mac."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instale cua-driver para que Talk pueda usar apps en este Mac."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installa cua-driver per permettere a Talk di usare le app su questo Mac."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Instale o cua-driver para que o Talk possa usar apps neste Mac."
+          }
+        }
+      }
+    },
+    "Let Talk use apps on this Mac" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk Apps auf diesem Mac bedienen lassen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Let Talk use apps on this Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permitir que Talk use apps en este Mac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consenti a Talk di usare le app su questo Mac"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permitir que o Talk use apps neste Mac"
+          }
+        }
+      }
+    },
+    "Talk can look at your apps and windows. Opening apps, clicking, typing and pressing keys always ask you first on the Talk card. Uses cua-driver, which needs its own Accessibility and Screen Recording permission." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk kann deine Apps und Fenster ansehen. Apps öffnen, klicken, tippen und Tasten drücken fragt immer zuerst auf der Talk-Karte nach. Nutzt cua-driver, das eigene Berechtigungen für Bedienungshilfen und Bildschirmaufnahme braucht."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk can look at your apps and windows. Opening apps, clicking, typing and pressing keys always ask you first on the Talk card. Uses cua-driver, which needs its own Accessibility and Screen Recording permission."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk puede ver sus apps y ventanas. Abrir apps, hacer clic, escribir y pulsar teclas siempre le pregunta antes en la tarjeta de Talk. Usa cua-driver, que necesita sus propios permisos de Accesibilidad y Grabación de pantalla."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk può vedere le tue app e finestre. Aprire app, fare clic, scrivere e premere tasti chiede sempre prima conferma nella scheda di Talk. Usa cua-driver, che richiede i propri permessi di Accessibilità e Registrazione schermo."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talk pode ver seus apps e janelas. Abrir apps, clicar, digitar e pressionar teclas sempre pede sua confirmação no cartão do Talk. Usa o cua-driver, que precisa das próprias permissões de Acessibilidade e Gravação de tela."
+          }
+        }
+      }
+    },
+    "Talk can read and write files in this folder when you ask it to, for example to save notes as a file. Replacing a file asks first." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk kann Dateien in diesem Ordner lesen und schreiben, wenn du es darum bittest, zum Beispiel um Notizen als Datei zu speichern. Vor dem Ersetzen einer Datei fragt Talk nach."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk can read and write files in this folder when you ask it to, for example to save notes as a file. Replacing a file asks first."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk puede leer y escribir archivos en esta carpeta cuando se lo pida, por ejemplo para guardar notas en un archivo. Antes de reemplazar un archivo le pregunta."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk può leggere e scrivere file in questa cartella quando glielo chiedi, ad esempio per salvare appunti in un file. Prima di sostituire un file chiede conferma."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talk pode ler e gravar arquivos nesta pasta quando você pedir, por exemplo para salvar anotações em um arquivo. Antes de substituir um arquivo, ele pergunta."
+          }
+        }
+      }
+    },
+    "Talk can save and read files in this folder when you ask. You can change it later in Settings." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk kann auf Wunsch Dateien in diesem Ordner speichern und lesen. Du kannst das später in den Einstellungen ändern."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk can save and read files in this folder when you ask. You can change it later in Settings."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk puede guardar y leer archivos en esta carpeta cuando se lo pida. Puede cambiarla más tarde en Ajustes."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Talk può salvare e leggere file in questa cartella quando lo chiedi. Puoi cambiarla più tardi nelle Impostazioni."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O Talk pode salvar e ler arquivos nesta pasta quando você pedir. Você pode mudar isso depois em Ajustes."
+          }
+        }
+      }
+    },
+    "Use Desktop" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schreibtisch verwenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Desktop"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar Escritorio"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa Scrivania"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar Mesa"
+          }
+        }
+      }
+    },
+    "Use This Mac" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diesen Mac verwenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use This Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar este Mac"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa questo Mac"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar este Mac"
+          }
+        }
+      }
+    },
+    "Workspace" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arbeitsordner"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workspace"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espacio de trabajo"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spazio di lavoro"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Espaço de trabalho"
+          }
+        }
+      }
+    },
+    "Always Allow" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Immer erlauben"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Always Allow"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permitir siempre"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consenti sempre"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sempre permitir"
+          }
+        }
+      }
+    },
+    "Deny" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ablehnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deny"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denegar"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nega"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Negar"
+          }
+        }
+      }
+    },
+    "Use Folder" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordner verwenden"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Folder"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar carpeta"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usa cartella"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usar pasta"
+          }
+        }
+      }
+    },
+    "Choose the folder Talk can read and write." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle den Ordner, den Talk lesen und beschreiben darf."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose the folder Talk can read and write."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elija la carpeta que Talk puede leer y escribir."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli la cartella che Talk può leggere e scrivere."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolha a pasta que o Talk pode ler e gravar."
+          }
+        }
+      }
+    },
+    "About cua-driver" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Über cua-driver"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About cua-driver"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acerca de cua-driver"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Informazioni su cua-driver"
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sobre o cua-driver"
+          }
+        }
+      }
+    },
+    "Your audio never leaves this Mac. Talk sends the text of your question and the recent conversation to Autohand to create a reply. When Talk uses tools, the files it reads and the window text it looks at are sent too. Dictation stays fully on this Mac." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Audio verlässt diesen Mac nie. Talk sendet den Text deiner Frage und das letzte Gespräch an Autohand, um eine Antwort zu erstellen. Wenn Talk Werkzeuge nutzt, werden auch gelesene Dateien und angesehener Fenstertext gesendet. Das Diktieren bleibt vollständig auf diesem Mac."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your audio never leaves this Mac. Talk sends the text of your question and the recent conversation to Autohand to create a reply. When Talk uses tools, the files it reads and the window text it looks at are sent too. Dictation stays fully on this Mac."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Su audio nunca sale de este Mac. Talk envía el texto de su pregunta y la conversación reciente a Autohand para crear una respuesta. Cuando Talk usa herramientas, también se envían los archivos que lee y el texto de las ventanas que mira. El dictado se queda por completo en este Mac."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo audio non lascia mai questo Mac. Talk invia ad Autohand il testo della domanda e la conversazione recente per creare una risposta. Quando Talk usa strumenti, vengono inviati anche i file che legge e il testo delle finestre che guarda. La dettatura resta interamente su questo Mac."
+          }
+        },
+        "pt" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seu áudio nunca sai deste Mac. O Talk envia o texto da sua pergunta e a conversa recente para a Autohand criar uma resposta. Quando o Talk usa ferramentas, os arquivos que ele lê e o texto das janelas que ele vê também são enviados. O ditado fica inteiramente neste Mac."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

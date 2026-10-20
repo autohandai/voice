@@ -15,6 +15,10 @@
 
 ## Unreleased
 
+- Talk can work with files and apps: it reads and writes files in a workspace
+  folder (Desktop by default, set in onboarding or Settings) and, when switched
+  on, uses apps through cua-driver. Changes always ask first on the Talk card.
+- Long Talk replies scroll inside the card instead of spilling past it.
 - Talk is now available only on Macs with Apple Silicon. On Intel Macs,
   Fn + Shift is ordinary dictation and Settings explains why.
 - Talk "On this Mac" can run Ternary Bonsai 2 natively on MLX on Apple

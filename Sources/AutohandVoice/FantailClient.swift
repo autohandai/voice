@@ -5,6 +5,7 @@ import Foundation
 struct FantailClient: Sendable {
     enum Update: Sendable {
         case text(String)
+        case toolCalls([ToolCallDelta])
         case quota(TalkQuota)
     }
 
@@ -96,6 +97,8 @@ struct FantailClient: Sendable {
             switch FantailStreamParser.parse(line: line) {
             case let .content(text):
                 continuation.yield(.text(text))
+            case let .toolCalls(deltas):
+                continuation.yield(.toolCalls(deltas))
             case .done:
                 return
             case .finished, .ignored:

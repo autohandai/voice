@@ -20,6 +20,12 @@ private voice input. Work as a critical staff-level Swift engineer.
   Mac" runs Ternary Bonsai 2 (llama.cpp GGUF, or MLX on Apple Silicon) and
   sends nothing. Dictation must
   never use the network or fall back to Talk.
+- Talk with Fantail can use tools: list, read and write files only inside
+  the chosen workspace folder (default Desktop, sandboxed, size-bounded), and,
+  when explicitly switched on, operate apps through the user's cua-driver.
+  Anything that changes the Mac (replacing a file, opening apps, clicking,
+  typing, key presses) needs approval on the Talk card. Tool results (file
+  text, window text) are sent to Fantail; say so in privacy copy.
 - Optional models (Bonsai GGUF, Bonsai MLX, Qwen3-ASR) download on request from pinned
   Hugging Face revisions and are checked against hardcoded SHA-256s before
   use. Never bundle or commit them.

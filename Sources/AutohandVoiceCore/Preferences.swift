@@ -52,6 +52,10 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var talkEnabled: Bool
     public var talkEngine: TalkEngine
     public var dictationModel: DictationModel
+    /// Folder Talk may read and write; nil means the Desktop.
+    public var talkWorkspacePath: String?
+    /// Talk may operate apps on this Mac through cua-driver.
+    public var talkComputerUseEnabled: Bool
     public var audioInputDeviceUID: String?
     public var audioInputDevicePriority: [String]
     public var automaticAudioHandoffEnabled: Bool
@@ -96,6 +100,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         talkEnabled: Bool = true,
         talkEngine: TalkEngine = .fantail,
         dictationModel: DictationModel = .parakeet,
+        talkWorkspacePath: String? = nil,
+        talkComputerUseEnabled: Bool = false,
         audioInputDeviceUID: String? = nil,
         audioInputDevicePriority: [String] = [],
         automaticAudioHandoffEnabled: Bool = false,
@@ -139,6 +145,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         self.talkEnabled = talkEnabled
         self.talkEngine = talkEngine
         self.dictationModel = dictationModel
+        self.talkWorkspacePath = talkWorkspacePath
+        self.talkComputerUseEnabled = talkComputerUseEnabled
         self.audioInputDeviceUID = audioInputDeviceUID
         self.audioInputDevicePriority = AudioRoutePolicy.normalized(
             audioInputDevicePriority.isEmpty
@@ -228,6 +236,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
         case talkEnabled
         case talkEngine
         case dictationModel
+        case talkWorkspacePath
+        case talkComputerUseEnabled
         case audioInputDeviceUID
         case audioInputDevicePriority
         case automaticAudioHandoffEnabled
@@ -297,6 +307,14 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
             DictationModel.self,
             forKey: .dictationModel
         )) ?? .parakeet
+        talkWorkspacePath = try container.decodeIfPresent(
+            String.self,
+            forKey: .talkWorkspacePath
+        )
+        talkComputerUseEnabled = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .talkComputerUseEnabled
+        ) ?? false
         audioInputDeviceUID = try container.decodeIfPresent(
             String.self,
             forKey: .audioInputDeviceUID
@@ -517,5 +535,15 @@ private extension JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return encoder
+    }
+}
+
+extension VoicePreferences {
+    /// The folder Talk works in.
+    public var talkWorkspaceURL: URL {
+        if let talkWorkspacePath, !talkWorkspacePath.isEmpty {
+            return URL(fileURLWithPath: talkWorkspacePath, isDirectory: true)
+        }
+        return WorkspaceSandbox.defaultRoot
     }
 }

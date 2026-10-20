@@ -5,6 +5,7 @@ import AutohandVoiceCore
 import AutohandVoiceLLM
 import Foundation
 import ServiceManagement
+import SwiftUI
 
 private enum CommandError: LocalizedError {
     case invalidArguments(String)
@@ -489,6 +490,82 @@ private func runTalkEndpoint(_ url: URL, reply: Bool) async throws {
     print(String(format: "%6.2fs end of file", time))
 }
 
+/// Asks Talk one question from the command line with the signed-in account
+/// and tools, voice muted, printing each step. Anything that needs approval
+/// is denied.
+@MainActor
+private func runTalkCheck(_ question: String, renderPath: String? = nil) async {
+    let preferences = PreferencesStore().load()
+    let speaker = TalkSpeaker()
+    speaker.isMuted = true
+    let talk = TalkController(speaker: speaker)
+    talk.engine = { preferences.talkEngine }
+    talk.toolbox = TalkAgentToolbox(
+        workspaceURL: { preferences.talkWorkspaceURL },
+        computerUseEnabled: { preferences.talkComputerUseEnabled }
+    )
+    var last = ""
+    func report() {
+        let line: String
+        switch talk.phase {
+        case let .thinking(question): line = "thinking: \(question)"
+        case let .working(_, activity): line = "tool: \(activity)"
+        case let .awaitingApproval(_, request):
+            line = "approval needed (denied): \(request.summary)"
+            talk.denyPendingTool()
+        case let .replying(_, reply, _): line = "reply: \(reply)"
+        case let .failed(failure, _): line = "failed: \(failure.message)"
+        case .needsSignIn: line = "needs sign-in"
+        case .idle, .listening: line = ""
+        }
+        if !line.isEmpty, line != last {
+            if line.hasPrefix("reply: "), last.hasPrefix("reply: ") {
+                last = line
+                return
+            }
+            print(line)
+            last = line
+        }
+    }
+    talk.onChange = { report() }
+    talk.ask(question)
+    let started = Date()
+    while Date().timeIntervalSince(started) < 180 {
+        report()
+        if case .replying(_, _, false) = talk.phase, !talk.isWorking { break }
+        if case .failed = talk.phase { break }
+        if case .needsSignIn = talk.phase { break }
+        try? await Task.sleep(for: .milliseconds(200))
+    }
+    if case let .replying(_, reply, _) = talk.phase { print("final: \(reply)") }
+    if let renderPath {
+        renderTalkCard(talk, to: URL(fileURLWithPath: renderPath))
+    }
+}
+
+/// Draws the Talk card at its window size into a PNG, to check layout.
+@MainActor
+private func renderTalkCard(_ talk: TalkController, to url: URL) {
+    let size = RecordingHUDPlacement.talkContentSize
+    let view = NSHostingView(rootView: TalkCardView(talk: talk)
+        .frame(width: size.width, height: size.height)
+        .background(Color.gray))
+    view.frame = NSRect(origin: .zero, size: size)
+    let window = NSWindow(
+        contentRect: view.frame,
+        styleMask: [.borderless],
+        backing: .buffered,
+        defer: false
+    )
+    window.contentView = view
+    view.layoutSubtreeIfNeeded()
+    RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+    guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+    view.cacheDisplay(in: view.bounds, to: bitmap)
+    try? bitmap.representation(using: .png, properties: [:])?.write(to: url)
+    print("rendered: \(url.path)")
+}
+
 @main
 struct AutohandVoiceCommand {
     static func main() async {
@@ -514,6 +591,19 @@ struct AutohandVoiceCommand {
                     languageCode: preferences.dictationLanguageCode
                 )
                 try printJSON(["text": try transcript.finalText()])
+            case "talk-check":
+                var words = Array(arguments.dropFirst())
+                var renderPath: String?
+                if let index = words.firstIndex(of: "--render"), index + 1 < words.count {
+                    renderPath = words[index + 1]
+                    words.removeSubrange(index...(index + 1))
+                }
+                let question = words.joined(separator: " ")
+                guard !question.isEmpty else {
+                    printUsage()
+                    exit(EXIT_FAILURE)
+                }
+                await runTalkCheck(question, renderPath: renderPath)
             case "talk-local":
                 try await runLocalTalk(arguments.dropFirst())
             case "talk-endpoint":

@@ -13,6 +13,8 @@ final class TalkSpeaker {
     /// Output level of the voice (RMS), read by the HUD to animate bars.
     private(set) var level: Float = 0
     private(set) var isPrepared = false
+    /// Silences replies (diagnostics from the command line).
+    var isMuted = false
 
     var onIdle: (() -> Void)?
     var onFailure: ((Error) -> Void)?
@@ -50,6 +52,7 @@ final class TalkSpeaker {
     }
 
     func enqueue(_ sentence: String) {
+        guard !isMuted else { return }
         pending.append(sentence)
         guard worker == nil else { return }
         let generation = generation

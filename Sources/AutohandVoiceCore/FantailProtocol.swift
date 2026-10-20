@@ -13,12 +13,17 @@ public struct FantailChatRequest: Encodable, Equatable, Sendable {
         three sentences unless the user asks for more.
         """
 
+    /// Tool calls carry file contents and arguments, so a turn that may
+    /// use tools gets more room than a spoken-only reply.
+    public static let toolMaxTokens = 2_048
+
     public let model = "fantail"
     public let messages: [TalkMessage]
     public let stream = true
     public let maxTokens: Int
     public let temperature: Double
     public let promptCacheKey: String
+    public let tools: [TalkToolDefinition]?
 
     private enum CodingKeys: String, CodingKey {
         case model
@@ -27,23 +32,43 @@ public struct FantailChatRequest: Encodable, Equatable, Sendable {
         case maxTokens = "max_tokens"
         case temperature
         case promptCacheKey = "prompt_cache_key"
+        case tools
+        case toolChoice = "tool_choice"
     }
 
     public init(
         messages: [TalkMessage],
         conversationID: UUID,
-        maxTokens: Int = spokenMaxTokens,
-        temperature: Double = 0.4
+        maxTokens: Int? = nil,
+        temperature: Double = 0.4,
+        tools: [TalkToolDefinition] = []
     ) {
         self.messages = messages
+        self.tools = tools.isEmpty ? nil : tools
         self.maxTokens = maxTokens
+            ?? (tools.isEmpty ? Self.spokenMaxTokens : Self.toolMaxTokens)
         self.temperature = temperature
         promptCacheKey = conversationID.uuidString
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(model, forKey: .model)
+        try container.encode(messages, forKey: .messages)
+        try container.encode(stream, forKey: .stream)
+        try container.encode(maxTokens, forKey: .maxTokens)
+        try container.encode(temperature, forKey: .temperature)
+        try container.encode(promptCacheKey, forKey: .promptCacheKey)
+        if let tools {
+            try container.encode(tools, forKey: .tools)
+            try container.encode("auto", forKey: .toolChoice)
+        }
     }
 }
 
 public enum FantailStreamEvent: Equatable, Sendable {
     case content(String)
+    case toolCalls([ToolCallDelta])
     case finished(String)
     case done
     case ignored
@@ -54,7 +79,24 @@ public enum FantailStreamParser {
     private struct Chunk: Decodable {
         struct Choice: Decodable {
             struct Delta: Decodable {
+                struct ToolCall: Decodable {
+                    struct Function: Decodable {
+                        let name: String?
+                        let arguments: String?
+                    }
+
+                    let index: Int?
+                    let id: String?
+                    let function: Function?
+                }
+
                 let content: String?
+                let toolCalls: [ToolCall]?
+
+                private enum CodingKeys: String, CodingKey {
+                    case content
+                    case toolCalls = "tool_calls"
+                }
             }
 
             let delta: Delta?
@@ -81,6 +123,16 @@ public enum FantailStreamParser {
             ),
             let choice = chunk.choices?.first
         else { return .ignored }
+        if let calls = choice.delta?.toolCalls, !calls.isEmpty {
+            return .toolCalls(calls.enumerated().map { offset, call in
+                ToolCallDelta(
+                    index: call.index ?? offset,
+                    id: call.id,
+                    name: call.function?.name,
+                    arguments: call.function?.arguments
+                )
+            })
+        }
         if let content = choice.delta?.content, !content.isEmpty {
             return .content(content)
         }

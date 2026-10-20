@@ -407,6 +407,14 @@ final class VoiceSession {
             self?.preferences.talkEngine ?? .fantail
         }
         self.talk.localModel = BonsaiTalkModel()
+        self.talk.toolbox = TalkAgentToolbox(
+            workspaceURL: { [weak self] in
+                self?.preferences.talkWorkspaceURL ?? WorkspaceSandbox.defaultRoot
+            },
+            computerUseEnabled: { [weak self] in
+                self?.preferences.talkComputerUseEnabled ?? false
+            }
+        )
     }
 
     var activeProfileLabel: String {
@@ -2641,6 +2649,17 @@ final class VoiceSession {
     /// dictation is in progress.
     var showsTalkCard: Bool {
         talk.showsCard && state == .ready
+    }
+
+    /// nil returns Talk to the Desktop.
+    func setTalkWorkspace(_ url: URL?) {
+        preferences.talkWorkspacePath = url?.standardizedFileURL.path
+        persist()
+    }
+
+    func setTalkComputerUse(_ enabled: Bool) {
+        preferences.talkComputerUseEnabled = enabled
+        persist()
     }
 
     func setTalkEngine(_ value: TalkEngine) {

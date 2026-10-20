@@ -9,6 +9,7 @@ extension Color {
 /// The Fantail reply card shown in the recording HUD window.
 struct TalkCardView: View {
     let talk: TalkController
+    @State private var replyHeight: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -101,17 +102,30 @@ struct TalkCardView: View {
                     .font(.system(size: 13))
                     .foregroundStyle(.white.opacity(0.6))
             }
-        case let .replying(question, reply, _):
+        case let .replying(question, reply, isSpeaking):
             questionLine(question)
-            Text(reply)
-                .font(.system(size: 13))
-                .foregroundStyle(.white.opacity(0.95))
-                .lineLimit(6)
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
+            replyText(reply, followsEnd: isSpeaking)
             if let voiceNotice = talk.voiceNotice {
                 notice(voiceNotice)
             }
+        case let .working(question, activity):
+            questionLine(question)
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(Color.talkAccent)
+                Text(activity)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .lineLimit(2)
+            }
+        case let .awaitingApproval(question, request):
+            questionLine(question)
+            Label(request.summary, systemImage: "hand.raised.fill")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.white.opacity(0.95))
+                .labelStyle(TintedIconLabelStyle(tint: Color.talkAccent))
+                .fixedSize(horizontal: false, vertical: true)
         case let .needsSignIn(question):
             questionLine(question)
             signInMessage
@@ -156,6 +170,15 @@ struct TalkCardView: View {
             case .thinking:
                 pill("Stop", prominent: false) { talk.stopSpeaking() }
                 handsFreeHint
+            case .working:
+                pill("Stop", prominent: false) { talk.stopSpeaking() }
+                handsFreeHint
+            case .awaitingApproval:
+                pill("Allow", prominent: true) { talk.approvePendingTool() }
+                pill("Always Allow", prominent: false) {
+                    talk.approvePendingTool(forConversation: true)
+                }
+                pill("Deny", prominent: false) { talk.denyPendingTool() }
             case let .replying(_, _, isSpeaking):
                 if isSpeaking {
                     pill("Stop", prominent: false) { talk.stopSpeaking() }
@@ -205,6 +228,43 @@ struct TalkCardView: View {
 
     // MARK: - Pieces
 
+    /// The reply scrolls inside a capped area and follows the end while it
+    /// is still arriving, so long answers stay inside the card.
+    private func replyText(_ reply: String, followsEnd: Bool) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                VStack(spacing: 0) {
+                    Text(reply)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.95))
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Color.clear.frame(height: 1).id("reply-end")
+                }
+                .background(
+                    GeometryReader { geometry in
+                        Color.clear.preference(
+                            key: ReplyHeightKey.self,
+                            value: geometry.size.height
+                        )
+                    }
+                )
+            }
+            .scrollIndicators(.automatic)
+            .frame(
+                height: min(
+                    max(replyHeight, 18),
+                    TalkCardLayout.replyMaximumHeight
+                )
+            )
+            .onPreferenceChange(ReplyHeightKey.self) { replyHeight = $0 }
+            .onChange(of: reply) {
+                if followsEnd { proxy.scrollTo("reply-end", anchor: .bottom) }
+            }
+        }
+    }
+
     @ViewBuilder
     private var handsFreeHint: some View {
         if talk.isHandsFree {
@@ -221,8 +281,10 @@ struct TalkCardView: View {
     }
 
     private var isThinking: Bool {
-        if case .thinking = talk.phase { return true }
-        return false
+        switch talk.phase {
+        case .thinking, .working, .awaitingApproval: true
+        default: false
+        }
     }
 
     private func questionLine(_ question: String) -> some View {
@@ -312,5 +374,12 @@ struct TalkVoiceBars: View {
             level: StatusBarWaveformAnimation.meterLevel(rms: speaker.level),
             at: time
         )
+    }
+}
+
+private struct ReplyHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

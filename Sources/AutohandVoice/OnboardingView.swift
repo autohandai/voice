@@ -455,7 +455,10 @@ private struct OnboardingDictationTestStep: View {
                 }
 
                 if passed, TalkAvailability.onThisMac {
-                    TalkOnboardingOffer(account: model.session.talk.account)
+                    TalkOnboardingOffer(
+                        account: model.session.talk.account,
+                        session: model.session
+                    )
                 }
 
                 if case let .failed(message) = model.session.state {
@@ -767,6 +770,7 @@ struct AutohandLockup: View {
 /// so this can always be skipped.
 private struct TalkOnboardingOffer: View {
     let account: AutohandAccount
+    let session: VoiceSession
 
     var body: some View {
         GroupBox {
@@ -792,6 +796,12 @@ private struct TalkOnboardingOffer: View {
                     Label("Signed in. Talk is ready.", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                 }
+                Divider()
+                TalkWorkspacePicker(session: session)
+                Text("Talk can save and read files in this folder when you ask. You can change it later in Settings.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(4)

@@ -15,8 +15,15 @@ final class TalkController {
         case needsSignIn(question: String)
         case thinking(question: String)
         case replying(question: String, reply: String, isSpeaking: Bool)
+        /// A tool is running (reading a file, looking at a window…).
+        case working(question: String, activity: String)
+        /// A tool wants to change something and waits for the person.
+        case awaitingApproval(question: String, request: ToolApprovalRequest)
         case failed(TalkFailure, question: String?)
     }
+
+    /// Most tool rounds one question may take.
+    static let maximumToolRounds = 8
 
     /// A conversation is forgotten after this long without a new turn.
     static let conversationIdleTimeout: Duration = .seconds(120)
@@ -47,6 +54,10 @@ final class TalkController {
     @ObservationIgnored var onConversationEnded: (() -> Void)?
 
     @ObservationIgnored private let client: FantailClient
+    /// Files and computer tools offered to Fantail.
+    @ObservationIgnored var toolbox: TalkAgentToolbox?
+    @ObservationIgnored private var approvalContinuation: CheckedContinuation<Bool, Never>?
+    @ObservationIgnored private var allowedForConversation: Set<String> = []
     /// Answers on this Mac when the person picked the local model.
     @ObservationIgnored var localModel: LocalTalkModel?
     /// The engine chosen in Settings, read when each question is asked.
@@ -94,6 +105,14 @@ final class TalkController {
         return false
     }
 
+    /// Thinking, running a tool or waiting for approval: no reply yet.
+    private var isBusyWithoutReply: Bool {
+        switch phase {
+        case .thinking, .working, .awaitingApproval: true
+        default: false
+        }
+    }
+
     var currentReply: String? {
         if case let .replying(_, reply, _) = phase { return reply }
         return nil
@@ -103,6 +122,7 @@ final class TalkController {
 
     /// Fn+Shift is down: interrupt any reply and listen for the next question.
     func beginListening() {
+        cancelPendingApproval()
         if engine() == .local {
             localModel?.prepareInBackground()
         }
@@ -141,14 +161,13 @@ final class TalkController {
         }
         conversation.appendUser(question)
         phase = .thinking(question: question)
-        let request = FantailChatRequest(
-            messages: conversation.requestMessages(
-                systemPrompt: FantailChatRequest.spokenSystemPrompt
-            ),
-            conversationID: conversation.id
-        )
+        var systemPrompt = FantailChatRequest.spokenSystemPrompt
+        if let addendum = toolbox?.systemPromptAddendum {
+            systemPrompt += " " + addendum
+        }
+        let messages = conversation.requestMessages(systemPrompt: systemPrompt)
         replyTask = Task { [weak self] in
-            await self?.streamReply(request, token: token, question: question)
+            await self?.runFantailTurn(messages, token: token, question: question)
         }
         onChange?()
         prepareVoiceInBackground()
@@ -169,6 +188,7 @@ final class TalkController {
 
     /// Stops the voice and the rest of the reply; keeps what was received.
     func stopSpeaking() {
+        cancelPendingApproval()
         let wasStreaming = replyTask != nil
         replyTask?.cancel()
         replyTask = nil
@@ -182,7 +202,7 @@ final class TalkController {
                 history.append(TalkTurn(question: question, reply: reply))
             }
             phase = .replying(question: question, reply: reply, isSpeaking: false)
-        } else if case .thinking = phase {
+        } else if isBusyWithoutReply {
             wasAnswering = true
             conversation.withdrawUnansweredQuestion()
             phase = .idle
@@ -197,6 +217,7 @@ final class TalkController {
 
     /// Hides the card but keeps the conversation for a quick follow-up.
     func dismiss() {
+        cancelPendingApproval()
         replyTask?.cancel()
         replyTask = nil
         speaker.stop()
@@ -206,12 +227,14 @@ final class TalkController {
 
     /// Forgets the conversation entirely.
     func endConversation() {
+        cancelPendingApproval()
         replyTask?.cancel()
         replyTask = nil
         expiryTask?.cancel()
         speaker.stop()
         conversation = TalkConversation()
         history.removeAll()
+        allowedForConversation.removeAll()
         isHandsFree = false
         voiceNotice = nil
         phase = .idle
@@ -380,15 +403,124 @@ final class TalkController {
         prepareVoiceInBackground()
     }
 
-    private func streamReply(
-        _ request: FantailChatRequest,
+    /// One Fantail question, with tools: when the reply asks for tools,
+    /// run them (approving changes on the card) and ask again, up to
+    /// `maximumToolRounds` times. Only the final answer joins the history.
+    private func runFantailTurn(
+        _ base: [TalkMessage],
         token: String,
         question: String
     ) async {
-        await consumeReply(
-            client.reply(to: request, token: token),
-            question: question
-        )
+        var messages = base
+        var reply = ""
+        var chunker = SpokenReplyChunker()
+        defer {
+            if !Task.isCancelled {
+                replyTask = nil
+                onChange?()
+            }
+        }
+        do {
+            let tools = toolbox?.definitions ?? []
+            for round in 0..<Self.maximumToolRounds {
+                let lastRound = round == Self.maximumToolRounds - 1
+                let request = FantailChatRequest(
+                    messages: messages,
+                    conversationID: conversation.id,
+                    tools: lastRound ? [] : tools
+                )
+                var roundText = ""
+                var calls = ToolCallAccumulator()
+                for try await update in client.reply(to: request, token: token) {
+                    switch update {
+                    case let .quota(quota):
+                        account.update(quota: quota)
+                    case let .text(text):
+                        roundText += text
+                        reply += text
+                        phase = .replying(
+                            question: question,
+                            reply: SpokenText.clean(reply),
+                            isSpeaking: true
+                        )
+                        chunker.append(text).forEach(speak)
+                    case let .toolCalls(deltas):
+                        calls.add(deltas)
+                    }
+                }
+                try Task.checkCancellation()
+                let requested = calls.calls
+                guard !requested.isEmpty, let toolbox else { break }
+                messages.append(TalkMessage(
+                    role: .assistant,
+                    content: roundText,
+                    toolCalls: requested
+                ))
+                for call in requested {
+                    try Task.checkCancellation()
+                    phase = .working(
+                        question: question,
+                        activity: toolbox.activity(for: call)
+                    )
+                    let result = await toolbox.run(call) { [weak self] request in
+                        await self?.requestApproval(request, question: question) ?? false
+                    }
+                    try Task.checkCancellation()
+                    messages.append(TalkMessage(toolResult: result, for: call.id))
+                }
+                if !reply.isEmpty, !reply.hasSuffix(" ") { reply += " " }
+            }
+            try finishReply(reply, chunker: &chunker, question: question)
+        } catch is CancellationError {
+            return
+        } catch {
+            failTurn(error, question: question)
+        }
+    }
+
+    // MARK: - Approval
+
+    /// Pauses a tool until the person allows or denies it on the card.
+    private func requestApproval(
+        _ request: ToolApprovalRequest,
+        question: String
+    ) async -> Bool {
+        if allowedForConversation.contains(request.kind) { return true }
+        cancelPendingApproval()
+        phase = .awaitingApproval(question: question, request: request)
+        return await withCheckedContinuation { continuation in
+            approvalContinuation = continuation
+        }
+    }
+
+    func approvePendingTool(forConversation: Bool = false) {
+        if forConversation, case let .awaitingApproval(_, request) = phase {
+            allowedForConversation.insert(request.kind)
+        }
+        resolveApproval(true)
+    }
+
+    func denyPendingTool() {
+        resolveApproval(false)
+    }
+
+    private func resolveApproval(_ allowed: Bool) {
+        guard let continuation = approvalContinuation else { return }
+        approvalContinuation = nil
+        if case let .awaitingApproval(question, _) = phase {
+            phase = .working(
+                question: question,
+                activity: allowed ? "Working…" : "Skipping that…"
+            )
+        }
+        continuation.resume(returning: allowed)
+    }
+
+    /// Any interruption counts as "no", so a tool never waits forever.
+    private func cancelPendingApproval() {
+        guard let continuation = approvalContinuation else { return }
+        approvalContinuation = nil
+        continuation.resume(returning: false)
     }
 
     private func consumeReply(
@@ -416,44 +548,59 @@ final class TalkController {
                         isSpeaking: true
                     )
                     chunker.append(text).forEach(speak)
+                case .toolCalls:
+                    // The on-device model answers without tools.
+                    break
                 }
             }
             try Task.checkCancellation()
-            if let rest = chunker.finish() {
-                speak(rest)
-            }
-            let spoken = SpokenText.clean(reply)
-            guard !spoken.isEmpty else { throw TalkFailure.unavailable }
-            conversation.appendAssistant(spoken)
-            history.append(TalkTurn(question: question, reply: spoken))
-            let stillSpeaking = speaker.isSpeaking
-            phase = .replying(
-                question: question,
-                reply: spoken,
-                isSpeaking: stillSpeaking
-            )
-            if !stillSpeaking {
-                scheduleExpiry()
-                onTurnEnded?(true)
-            }
+            try finishReply(reply, chunker: &chunker, question: question)
         } catch is CancellationError {
             return
         } catch {
-            let failure = error as? TalkFailure
-                ?? (engine() == .local
-                    ? .localModelUnavailable(error.localizedDescription)
-                    : .connectionLost)
-            Self.logger.error("Talk turn failed: \(failure.message)")
-            conversation.withdrawUnansweredQuestion()
-            speaker.stop()
-            if failure == .signInRequired {
-                account.credentialRejected()
-                phase = .needsSignIn(question: question)
-            } else {
-                phase = .failed(failure, question: question)
-            }
-            onTurnEnded?(false)
+            failTurn(error, question: question)
         }
+    }
+
+    private func finishReply(
+        _ reply: String,
+        chunker: inout SpokenReplyChunker,
+        question: String
+    ) throws {
+        if let rest = chunker.finish() {
+            speak(rest)
+        }
+        let spoken = SpokenText.clean(reply)
+        guard !spoken.isEmpty else { throw TalkFailure.unavailable }
+        conversation.appendAssistant(spoken)
+        history.append(TalkTurn(question: question, reply: spoken))
+        let stillSpeaking = speaker.isSpeaking
+        phase = .replying(
+            question: question,
+            reply: spoken,
+            isSpeaking: stillSpeaking
+        )
+        if !stillSpeaking {
+            scheduleExpiry()
+            onTurnEnded?(true)
+        }
+    }
+
+    private func failTurn(_ error: Error, question: String) {
+        let failure = error as? TalkFailure
+            ?? (engine() == .local
+                ? .localModelUnavailable(error.localizedDescription)
+                : .connectionLost)
+        Self.logger.error("Talk turn failed: \(failure.message)")
+        conversation.withdrawUnansweredQuestion()
+        speaker.stop()
+        if failure == .signInRequired {
+            account.credentialRejected()
+            phase = .needsSignIn(question: question)
+        } else {
+            phase = .failed(failure, question: question)
+        }
+        onTurnEnded?(false)
     }
 
     private func speak(_ sentence: String) {

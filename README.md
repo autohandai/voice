@@ -162,6 +162,14 @@ on screen and is spoken with the local Kokoro voice (`af_heart`). Hold Fn + Shif
 again to follow up; the conversation is kept in memory for two minutes of
 inactivity. Escape or Stop interrupts a reply; Insert types it at the cursor.
 
+With Fantail, Talk can also work with files and apps. It can list, read and
+write files in your workspace folder (Desktop by default; choose another in
+onboarding or Settings → Talk), and, if you switch on **Use This Mac**, look at
+and operate apps through [cua-driver](https://github.com/trycua/cua). Replacing
+a file, opening apps, clicking, typing and pressing keys always ask first on
+the Talk card (Allow, Always Allow for this conversation, or Deny). Files and
+window text Talk reads are sent to Fantail with your question.
+
 For a hands-free conversation, hold **Command + Shift** and press **Fn** (or set
 Recording Mode to Hands-Free and use Fn + Shift). Voice listens, sends your turn
 after a short pause, speaks the reply, then listens again; the microphone stays

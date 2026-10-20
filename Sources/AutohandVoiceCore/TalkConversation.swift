@@ -5,14 +5,56 @@ public struct TalkMessage: Codable, Equatable, Sendable {
         case system
         case user
         case assistant
+        case tool
     }
 
     public let role: Role
     public let content: String
+    /// Tools the assistant asked to run (assistant messages only).
+    public let toolCalls: [TalkToolCall]?
+    /// The call a tool result answers (tool messages only).
+    public let toolCallID: String?
 
-    public init(role: Role, content: String) {
+    private enum CodingKeys: String, CodingKey {
+        case role
+        case content
+        case toolCalls = "tool_calls"
+        case toolCallID = "tool_call_id"
+    }
+
+    public init(
+        role: Role,
+        content: String,
+        toolCalls: [TalkToolCall]? = nil
+    ) {
         self.role = role
         self.content = content
+        self.toolCalls = toolCalls?.isEmpty == true ? nil : toolCalls
+        toolCallID = nil
+    }
+
+    /// The result of running one tool call.
+    public init(toolResult: String, for callID: String) {
+        role = .tool
+        content = toolResult
+        toolCalls = nil
+        toolCallID = callID
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        role = try container.decode(Role.self, forKey: .role)
+        content = try container.decodeIfPresent(String.self, forKey: .content) ?? ""
+        toolCalls = try container.decodeIfPresent([TalkToolCall].self, forKey: .toolCalls)
+        toolCallID = try container.decodeIfPresent(String.self, forKey: .toolCallID)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(role, forKey: .role)
+        try container.encode(content, forKey: .content)
+        try container.encodeIfPresent(toolCalls, forKey: .toolCalls)
+        try container.encodeIfPresent(toolCallID, forKey: .toolCallID)
     }
 }
 

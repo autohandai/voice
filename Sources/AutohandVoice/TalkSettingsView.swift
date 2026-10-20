@@ -74,6 +74,17 @@ struct TalkSettingsView: View {
             }
 
             if session.preferences.talkEngine == .fantail {
+                Section("Workspace") {
+                    TalkWorkspacePicker(session: session)
+                    Text("Talk can read and write files in this folder when you ask it to, for example to save notes as a file. Replacing a file asks first.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                TalkComputerUseSection(session: session)
+            }
+
+            if session.preferences.talkEngine == .fantail {
                 Section("Autohand Account") {
                     accountContent
                     if let error = account.signInError {
@@ -115,7 +126,7 @@ struct TalkSettingsView: View {
                     Text(
                         session.preferences.talkEngine == .local
                             ? "Talk runs entirely on this Mac. Your audio, questions and replies never leave it. Dictation stays fully on this Mac too."
-                            : "Your audio never leaves this Mac. Talk sends the text of your question and the recent conversation to Autohand to create a reply. Dictation stays fully on this Mac."
+                            : "Your audio never leaves this Mac. Talk sends the text of your question and the recent conversation to Autohand to create a reply. When Talk uses tools, the files it reads and the window text it looks at are sent too. Dictation stays fully on this Mac."
                     )
                 } icon: {
                     Image(systemName: "lock.shield")
