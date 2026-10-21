@@ -512,7 +512,8 @@ private func runTalkCheck(_ question: String, renderPath: String? = nil) async {
         case let .working(_, activity): line = "tool: \(activity)"
         case let .awaitingApproval(_, request):
             line = "approval needed (denied): \(request.summary)"
-            talk.denyPendingTool()
+            // Deny after printing, outside this onChange callback.
+            Task { @MainActor in talk.denyPendingTool() }
         case let .replying(_, reply, _): line = "reply: \(reply)"
         case let .failed(failure, _): line = "failed: \(failure.message)"
         case .needsSignIn: line = "needs sign-in"

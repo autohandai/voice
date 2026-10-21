@@ -18,6 +18,10 @@
 - Talk can work with files and apps: it reads and writes files in a workspace
   folder (Desktop by default, set in onboarding or Settings) and, when switched
   on, uses apps through cua-driver. Changes always ask first on the Talk card.
+- Computer use starts cua-driver as CuaDriver.app so it has the permissions
+  you granted; a declined action isn't asked again in the same turn; replies
+  after tool use no longer repeat the narration; long workspace listings give
+  the full count instead of being cut off silently.
 - Long Talk replies scroll inside the card instead of spilling past it.
 - Talk is now available only on Macs with Apple Silicon. On Intel Macs,
   Fn + Shift is ordinary dictation and Settings explains why.

@@ -58,6 +58,7 @@ final class TalkController {
     @ObservationIgnored var toolbox: TalkAgentToolbox?
     @ObservationIgnored private var approvalContinuation: CheckedContinuation<Bool, Never>?
     @ObservationIgnored private var allowedForConversation: Set<String> = []
+    @ObservationIgnored private var declinedThisTurn: Set<String> = []
     /// Answers on this Mac when the person picked the local model.
     @ObservationIgnored var localModel: LocalTalkModel?
     /// The engine chosen in Settings, read when each question is asked.
@@ -414,6 +415,7 @@ final class TalkController {
         var messages = base
         var reply = ""
         var chunker = SpokenReplyChunker()
+        declinedThisTurn.removeAll()
         defer {
             if !Task.isCancelled {
                 replyTask = nil
@@ -451,6 +453,10 @@ final class TalkController {
                 try Task.checkCancellation()
                 let requested = calls.calls
                 guard !requested.isEmpty, let toolbox else { break }
+                // Text before a tool call is narration ("let me look"); the
+                // answer that follows restates it, so only the answer stays.
+                reply = String(reply.dropLast(roundText.count))
+                chunker = SpokenReplyChunker()
                 messages.append(TalkMessage(
                     role: .assistant,
                     content: roundText,
@@ -468,7 +474,6 @@ final class TalkController {
                     try Task.checkCancellation()
                     messages.append(TalkMessage(toolResult: result, for: call.id))
                 }
-                if !reply.isEmpty, !reply.hasSuffix(" ") { reply += " " }
             }
             try finishReply(reply, chunker: &chunker, question: question)
         } catch is CancellationError {
@@ -486,6 +491,8 @@ final class TalkController {
         question: String
     ) async -> Bool {
         if allowedForConversation.contains(request.kind) { return true }
+        // Asking again for something just declined would nag; decline it.
+        if declinedThisTurn.contains(request.summary) { return false }
         cancelPendingApproval()
         phase = .awaitingApproval(question: question, request: request)
         return await withCheckedContinuation { continuation in
@@ -507,6 +514,9 @@ final class TalkController {
     private func resolveApproval(_ allowed: Bool) {
         guard let continuation = approvalContinuation else { return }
         approvalContinuation = nil
+        if !allowed, case let .awaitingApproval(_, request) = phase {
+            declinedThisTurn.insert(request.summary)
+        }
         if case let .awaitingApproval(question, _) = phase {
             phase = .working(
                 question: question,

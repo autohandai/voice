@@ -60,16 +60,21 @@ public struct WorkspaceSandbox: Sendable {
     }
 
     public func list(_ path: String) throws -> [Entry] {
+        try listing(path).entries
+    }
+
+    /// The first `maximumListedEntries` entries and how many there are in
+    /// all, so a cut-off listing can say so.
+    public func listing(_ path: String) throws -> (entries: [Entry], total: Int) {
         let url = try resolve(path)
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
         else { throw Failure.notFound }
         guard isDirectory.boolValue else { throw Failure.notAFile }
-        let names = try FileManager.default.contentsOfDirectory(atPath: url.path)
+        let all = try FileManager.default.contentsOfDirectory(atPath: url.path)
             .filter { !$0.hasPrefix(".") }
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-            .prefix(Self.maximumListedEntries)
-        return names.map { name in
+        let entries = all.prefix(Self.maximumListedEntries).map { name in
             let child = url.appendingPathComponent(name)
             let values = try? child.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey])
             return Entry(
@@ -78,6 +83,7 @@ public struct WorkspaceSandbox: Sendable {
                 size: Int64(values?.fileSize ?? 0)
             )
         }
+        return (entries, all.count)
     }
 
     public func read(_ path: String) throws -> String {

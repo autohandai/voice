@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// Runs cua-driver (https://github.com/trycua/cua) tool calls for Talk's
@@ -6,6 +7,7 @@ import Foundation
 struct CuaDriverClient: Sendable {
     private static let maximumOutputBytes = 256 * 1_024
     private static let timeout: TimeInterval = 60
+    private static let driverBundleIdentifier = "com.trycua.driver"
     private static let searchPaths = [
         "~/.local/bin/cua-driver",
         "/opt/homebrew/bin/cua-driver",
@@ -34,8 +36,13 @@ struct CuaDriverClient: Sendable {
         )
         var result = try await Self.run(executable, ["call", tool, json])
         if result.output.contains("daemon is not running") {
-            try Self.startService(executable)
-            try await Task.sleep(for: .seconds(2))
+            try await Self.startService(executable)
+            result = try await Self.run(executable, ["call", tool, json])
+        } else if result.output.hasPrefix("permissions_pending") {
+            // A daemon started from a shell runs under that shell's
+            // permissions, not CuaDriver's; restart it as CuaDriver once.
+            _ = try? await Self.run(executable, ["stop"])
+            try await Self.startService(executable)
             result = try await Self.run(executable, ["call", tool, json])
         }
         if result.output.hasPrefix("permissions_pending") {
@@ -51,13 +58,28 @@ struct CuaDriverClient: Sendable {
         return result.output
     }
 
-    private static func startService(_ executable: URL) throws {
+    /// Starts the service through LaunchServices so it runs as CuaDriver.app
+    /// and holds that app's permissions; a bare `serve` child would inherit
+    /// Autohand Voice's instead. Falls back to the CLI without the app.
+    private static func startService(_ executable: URL) async throws {
         let process = Process()
-        process.executableURL = executable
-        process.arguments = ["serve"]
+        if NSWorkspace.shared.urlForApplication(withBundleIdentifier: driverBundleIdentifier) != nil {
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            process.arguments = ["-n", "-g", "-b", driverBundleIdentifier, "--args", "serve"]
+        } else {
+            process.executableURL = executable
+            process.arguments = ["serve"]
+        }
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try process.run()
+        for _ in 0..<20 {
+            try await Task.sleep(for: .milliseconds(250))
+            if let status = try? await run(executable, ["status"]),
+               status.output.contains("daemon is running") {
+                return
+            }
+        }
     }
 
     private static func run(

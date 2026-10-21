@@ -45,6 +45,7 @@ final class TalkAgentToolbox {
         var lines = [
             "You can use tools. Files: list_files, read_file and write_file work only inside the user's workspace folder (\(workspaceURL().path)); paths are relative to it.",
             "Use a tool only when the user's request needs it, then answer briefly in plain spoken sentences.",
+            "Call tools without announcing them first; speak only the answer. If the user declines an action, don't try it again.",
         ]
         if computerUseEnabled(), cua.isInstalled {
             lines.append("Computer: list_apps, list_windows and read_window look at apps; open_app, click, type_text and press_key operate them and the user approves each one. Read a window before acting on it and use element tokens from read_window.")
@@ -101,10 +102,9 @@ final class TalkAgentToolbox {
 
         switch call.name {
         case "list_files":
-            let entries = try sandbox.list(try string("path") ?? "")
+            let (entries, total) = try sandbox.listing(try string("path") ?? "")
             if entries.isEmpty { return "The folder is empty." }
-            return entries.map { $0.isDirectory ? "\($0.name)/" : "\($0.name) (\($0.size) bytes)" }
-                .joined(separator: "\n")
+            return Self.describeListing(entries, total: total)
 
         case "read_file":
             return try sandbox.read(try required("path"))
@@ -116,7 +116,7 @@ final class TalkAgentToolbox {
                 guard await approve(ToolApprovalRequest(
                     kind: "overwrite",
                     summary: "Replace \(path) in your workspace?"
-                )) else { return "The user declined to replace \(path)." }
+                )) else { return "The user declined to replace \(path). Don't try it again." }
             }
             try sandbox.write(path, contents: contents)
             return "Saved \(path) (\(contents.utf8.count) bytes)."
@@ -180,10 +180,34 @@ final class TalkAgentToolbox {
         }
         if let approval {
             guard await approve(approval) else {
-                return "The user declined: \(approval.summary)"
+                return "The user declined: \(approval.summary) Don't try it again."
             }
         }
         return try await cua.call(tool, arguments: arguments)
+    }
+
+    /// A listing that fits the result limit: a count first, whole lines
+    /// only, and a note saying how many entries were left out.
+    static func describeListing(_ entries: [WorkspaceSandbox.Entry], total: Int) -> String {
+        let folders = entries.filter(\.isDirectory).count
+        var text = "\(total) items"
+        if total == entries.count {
+            text += " (\(folders) folders, \(total - folders) files):"
+        } else {
+            text += "; the first \(entries.count) by name:"
+        }
+        let budget = maximumResultCharacters - 80
+        var shown = 0
+        for entry in entries {
+            let line = entry.isDirectory ? "\(entry.name)/" : "\(entry.name) (\(entry.size) bytes)"
+            guard text.count + line.count + 1 <= budget else { break }
+            text += "\n" + line
+            shown += 1
+        }
+        if shown < total {
+            text += "\n…and \(total - shown) more not shown."
+        }
+        return text
     }
 
     private func appName(_ object: [String: Any]) -> String {

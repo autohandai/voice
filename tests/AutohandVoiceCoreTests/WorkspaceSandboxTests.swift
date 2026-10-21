@@ -32,6 +32,16 @@ final class WorkspaceSandboxTests: XCTestCase {
         XCTAssertEqual(entries.map(\.isDirectory), [true, false])
     }
 
+    func testLongListingsReportTheirFullCount() throws {
+        let count = WorkspaceSandbox.maximumListedEntries + 5
+        for index in 0..<count {
+            try sandbox.write("f\(index).txt", contents: "")
+        }
+        let listing = try sandbox.listing("")
+        XCTAssertEqual(listing.entries.count, WorkspaceSandbox.maximumListedEntries)
+        XCTAssertEqual(listing.total, count)
+    }
+
     func testPathsCannotEscapeTheWorkspace() {
         for path in ["../outside.txt", "/etc/hosts", "a/../../outside.txt", "~/x"] {
             XCTAssertThrowsError(try sandbox.read(path), path) { error in
